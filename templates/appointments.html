@@ -158,7 +158,7 @@
 
   <!-- Now Serving -->
   {% if serving %}
-  <div class="queue-block">
+  <div class="queue-block queue-block--serving">
     <div class="queue-block-label">Now Serving</div>
     <div class="visit-serving-card {% if serving.is_emergency %}visit-emergency{% endif %}">
       <div class="visit-token">#{{ serving.token_number }}{% if serving.is_emergency %} <span class="emergency-badge">🚨</span>{% endif %}</div>
@@ -426,6 +426,10 @@
       {% if is_today and not visit and appt.status.value == 'scheduled' %}
       <form method="POST" action="/visits/check-in-appt/{{ appt.id }}" style="display:inline;" onclick="event.stopPropagation();">
         <button type="submit" class="btn btn-sm" style="color:var(--success);border:1px solid rgba(74,222,128,.35);background:rgba(74,222,128,.07);">Check In</button>
+      </form>
+      <form method="POST" action="/appointments/{{ appt.id }}/status" style="display:inline;" onclick="event.stopPropagation();" onsubmit="return confirm('Mark {{ appt.patient.name }} as No Show?');">
+        <input type="hidden" name="status" value="no_show">
+        <button type="submit" class="btn btn-sm" style="color:var(--muted);border:1px solid var(--border);background:transparent;">No Show</button>
       </form>
       {% endif %}
     </div>

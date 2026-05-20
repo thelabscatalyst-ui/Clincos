@@ -626,7 +626,7 @@ def edit_patient(
     if not phone_clean.isdigit() or len(phone_clean) != 10:
         return RedirectResponse(url=f"/patients/{patient_id}?error=invalid_phone", status_code=303)
     if patient:
-        patient.name              = name.strip()
+        patient.name              = " ".join(w.capitalize() for w in name.strip().split())
         patient.phone             = phone_clean
         patient.age               = age if age and age > 0 else None
         patient.gender            = gender if gender else None

@@ -263,6 +263,11 @@ def has_open_appointment_on_date(
     return q.first() is not None
 
 
+def _title_name(name: str) -> str:
+    """Trim whitespace and title-case each word (e.g. 'dr. john doe' → 'Dr. John Doe')."""
+    return " ".join(w.capitalize() for w in name.strip().split())
+
+
 def get_or_create_patient(
     doctor_id: int, name: str, phone: str, db: Session,
     age: int | None = None, gender: str | None = None,
@@ -270,6 +275,7 @@ def get_or_create_patient(
     """Look up patient by phone for this doctor, or create a new record.
     If age/gender are provided they are always written (update existing too).
     """
+    name = _title_name(name)
     patient = db.query(Patient).filter(
         Patient.doctor_id == doctor_id,
         Patient.phone == phone,

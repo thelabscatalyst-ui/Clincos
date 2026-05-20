@@ -1,15 +1,17 @@
 """
 Background scheduler — APScheduler reminder jobs.
 
-Runs every 15 minutes and fires WhatsApp reminders:
+Runs every 15 minutes:
   • T-24h  — day-before reminder
   • T-2h   — same-day reminder
+  • Auto no-show — marks appointments as no_show if >1 hour past scheduled time
+    with no check-in recorded.
 
 Starts on app startup (wired into main.py lifespan).
 Gracefully skips if Twilio is not configured.
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -82,6 +84,63 @@ def _check_reminders():
 
 
 # ------------------------------------------------------------------ #
+#  Auto no-show job                                                    #
+# ------------------------------------------------------------------ #
+
+def _auto_no_show():
+    """Mark appointments as no_show when patient hasn't arrived > 1 hour after slot time."""
+    from database.connection import SessionLocal
+    from database.models import Appointment, AppointmentStatus, BookedBy, Visit, VisitStatus
+
+    db = SessionLocal()
+    try:
+        now      = datetime.now()
+        today    = date.today()
+        cutoff   = now - timedelta(hours=1)   # appointments whose time < 1h ago
+
+        # Candidates: scheduled appointments for today that haven't been checked in
+        candidates = (
+            db.query(Appointment)
+            .filter(
+                Appointment.appointment_date == today,
+                Appointment.status           == AppointmentStatus.scheduled,
+                Appointment.booked_by        != BookedBy.walk_in,   # walk-ins always auto check-in
+            )
+            .all()
+        )
+
+        marked = 0
+        for appt in candidates:
+            appt_dt = datetime.combine(appt.appointment_date, appt.appointment_time)
+            if appt_dt > cutoff:
+                continue   # not yet 1 hour overdue
+
+            # Skip if a visit exists (patient checked in at some point)
+            has_visit = (
+                db.query(Visit)
+                .filter(
+                    Visit.appointment_id == appt.id,
+                    Visit.status.notin_([VisitStatus.cancelled]),
+                )
+                .first()
+            )
+            if has_visit:
+                continue
+
+            appt.status = AppointmentStatus.no_show
+            marked += 1
+
+        if marked:
+            db.commit()
+            logger.info(f"Auto no-show: marked {marked} appointment(s).")
+
+    except Exception as exc:
+        logger.error(f"Auto no-show error: {exc}", exc_info=True)
+    finally:
+        db.close()
+
+
+# ------------------------------------------------------------------ #
 #  Start / stop (called from main.py lifespan)                        #
 # ------------------------------------------------------------------ #
 
@@ -94,6 +153,14 @@ def start_scheduler():
         id="reminder_check",
         replace_existing=True,
         misfire_grace_time=120,   # allow up to 2 min late
+    )
+    _scheduler.add_job(
+        _auto_no_show,
+        trigger="interval",
+        minutes=15,
+        id="auto_no_show",
+        replace_existing=True,
+        misfire_grace_time=120,
     )
     _scheduler.start()
     logger.info("Reminder scheduler started (every 15 min).")
