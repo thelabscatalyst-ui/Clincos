@@ -12,6 +12,7 @@ Doctors get a personal booking page, live token queue, WhatsApp reminders, patie
 - Live token queue on the appointments page — check in walk-ins, serve, skip, promote emergencies
 - Queue state machine: Waiting → Serving → Billing Pending → Done
 - Walk-in quick booking with auto check-in to queue
+- Returning patient detection — entering a known phone number shows a **Returning** badge with visit count and auto-fills the patient's name
 - Scheduled appointments with slot-based booking (no double booking)
 - Create, edit, and reschedule appointments
 - Appointment detail card overlay — view history, doctor notes, status

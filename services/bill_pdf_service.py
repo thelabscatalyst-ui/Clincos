@@ -46,6 +46,15 @@ def _upload_dir(doctor_id: int, patient_id: int) -> Path:
     return p
 
 
+def _safe(text) -> str:
+    """Encode to Latin-1, replacing any character the Helvetica font can't render.
+    Also normalises the Rs. rupee sign so ₹ never crashes the PDF builder."""
+    if text is None:
+        return ""
+    s = str(text).replace("₹", "Rs.").replace("₹", "Rs.")
+    return s.encode("latin-1", errors="replace").decode("latin-1")
+
+
 def _fmt_inr(value) -> str:
     try:
         return f"Rs. {float(value):,.2f}"
@@ -57,10 +66,11 @@ def _fmt_inr(value) -> str:
 
 def generate_and_store_bill_pdf(bill: Bill, db) -> None:
     """Failures are silently swallowed — billing must never be blocked."""
+    import logging
     try:
         _do_generate(bill, db)
-    except Exception:
-        pass
+    except Exception as _e:
+        logging.getLogger(__name__).error(f"bill_pdf failed for bill {bill.id}: {_e}", exc_info=True)
 
 
 def regenerate_bill_pdf(bill: Bill, db) -> None:
@@ -113,13 +123,13 @@ def _do_generate(bill: Bill, db) -> None:
     stored     = f"bill_{bill.id}_{uuid.uuid4().hex[:6]}.pdf"
     (upload_dir / stored).write_bytes(pdf_bytes)
 
-    date_str = bill.created_at.strftime("%d %b %Y") if bill.created_at else ""
     mode_str = bill.payment_mode.value.upper() if bill.payment_mode else ""
+    safe_name = "".join(c for c in patient.name if c.isalnum() or c in " '-").strip() or "Patient"
 
     doc = PatientDocument(
         doctor_id     = doctor.id,
         patient_id    = patient.id,
-        original_name = f"Bill {bill.id} - {date_str}.pdf",
+        original_name = f"Bill - {safe_name}.pdf",
         stored_name   = stored,
         file_size     = len(pdf_bytes),
         mime_type     = "application/pdf",
@@ -190,7 +200,7 @@ class BillPDF(FPDF):
         # Row 1 — clinic name (left) + Bill #N (right)
         self.set_font("Helvetica", "B", 18)
         self._c(*TEXT)
-        clinic = doctor.clinic_name or f"Dr. {doctor.name}"
+        clinic = _safe(doctor.clinic_name or f"Dr. {doctor.name}")
         self.set_x(CX)
         self.cell(120, 10, clinic, ln=False)
 
@@ -207,7 +217,7 @@ class BillPDF(FPDF):
         if doctor.specialization:
             spec += f"  ·  {doctor.specialization}"
         self.set_x(CX)
-        self.cell(120, 5, spec, ln=False)
+        self.cell(120, 5, _safe(spec), ln=False)
 
         date_val = bill.paid_at or bill.created_at
         date_str = date_val.strftime("%d %B %Y") if date_val else ""
@@ -221,14 +231,14 @@ class BillPDF(FPDF):
             if doctor.city:
                 addr = f"{addr}, {doctor.city}" if addr else doctor.city
             self.set_x(CX)
-            self.cell(0, 5, addr, ln=True)
+            self.cell(0, 5, _safe(addr), ln=True)
 
         if doctor.phone:
             contact = doctor.phone
             if doctor.email:
                 contact += f"  ·  {doctor.email}"
             self.set_x(CX)
-            self.cell(0, 5, contact, ln=True)
+            self.cell(0, 5, _safe(contact), ln=True)
 
         self.ln(5)
         self._divider(thickness=0.6)
@@ -249,12 +259,13 @@ class BillPDF(FPDF):
         self.set_x(CX + PX)
         self.set_font("Helvetica", "B", 13)
         self._c(*TEXT)
-        self.cell(110, R1, patient.name, ln=False)
+        self.cell(110, R1, _safe(patient.name), ln=False)
 
         if visit:
             self.set_font("Helvetica", "", 10)
             self._c(*MUTED)
-            vi = f"Token #{visit.token_number}  ·  {visit.visit_date.strftime('%d %b %Y')}"
+            visit_date_str = visit.visit_date.strftime('%d %b %Y') if visit.visit_date else ""
+            vi = f"Token #{visit.token_number}  ·  {visit_date_str}"
             vw = self.get_string_width(vi) + 2
             self.set_x(CR - PX - vw)
             self.cell(vw, R1, vi, ln=True, align="R")
@@ -270,7 +281,7 @@ class BillPDF(FPDF):
         if patient.gender:       parts.append(patient.gender.title())
         if patient.blood_group:  parts.append(patient.blood_group)
         meta = "  ·  ".join(p for p in parts if p)
-        self.cell(110, R2, meta, ln=False)
+        self.cell(110, R2, _safe(meta), ln=False)
 
         if appt:
             atype = appt.appointment_type.value.replace("_", " ").title()
@@ -291,7 +302,7 @@ class BillPDF(FPDF):
         # ── Pre-calculate row heights for multi-line descriptions ──
         if rows:
             row_heights = [
-                max(RH, self._count_lines(str(item.description), desc_avail) * RH)
+                max(RH, self._count_lines(_safe(item.description), desc_avail) * RH)
                 for item in rows
             ]
         else:
@@ -336,7 +347,7 @@ class BillPDF(FPDF):
                 self.set_xy(CX + PX, row_y)
                 self.set_font("Helvetica", "", 11)
                 self._c(*TEXT)
-                self.multi_cell(CD - PX, RH, str(item.description), align="L")
+                self.multi_cell(CD - PX, RH, _safe(item.description), align="L")
 
                 # Qty / Unit Price / Total — anchored to row_y, full rh height
                 self.set_xy(CX + CD, row_y)
@@ -383,7 +394,7 @@ class BillPDF(FPDF):
         if show_subtotal:
             trow("Subtotal", _fmt_inr(bill.subtotal))
         if disc > 0:
-            trow("Discount", f"− {_fmt_inr(disc)}", color=AMBER)
+            trow("Discount", f"- {_fmt_inr(disc)}", color=AMBER)
         if gst > 0:
             trow("GST", _fmt_inr(gst))
 
@@ -434,7 +445,7 @@ class BillPDF(FPDF):
             self.set_x(CX)
             self.set_font("Helvetica", "", 9)
             self._c(*MUTED)
-            self.multi_cell(CW, 5, f"Note: {bill.notes}")
+            self.multi_cell(CW, 5, _safe(f"Note: {bill.notes}"))
 
         self.ln(8)
 
@@ -446,7 +457,7 @@ class BillPDF(FPDF):
         self.set_font("Helvetica", "I", 10)
         self._c(*MUTED)
         self.set_x(CX)
-        self.cell(120, 5, f"Thank you for visiting {clinic}", ln=False)
+        self.cell(120, 5, _safe(f"Thank you for visiting {clinic}"), ln=False)
 
         gen_str = f"Generated by ClinicOS  ·  {datetime.now().strftime('%d %b %Y')}"
         self.set_font("Helvetica", "", 8)

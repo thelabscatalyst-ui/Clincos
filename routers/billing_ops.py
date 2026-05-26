@@ -206,11 +206,15 @@ async def create_bill(
     _auto_complete_appointment(db, visit)
     vs.close_visit(db, visit, bill.id)
 
+    # Re-fetch bill after close_visit commits so all relationships are fresh
     try:
+        import logging as _log
         from services.bill_pdf_service import generate_and_store_bill_pdf
-        generate_and_store_bill_pdf(bill, db)
-    except Exception:
-        pass
+        fresh_bill = db.query(Bill).filter(Bill.id == bill.id).first()
+        if fresh_bill:
+            generate_and_store_bill_pdf(fresh_bill, db)
+    except Exception as _pdf_err:
+        _log.getLogger(__name__).error(f"PDF generation failed for bill {bill.id}: {_pdf_err}", exc_info=True)
     try:
         from services.notification_service import notify_bill_receipt
         notify_bill_receipt(bill, doctor, db)
@@ -392,6 +396,20 @@ async def bill_detail(
     ).first()
     if not bill:
         return RedirectResponse("/appointments", status_code=303)
+
+    # Auto-backfill: if no vault PDF exists for this bill, generate it now
+    from database.models import PatientDocument
+    has_pdf = db.query(PatientDocument).filter(
+        PatientDocument.doctor_id  == bill.doctor_id,
+        PatientDocument.patient_id == bill.patient_id,
+        PatientDocument.stored_name.like(f"bill_{bill.id}_%"),
+    ).first()
+    if not has_pdf:
+        try:
+            from services.bill_pdf_service import generate_and_store_bill_pdf
+            generate_and_store_bill_pdf(bill, db)
+        except Exception:
+            pass
 
     return templates.TemplateResponse(request, "bill_detail.html", {
         "active": "appointments",

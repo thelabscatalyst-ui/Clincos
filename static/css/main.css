@@ -5102,13 +5102,13 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
 .btn-collect {
   background: rgba(175,142,100,0.15);
   border: 1px solid rgba(175,142,100,0.5);
-  color: #1a1410;
+  color: #ede8e2;
   font-weight: 600;
 }
 html.light .btn-collect {
   background: rgba(107,74,40,0.1);
   border: 1px solid rgba(107,74,40,0.4);
-  color: #1a1410;
+  color: #3d2010;
 }
 .btn-collect:hover {
   background: rgba(175,142,100,0.25);

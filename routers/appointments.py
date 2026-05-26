@@ -108,19 +108,16 @@ def appointments_list(
     for a in appointments:
         a.patient  # ensure lazy-load
 
-    # ── Walk-in availability — only within doctor's working hours ───────
+    # ── Walk-in availability — any time today (walk-ins are ad-hoc, not slot-bound) ───
     walkin_available = False
     if view_date == today:
-        from datetime import datetime as _dt
-        _dow = today.weekday()  # 0 = Monday
-        _sched = db.query(DoctorSchedule).filter(
+        _dow = today.weekday()
+        _scheds = db.query(DoctorSchedule).filter(
             DoctorSchedule.doctor_id == viewing_doctor.id,
             DoctorSchedule.day_of_week == _dow,
             DoctorSchedule.is_active == True,
-        ).first()
-        if _sched:
-            _now_t = _dt.now().time()
-            walkin_available = _sched.start_time <= _now_t <= _sched.end_time
+        ).all()
+        walkin_available = bool(_scheds)
 
     # ── Queue data (today only) ───────────────────────────────────────
     visit_map = {}   # appt_id → Visit (for status badges on schedule rows)
@@ -435,6 +432,35 @@ async def create_appointment(
         pass
 
     return RedirectResponse(url=f"/appointments?filter_date={appt.appointment_date.isoformat()}", status_code=303)
+
+
+# ------------------------------------------------------------------ #
+#  Patient phone lookup — JSON (walk-in autofill)                      #
+# ------------------------------------------------------------------ #
+
+@router.get("/patient-lookup")
+def patient_phone_lookup(
+    phone: str = Query(...),
+    for_doctor_id: int = Query(default=0),
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    target = _resolve_target_doctor(for_doctor_id, doctor, db)
+    phone = phone.strip()
+    if not phone.isdigit() or len(phone) != 10:
+        return JSONResponse({"found": False})
+    patient = db.query(Patient).filter(
+        Patient.doctor_id == target.id,
+        Patient.phone == phone,
+    ).first()
+    if not patient:
+        return JSONResponse({"found": False})
+    return JSONResponse({
+        "found": True,
+        "name": patient.name,
+        "age": patient.age,
+        "gender": patient.gender or "",
+    })
 
 
 # ------------------------------------------------------------------ #

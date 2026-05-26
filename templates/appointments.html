@@ -66,16 +66,18 @@
         {% endfor %}
       </select>
       {% endif %}
-      <div class="walkin-row">
-        <input type="text"  name="patient_name"  placeholder="Patient name"    required class="input-sm" />
-        <div class="walkin-phone-wrap">
+      <div class="walkin-row" style="align-items:flex-start;">
+        <div id="walkinPhoneWrap" style="flex:1;min-width:0;">
           <input type="tel" id="walkinPhone" name="patient_phone" placeholder="Phone (10 digits)" required
-                 pattern="[0-9]{10}" minlength="10" maxlength="10" class="input-sm" />
+                 pattern="[0-9]{10}" minlength="10" maxlength="10" class="input-sm" autocomplete="off"
+                 oninput="walkinPhoneLookup(this.value)" style="width:100%;box-sizing:border-box;padding-right:85px;" />
+          <span id="walkinLookupBadge" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:20px;border:1px solid var(--dim);color:var(--muted);background:var(--bg-2);white-space:nowrap;pointer-events:none;">Returning</span>
         </div>
+        <input type="text"  id="walkinName" name="patient_name"  placeholder="Patient name" required class="input-sm" onclick="walkinNameClick()" />
       </div>
       <div class="walkin-row">
-        <input type="number" name="patient_age"    placeholder="Age"    min="0" max="120" class="input-sm walkin-age" />
-        <select              name="patient_gender"                                          class="input-sm walkin-gender">
+        <input type="number" id="walkinAge" name="patient_age"    placeholder="Age"    min="0" max="120" class="input-sm walkin-age" />
+        <select id="walkinGender" name="patient_gender" class="input-sm walkin-gender">
           <option value="">Gender</option>
           <option value="male">Male</option>
           <option value="female">Female</option>
@@ -657,13 +659,59 @@ function toggleWalkin() {
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
   if (!isOpen) {
-    panel.querySelector('input[name="patient_name"]').focus();
+    document.getElementById('walkinPhone').focus();
     btn.textContent = '✕ Close';
   } else {
     btn.textContent = '+ Walk-in';
     document.getElementById('emergencyToggle')?.classList.remove('active');
     document.getElementById('emergencyCheck').checked = false;
   }
+}
+
+// Phone-based patient autofill for walk-in
+var _walkinFilled = false;
+function walkinPhoneLookup(raw) {
+  var phone  = raw.replace(/\D/g, '');
+  var nameEl = document.getElementById('walkinName');
+  var ageEl  = document.getElementById('walkinAge');
+  var genEl  = document.getElementById('walkinGender');
+  var badge  = document.getElementById('walkinLookupBadge');
+  if (phone.length !== 10) {
+    if (_walkinFilled) {
+      _walkinFilled = false;
+      nameEl.readOnly = false; nameEl.style.opacity = '';
+      badge.style.display = 'none';
+    }
+    return;
+  }
+  var docSel = document.querySelector('select[name="for_doctor_id"]');
+  var forDoc = docSel ? docSel.value : '0';
+  fetch('/appointments/patient-lookup?phone=' + phone + '&for_doctor_id=' + forDoc)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.found) {
+        nameEl.value = data.name;
+        nameEl.readOnly = true;
+        nameEl.style.opacity = '0.7';
+        if (data.age)    ageEl.value  = data.age;
+        if (data.gender) genEl.value  = data.gender;
+        badge.style.display = 'block';
+        _walkinFilled = true;
+      } else if (_walkinFilled) {
+        _walkinFilled = false;
+        nameEl.readOnly = false; nameEl.style.opacity = '';
+        badge.style.display = 'none';
+      }
+    })
+    .catch(function() {});
+}
+function walkinNameClick() {
+  if (!_walkinFilled) return;
+  _walkinFilled = false;
+  var nameEl = document.getElementById('walkinName');
+  var badge  = document.getElementById('walkinLookupBadge');
+  nameEl.readOnly = false; nameEl.style.opacity = ''; nameEl.value = '';
+  badge.style.display = 'none';
 }
 
 function toggleEmergency() {
@@ -706,7 +754,28 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endif %}
 
 document.addEventListener('DOMContentLoaded', function() {
-  initPhoneInput(document.getElementById('walkinPhone'));
+  var phoneEl = document.getElementById('walkinPhone');
+  initPhoneInput(phoneEl);
+  // initPhoneInput wraps the input in .phone-wrap and appends a counter span.
+  // Move the badge into .phone-wrap. Make the counter absolutely positioned so
+  // it doesn't stretch the wrap height — badge top:50% then centers on the input.
+  var badge    = document.getElementById('walkinLookupBadge');
+  var phoneWrap = phoneEl.closest('.phone-wrap');
+  if (badge && phoneWrap) {
+    phoneWrap.style.position = 'relative';
+    var counter = phoneWrap.querySelector('.phone-counter');
+    if (counter) {
+      counter.style.position   = 'absolute';
+      counter.style.top        = '100%';
+      counter.style.left       = '0';
+      counter.style.marginTop  = '3px';
+      phoneWrap.style.marginBottom = '18px';
+      // Keep name input parallel — give it the same bottom spacing
+      var nameEl = document.getElementById('walkinName');
+      if (nameEl) nameEl.style.marginBottom = '18px';
+    }
+    phoneWrap.appendChild(badge);
+  }
 });
 
 /* Auto-refresh removed — page reloads on every action anyway */

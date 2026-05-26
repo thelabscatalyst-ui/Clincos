@@ -87,7 +87,7 @@
           </div>
           <div class="form-group">
             <label for="patient_phone">Phone Number</label>
-            <div class="apn-input-wrap">
+            <div class="apn-input-wrap" style="position:relative;">
               <span class="apn-input-icon">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 3.08 4.18 2 2 0 0 1 5.09 2h3a2 2 0 0 1 2 1.72 13 13 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L9.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 13 13 0 0 0 2.81.7A2 2 0 0 1 23 16.92z"/>
@@ -97,7 +97,9 @@
                      placeholder="e.g. 9876543210"
                      pattern="[0-9]{10}" minlength="10" maxlength="10"
                      title="Enter a 10-digit phone number"
-                     value="{{ form_data.get('patient_phone', '') }}" required>
+                     value="{{ form_data.get('patient_phone', '') }}" required
+                     oninput="apptPhoneLookup(this.value)" autocomplete="off">
+              <span id="apptReturningBadge" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:20px;border:1px solid var(--dim);color:var(--muted);background:var(--bg-2);white-space:nowrap;pointer-events:none;">Returning</span>
             </div>
           </div>
         </div>
@@ -421,7 +423,65 @@ dateInput.addEventListener('change', () => {
 
 window.addEventListener('DOMContentLoaded', () => {
   if (dateInput.value) loadSlots(dateInput.value);
-  initPhoneInput(document.getElementById('patient_phone'));
+  var phoneEl = document.getElementById('patient_phone');
+  initPhoneInput(phoneEl);
+  // After initPhoneInput wraps the input, fix the badge position
+  var badge    = document.getElementById('apptReturningBadge');
+  var phoneWrap = phoneEl ? (phoneEl.closest('.phone-wrap') || phoneEl.parentNode) : null;
+  if (badge && phoneWrap) {
+    phoneWrap.style.position = 'relative';
+    var counter = phoneWrap.querySelector('.phone-counter');
+    if (counter) { counter.style.position = 'absolute'; counter.style.top = '100%'; counter.style.left = '0'; counter.style.marginTop = '3px'; }
+    phoneWrap.appendChild(badge);
+  }
+});
+
+var _apptFilled = false;
+function apptPhoneLookup(raw) {
+  var phone  = raw.replace(/\D/g, '');
+  var nameEl = document.getElementById('patient_name');
+  var ageEl  = document.getElementById('patient_age');
+  var genEl  = document.getElementById('patient_gender');
+  var badge  = document.getElementById('apptReturningBadge');
+  if (phone.length !== 10) {
+    if (_apptFilled) {
+      _apptFilled = false;
+      nameEl.readOnly = false; nameEl.style.opacity = '';
+      if (badge) badge.style.display = 'none';
+    }
+    return;
+  }
+  var docSel = document.querySelector('select[name="for_doctor_id"]');
+  var forDoc = docSel ? docSel.value : '0';
+  fetch('/appointments/patient-lookup?phone=' + phone + '&for_doctor_id=' + forDoc)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.found) {
+        nameEl.value = data.name;
+        nameEl.readOnly = true;
+        nameEl.style.opacity = '0.7';
+        if (data.age)    ageEl.value = data.age;
+        if (data.gender) genEl.value = data.gender;
+        if (badge) badge.style.display = 'block';
+        _apptFilled = true;
+      } else if (_apptFilled) {
+        _apptFilled = false;
+        nameEl.readOnly = false; nameEl.style.opacity = '';
+        if (badge) badge.style.display = 'none';
+      }
+    })
+    .catch(function() {});
+}
+// Click name to manually override autofill
+document.addEventListener('DOMContentLoaded', function() {
+  var nameEl = document.getElementById('patient_name');
+  if (nameEl) nameEl.addEventListener('click', function() {
+    if (!_apptFilled) return;
+    _apptFilled = false;
+    nameEl.readOnly = false; nameEl.style.opacity = ''; nameEl.value = '';
+    var badge = document.getElementById('apptReturningBadge');
+    if (badge) badge.style.display = 'none';
+  });
 });
 </script>
 {% endblock %}
