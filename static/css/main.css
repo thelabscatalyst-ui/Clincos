@@ -736,6 +736,106 @@ html.light .navbar-settings-link:hover {
 /* ------------------------------------------------------------------ */
 /*  Stats Row                                                           */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/*  Trial upgrade banner                                                */
+/* ------------------------------------------------------------------ */
+.trial-upgrade-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(180,130,60,.22) 0%, rgba(180,130,60,.10) 100%);
+  border: 1px solid rgba(180,130,60,.55);
+  border-radius: var(--radius);
+  padding: 16px 22px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.35), 0 0 0 0 transparent;
+}
+html.light .trial-upgrade-banner {
+  background: linear-gradient(135deg, rgba(180,130,60,.14) 0%, rgba(180,130,60,.06) 100%);
+  border-color: rgba(140,100,30,.45);
+  box-shadow: 0 2px 12px rgba(60,40,20,.12);
+}
+.tub-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+.tub-pill {
+  flex-shrink: 0;
+  background: rgba(212,160,64,.22);
+  color: #d4a040;
+  border: 1px solid rgba(212,160,64,.50);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+html.light .tub-pill {
+  color: #7a5010;
+  background: rgba(140,100,30,.15);
+  border-color: rgba(140,100,30,.35);
+}
+.tub-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.tub-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+.tub-sub {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tub-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.tub-btn {
+  display: inline-block;
+  background: #b48230;
+  color: #1a1612;
+  border: 1px solid #b48230;
+  border-radius: var(--radius-sm);
+  padding: 9px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .15s, box-shadow .15s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(180,130,60,.35);
+}
+.tub-btn:hover {
+  background: #c9973a;
+  box-shadow: 0 4px 14px rgba(180,130,60,.50);
+}
+html.light .tub-btn { color: #fff; }
+@media (max-width: 640px) {
+  .trial-upgrade-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .tub-sub { display: none; }
+  .tub-right { width: 100%; justify-content: space-between; }
+}
+
 .stats-row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

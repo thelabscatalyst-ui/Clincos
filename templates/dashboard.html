@@ -20,6 +20,26 @@
   </div>
 </div>
 
+<!-- ── Trial Upgrade Banner ─────────────────────────────────────────────── -->
+{% if trial_active %}
+<div class="trial-upgrade-banner" id="trialUpgradeBanner">
+  <div class="tub-left">
+    <span class="tub-pill">Free Trial</span>
+    <div class="tub-text">
+      <div class="tub-title">
+        {% if days_left == 0 %}Your trial expires today
+        {% elif days_left == 1 %}1 day left on your free trial
+        {% else %}{{ days_left }} days left on your free trial{% endif %}
+      </div>
+      <div class="tub-sub">Upgrade now to keep your appointments, patients, and data — no interruptions.</div>
+    </div>
+  </div>
+  <div class="tub-right">
+    <a href="/pricing" class="tub-btn">Upgrade Now →</a>
+  </div>
+</div>
+{% endif %}
+
 <!-- Stats Row -->
 <div class="stats-row">
   <div class="stat-card">
@@ -296,5 +316,6 @@ function togglePrev() {
   chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
   toggle.classList.toggle('dash-prev-toggle--open', open);
 }
+
 </script>
 {% endblock %}

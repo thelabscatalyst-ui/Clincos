@@ -296,6 +296,10 @@
     <strong>14-day free trial</strong> — no credit card required. Full access from day one.
   </div>
 
+  {# Plan rank — higher number = more seats. Used to block downgrades. #}
+  {% set PLAN_RANK = {'trial': 0, 'basic': 1, 'solo': 1, 'pro': 2, 'duo': 2, 'clinic': 3, 'hospital': 4, 'enterprise': 5} %}
+  {% set my_rank = PLAN_RANK.get(current_plan, 0) %}
+
   <div class="pricing-grid">
 
     <!-- Solo -->
@@ -315,12 +319,39 @@
         <li>PIN security</li>
       </ul>
       {% if doctor %}
-        {% if plan_status == "trial" %}
-          <a href="/billing" class="pc-btn pc-btn--primary">Upgrade Now →</a>
-        {% elif plan_status == "expired" %}
-          <a href="/billing" class="pc-btn pc-btn--primary">Renew Now →</a>
+        {% set solo_seats = plans['solo']['seats'] %}
+        {% if solo_seats is not none and solo_seats < min_seats_needed %}
+          {# Clinic owner — too many doctors for this plan #}
+          <span class="pc-btn" style="opacity:.45;cursor:not-allowed;"
+                title="Your clinic has {{ min_seats_needed }} doctors. This plan only covers {{ solo_seats }}. Upgrade to a multi-doctor plan.">
+            Not enough seats for your clinic
+          </span>
         {% else %}
-          <a href="/billing" class="pc-btn">Manage Subscription →</a>
+          {% set card_rank = PLAN_RANK.get('solo', 1) %}
+          {% if plan_status == "active" and card_rank < my_rank %}
+            <span class="pc-btn" style="opacity:.45;cursor:not-allowed;"
+                  title="Your current plan includes more seats. Contact support to downgrade.">
+              Current plan is higher
+            </span>
+          {% elif plan_status == "active" and card_rank == my_rank %}
+            {% if razorpay_configured %}
+              <button type="button" class="pc-btn"
+                      onclick="startPayment('solo', {{ plans['solo']['amount'] }}, this)">
+                Renew Solo →
+              </button>
+            {% else %}
+              <span class="pc-btn" style="opacity:.5;cursor:default;">Payment not configured</span>
+            {% endif %}
+          {% else %}
+            {% if razorpay_configured %}
+              <button type="button" class="pc-btn pc-btn--primary"
+                      onclick="startPayment('solo', {{ plans['solo']['amount'] }}, this)">
+                {% if plan_status == "expired" %}Renew Now →{% else %}Upgrade Now →{% endif %}
+              </button>
+            {% else %}
+              <span class="pc-btn" style="opacity:.5;cursor:default;">Payment not configured</span>
+            {% endif %}
+          {% endif %}
         {% endif %}
       {% else %}
         <a href="/register?plan=solo" class="pc-btn pc-btn--primary">Start free trial</a>
@@ -344,10 +375,41 @@
         <li>Priority support</li>
       </ul>
       {% if doctor %}
-        {% if plan_status in ["trial", "expired"] %}
-          <a href="/billing" class="pc-btn pc-btn--primary">Upgrade to Clinic →</a>
+        {% set clinic_seats = plans['clinic']['seats'] %}
+        {% if clinic_seats is not none and clinic_seats < min_seats_needed %}
+          {# Not enough seats even in Clinic plan — shouldn't normally happen #}
+          <span class="pc-btn" style="opacity:.45;cursor:not-allowed;"
+                title="Your clinic has {{ min_seats_needed }} doctors. Contact support for a larger plan.">
+            Not enough seats for your clinic
+          </span>
         {% else %}
-          <a href="/billing" class="pc-btn">Manage Subscription →</a>
+          {% set card_rank = PLAN_RANK.get('clinic', 3) %}
+          {% if plan_status == "active" and card_rank < my_rank %}
+            <span class="pc-btn" style="opacity:.45;cursor:not-allowed;"
+                  title="Your current plan includes more seats. Contact support to downgrade.">
+              Current plan is higher
+            </span>
+          {% elif plan_status == "active" and card_rank == my_rank %}
+            {% if razorpay_configured %}
+              <button type="button" class="pc-btn"
+                      onclick="startPayment('clinic', {{ plans['clinic']['amount'] }}, this)">
+                Renew Clinic →
+              </button>
+            {% else %}
+              <span class="pc-btn" style="opacity:.5;cursor:default;">Payment not configured</span>
+            {% endif %}
+          {% else %}
+            {% if razorpay_configured %}
+              <button type="button" class="pc-btn pc-btn--primary"
+                      onclick="startPayment('clinic', {{ plans['clinic']['amount'] }}, this)">
+                {% if plan_status == "active" %}Upgrade to Clinic →
+                {% elif plan_status == "expired" %}Renew Now →
+                {% else %}Upgrade to Clinic →{% endif %}
+              </button>
+            {% else %}
+              <span class="pc-btn" style="opacity:.5;cursor:default;">Payment not configured</span>
+            {% endif %}
+          {% endif %}
         {% endif %}
       {% else %}
         <a href="/register?plan=clinic" class="pc-btn">Start free trial</a>
@@ -380,6 +442,92 @@
   </div>
 
 </div>
+
+{% if doctor and razorpay_configured %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+var _toastEl = null, _toastTimer = null;
+function showPayToast(msg, isError) {
+  clearTimeout(_toastTimer);
+  if (_toastEl && _toastEl.parentNode) _toastEl.parentNode.removeChild(_toastEl);
+  var isDark = !document.documentElement.classList.contains('light');
+  _toastEl = document.createElement('div');
+  _toastEl.textContent = msg;
+  Object.assign(_toastEl.style, {
+    position:'fixed', bottom:'36px', left:'50%', transform:'translateX(-50%)',
+    background: isDark ? '#2a2520' : '#f5f2ec',
+    border: '1px solid ' + (isError ? 'rgba(248,113,113,0.5)' : (isDark ? '#3d3630' : '#c2a98a')),
+    borderRadius:'8px', padding:'11px 22px', fontSize:'13px', fontWeight:'500',
+    fontFamily:'Inter, -apple-system, sans-serif',
+    color: isError ? '#f87171' : (isDark ? '#9a8f85' : '#6b5f55'),
+    boxShadow:'0 8px 32px rgba(0,0,0,0.45)', whiteSpace:'nowrap',
+    zIndex:'2147483647', opacity:'0', transition:'opacity 0.25s ease', pointerEvents:'none',
+  });
+  document.body.appendChild(_toastEl);
+  void _toastEl.offsetWidth;
+  _toastEl.style.opacity = '1';
+  _toastTimer = setTimeout(function() {
+    if (_toastEl) _toastEl.style.opacity = '0';
+    setTimeout(function() { if (_toastEl && _toastEl.parentNode) _toastEl.parentNode.removeChild(_toastEl); _toastEl = null; }, 300);
+  }, 4000);
+}
+
+async function startPayment(plan, amount, btn) {
+  var origText = btn.textContent.trim();
+  btn.disabled = true;
+  btn.textContent = 'Creating order…';
+  var paid = false;
+  try {
+    var res  = await fetch('/billing/create-order?plan=' + plan, { method: 'POST' });
+    var data = await res.json();
+    if (data.error) {
+      showPayToast('Could not start payment — ' + data.error, true);
+      btn.disabled = false; btn.textContent = origText; return;
+    }
+    var options = {
+      key:         data.key_id,
+      amount:      data.amount,
+      currency:    data.currency,
+      order_id:    data.order_id,
+      name:        'ClinicOS',
+      description: plan.charAt(0).toUpperCase() + plan.slice(1) + ' Plan — 1 Month',
+      prefill:     { name: '{{ doctor.name }}', email: '{{ doctor.email }}', contact: '{{ doctor.phone }}' },
+      theme:       { color: '#b48230' },
+      modal: {
+        ondismiss: function() {
+          if (paid) return;
+          btn.disabled = false; btn.textContent = origText;
+          showPayToast('Payment cancelled — no charge was made.');
+        }
+      },
+      handler: function(response) {
+        paid = true;
+        btn.textContent = 'Verifying…';
+        var form = document.createElement('form');
+        form.method = 'POST'; form.action = '/billing/verify';
+        var fields = {
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_order_id:   response.razorpay_order_id,
+          razorpay_signature:  response.razorpay_signature,
+          plan: plan,
+        };
+        Object.entries(fields).forEach(function(e) {
+          var inp = document.createElement('input');
+          inp.type = 'hidden'; inp.name = e[0]; inp.value = e[1];
+          form.appendChild(inp);
+        });
+        document.body.appendChild(form);
+        form.submit();
+      },
+    };
+    new Razorpay(options).open();
+  } catch(err) {
+    showPayToast('Something went wrong. Please try again.', true);
+    btn.disabled = false; btn.textContent = origText;
+  }
+}
+</script>
+{% endif %}
 
 <script>
 // Replace the history entry so the browser back button always returns to landing,

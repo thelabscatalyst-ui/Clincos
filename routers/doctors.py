@@ -910,12 +910,35 @@ def pricing_page(
         else:
             plan_status = "expired"
 
+    current_plan = doctor.plan_type.value if doctor and doctor.plan_type else "trial"
+
+    # Minimum seats the doctor actually needs right now (based on clinic headcount).
+    # Solo doctors → 1.  Clinic owners → number of active members in their clinic.
+    # This prevents buying a plan with fewer seats than doctors already in the clinic.
+    min_seats_needed = 1
+    if doctor:
+        owned = (
+            db.query(ClinicDoctor)
+            .filter(ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner")
+            .first()
+        )
+        if owned:
+            member_count = (
+                db.query(ClinicDoctor)
+                .filter(ClinicDoctor.clinic_id == owned.clinic_id,
+                        ClinicDoctor.is_active == True)
+                .count()
+            )
+            min_seats_needed = max(1, member_count)
+
     return templates.TemplateResponse(request, "pricing.html", {
         "plans":               PLAN_CONFIG,
         "razorpay_configured": bool(cfg.RAZORPAY_KEY_ID),
         "doctor":              doctor,
         "show_enterprise":     show_enterprise,
         "plan_status":         plan_status,
+        "current_plan":        current_plan,
+        "min_seats_needed":    min_seats_needed,
         "active":              "",
     })
 
@@ -996,7 +1019,7 @@ def billing_page(
 @router.post("/billing/create-order")
 def billing_create_order(
     plan: str = Query(...),
-    doctor: Doctor = Depends(require_pin_auth),
+    doctor: Doctor = Depends(get_current_doctor),
 ):
     from fastapi.responses import JSONResponse
     from services.payment_service import create_order
@@ -1010,7 +1033,7 @@ def billing_verify(
     razorpay_order_id:   str = Form(...),
     razorpay_signature:  str = Form(...),
     plan:                str = Form(...),
-    doctor: Doctor = Depends(require_pin_auth),
+    doctor: Doctor = Depends(get_current_doctor),
     db: Session    = Depends(get_db),
 ):
     from datetime import datetime as dt, timedelta
@@ -1051,6 +1074,30 @@ def billing_verify(
     doctor.plan_expires_at = end_date
     doctor.plan_type       = plan_type_map.get(plan, PlanType.solo)
     doctor.plan_seats      = seats  # None = unlimited
+
+    # ── Sync the owned Clinic record ──────────────────────────────────
+    # is_clinic_owner checks filter on Clinic.plan_type == "clinic", so
+    # we must update the clinic row whenever a multi-doctor plan is purchased.
+    from database.models import ClinicDoctor as _ClinicDoctor, Clinic as _ClinicModel
+    multi_doctor_plans = {"duo", "clinic", "hospital", "enterprise"}
+    _owned = (
+        db.query(_ClinicDoctor)
+        .filter(
+            _ClinicDoctor.doctor_id == doctor.id,
+            _ClinicDoctor.role == "owner",
+        )
+        .first()
+    )
+    if _owned:
+        _clinic = db.query(_ClinicModel).filter(_ClinicModel.id == _owned.clinic_id).first()
+        if _clinic:
+            if plan in multi_doctor_plans:
+                _clinic.plan_type      = "clinic"
+                _clinic.plan_expires_at = end_date
+            else:
+                # Downgraded / solo plan — strip clinic-tier features
+                _clinic.plan_type      = "trial"
+                _clinic.plan_expires_at = None
 
     db.commit()
     return RedirectResponse(url="/billing?success=1", status_code=303)

@@ -283,13 +283,24 @@ Solo doctors see only the Solo plan in Settings. Clinic owners see only the Clin
 
 ---
 
-## Deployment (Railway.app)
+## Deployment
 
-1. Push repo to GitHub
-2. Create a new project on [railway.app](https://railway.app)
-3. Add a PostgreSQL service — Railway injects `DATABASE_URL` automatically
-4. Set all environment variables in Railway's Variables tab
-5. Railway auto-deploys on every push to `main`
+**Stack: Fly.io (app) + Neon.tech (PostgreSQL) + Cloudflare R2 (file storage)**
+
+| Service | Role | Free tier |
+|---|---|---|
+| [Fly.io](https://fly.io) | App hosting — always-on ASGI container | 3 shared VMs free |
+| [Neon.tech](https://neon.tech) | PostgreSQL database | 512MB free, no expiry |
+| [Cloudflare R2](https://cloudflare.com/r2) | Patient file vault storage | 10GB free, zero egress fees |
+
+> **Note:** Vercel is not suitable — ClinicOS uses APScheduler (requires a persistent process) and writes files to disk (serverless has no persistent filesystem). Railway.app was considered but storage costs ($0.25/GB/month extra) are not practical for a growing patient document vault.
+
+**Deploy to Fly.io:**
+```bash
+fly launch
+fly secrets set DATABASE_URL=... SECRET_KEY=... # set all env vars
+fly deploy
+```
 
 ```
 web: uvicorn main:app --host 0.0.0.0 --port $PORT
