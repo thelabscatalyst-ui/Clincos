@@ -50,6 +50,7 @@ def dashboard(
     request: Request,
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
+    upgraded: str = "",
 ):
     today = date.today()
 
@@ -239,6 +240,7 @@ def dashboard(
         "pending_visits":        _pending_visits,
         "pending_dues_amount":   pending_dues_amount,
         "pending_dues_count":    pending_dues_count,
+        "upgraded":              upgraded == "1",
     })
 
 
@@ -983,6 +985,7 @@ def billing_page(
 
     # Show Enterprise card only when the doctor's clinic has > 6 members
     show_enterprise = False
+    min_seats_needed = 1
     membership = (
         db.query(ClinicDoctor)
         .filter(ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.is_active == True)
@@ -995,6 +998,23 @@ def billing_page(
             .count()
         )
         show_enterprise = doctor_count > 6
+
+    # Seat-based gating — clinic owners can't accidentally buy Solo
+    owned = (
+        db.query(ClinicDoctor)
+        .filter(ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner")
+        .first()
+    )
+    if owned:
+        member_count = (
+            db.query(ClinicDoctor)
+            .filter(ClinicDoctor.clinic_id == owned.clinic_id, ClinicDoctor.is_active == True)
+            .count()
+        )
+        min_seats_needed = max(1, member_count)
+
+    PLAN_RANK = {"trial": 0, "solo": 1, "duo": 2, "clinic": 3, "hospital": 4, "enterprise": 5}
+    current_plan_rank = PLAN_RANK.get(current_plan_key, 0)
 
     return templates.TemplateResponse(request, "billing.html", {
         "doctor":              doctor,
@@ -1010,9 +1030,11 @@ def billing_page(
         "current_plan_key":    current_plan_key,
         "current_plan_label":  current_plan_label,
         "current_plan_cfg":    current_plan_cfg,
+        "current_plan_rank":   current_plan_rank,
         "latest_sub":          latest_sub,
         "plan_config":         PLAN_CONFIG,
         "show_enterprise":     show_enterprise,
+        "min_seats_needed":    min_seats_needed,
     })
 
 
@@ -1100,7 +1122,7 @@ def billing_verify(
                 _clinic.plan_expires_at = None
 
     db.commit()
-    return RedirectResponse(url="/billing?success=1", status_code=303)
+    return RedirectResponse(url="/dashboard?upgraded=1", status_code=303)
 
 
 # ------------------------------------------------------------------ #

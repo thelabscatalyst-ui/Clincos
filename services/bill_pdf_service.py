@@ -104,40 +104,8 @@ def _delete_existing_bill_pdf(bill: Bill, db) -> None:
 
 
 def _do_generate(bill: Bill, db) -> None:
-    patient = db.query(Patient).filter(Patient.id == bill.patient_id).first()
-    doctor  = db.query(Doctor ).filter(Doctor.id  == bill.doctor_id ).first()
-    if not patient or not doctor:
-        return
-
-    visit = bill.visit
-    items = list(bill.items)
-
-    appt = None
-    if visit and visit.appointment_id:
-        appt = db.query(Appointment).filter(Appointment.id == visit.appointment_id).first()
-
-    pdf       = _build_pdf(bill, patient, doctor, visit, appt, items)
-    pdf_bytes = bytes(pdf.output())
-
-    upload_dir = _upload_dir(doctor.id, patient.id)
-    stored     = f"bill_{bill.id}_{uuid.uuid4().hex[:6]}.pdf"
-    (upload_dir / stored).write_bytes(pdf_bytes)
-
-    mode_str = bill.payment_mode.value.upper() if bill.payment_mode else ""
-    safe_name = "".join(c for c in patient.name if c.isalnum() or c in " '-").strip() or "Patient"
-
-    doc = PatientDocument(
-        doctor_id     = doctor.id,
-        patient_id    = patient.id,
-        original_name = f"Bill - {safe_name}.pdf",
-        stored_name   = stored,
-        file_size     = len(pdf_bytes),
-        mime_type     = "application/pdf",
-        category      = "invoice",
-        description   = f"{_fmt_inr(bill.total)} via {mode_str}" if mode_str else _fmt_inr(bill.total),
-    )
-    db.add(doc)
-    db.commit()
+    """Legacy — vault storage removed. PDFs are now generated on-demand."""
+    pass
 
 
 # ── PDF class ──────────────────────────────────────────────────────────────── #

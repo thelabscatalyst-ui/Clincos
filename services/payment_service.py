@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 # Single source of truth for all plan metadata
 PLAN_CONFIG = {
     "solo": {
-        "amount":    39900,   # paise  → ₹399
+        "amount":    59900,   # paise  → ₹599
         "seats":     1,
         "label":     "Solo",
-        "per_doctor": 399,
+        "per_doctor": 599,
     },
     "duo": {
         "amount":    69900,   # paise  → ₹699
@@ -26,10 +26,10 @@ PLAN_CONFIG = {
         "per_doctor": 350,
     },
     "clinic": {
-        "amount":    129900,  # paise  → ₹1,299
+        "amount":    159900,  # paise  → ₹1,599
         "seats":     5,
         "label":     "Clinic",
-        "per_doctor": 260,
+        "per_doctor": 320,
     },
     "hospital": {
         "amount":    249900,  # paise  → ₹2,499
@@ -66,6 +66,11 @@ def _razorpay_client():
 
 
 def create_order(plan: str) -> dict:
+    """Create a Razorpay order — always full price.
+
+    Upgrades pay full price of the new plan; the remaining days from
+    the current plan carry over (30 days are added to the existing expiry).
+    """
     if plan not in PLAN_AMOUNTS:
         return {"error": f"Unknown plan: {plan}"}
 

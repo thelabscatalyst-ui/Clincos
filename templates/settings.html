@@ -18,6 +18,181 @@
 {% endif %}
 
 <!-- ───────────────────────────────────────────────────── -->
+<!--  0. Subscription — always first                        -->
+<!-- ───────────────────────────────────────────────────── -->
+<style>
+  :root          { --amber: #c9b99a; --amber-dim: rgba(180,130,60,.08); --amber-border: rgba(180,130,60,.35); }
+  html.light     { --amber: #8a6520; --amber-dim: rgba(138,101,32,.06); --amber-border: rgba(138,101,32,.30); }
+
+  .sub-card {
+    background: var(--bg-2);
+    border: 1px solid var(--amber-border);
+    border-radius: var(--radius);
+    padding: 22px 24px 20px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .sub-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--amber-dim) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .sub-card-inner { position: relative; z-index: 1; }
+
+  .sub-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .sub-card-left { display: flex; align-items: center; gap: 14px; }
+  .sub-card-icon {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: var(--amber-dim);
+    border: 1px solid var(--amber-border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .sub-card-icon svg { color: var(--amber); }
+  .sub-card-plan {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px; font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .sub-card-meta {
+    font-size: 12px; color: var(--muted);
+    margin-top: 2px;
+  }
+  .sub-card-meta strong { color: var(--text); font-weight: 600; }
+
+  .sub-card-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; padding: 3px 10px; border-radius: 12px;
+    display: inline-block; margin-left: 8px;
+  }
+  .sub-card-badge--active  { background: rgba(180,130,60,.12); color: var(--amber); border: 1px solid var(--amber-border); }
+  .sub-card-badge--trial   { background: rgba(180,130,60,.08); color: var(--amber); border: 1px solid rgba(180,130,60,.2); }
+  .sub-card-badge--expired { background: rgba(248,113,113,.10); color: #f87171; border: 1px solid rgba(248,113,113,.25); }
+  .sub-card-badge--clinic  { background: rgba(180,130,60,.10); color: var(--amber); border: 1px solid rgba(180,130,60,.2); }
+
+  .sub-card-right { display: flex; align-items: center; gap: 10px; }
+
+  .sub-card-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    transition: opacity .15s, transform .15s;
+    font-family: inherit;
+    cursor: pointer; border: none;
+  }
+  .sub-card-btn:hover { opacity: .88; transform: translateY(-1px); }
+  .sub-card-btn--upgrade {
+    background: var(--amber); color: #1a1612;
+  }
+  html.light .sub-card-btn--upgrade { color: #fff; }
+  .sub-card-btn--manage {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .sub-card-btn--manage:hover { border-color: var(--amber); color: var(--amber); }
+
+  .sub-card-assoc {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; margin-top: 14px;
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+  }
+  .sub-card-assoc svg { flex-shrink: 0; color: var(--muted); }
+</style>
+
+<div class="sub-card">
+  <div class="sub-card-inner">
+    <div class="sub-card-top">
+      <div class="sub-card-left">
+        <div class="sub-card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"/>
+            <line x1="2" y1="10" x2="22" y2="10"/>
+          </svg>
+        </div>
+        <div>
+          <div class="sub-card-plan">
+            {% if is_clinic_associate %}
+              Clinic Member
+            {% elif plan_status == 'trial' %}
+              Free Trial
+            {% elif plan_status in ['solo','duo','clinic','hospital','enterprise'] %}
+              {{ plan_status.title() }} Plan
+            {% elif plan_status in ['basic','pro'] %}
+              {{ plan_status.title() }} Plan
+            {% else %}
+              No Active Plan
+            {% endif %}
+
+            {% if is_clinic_associate %}
+              <span class="sub-card-badge sub-card-badge--clinic">Clinic</span>
+            {% elif plan_status == 'trial' %}
+              <span class="sub-card-badge sub-card-badge--trial">Trial</span>
+            {% elif plan_status == 'expired' %}
+              <span class="sub-card-badge sub-card-badge--expired">Expired</span>
+            {% else %}
+              <span class="sub-card-badge sub-card-badge--active">Active</span>
+            {% endif %}
+          </div>
+          <div class="sub-card-meta">
+            {% if is_clinic_associate %}
+              Access covered by your clinic owner
+            {% elif plan_status == 'trial' %}
+              <strong>{{ plan_days }} day{{ 's' if plan_days != 1 }}</strong> remaining on your free trial
+            {% elif plan_status in ['solo','duo','clinic','hospital','enterprise','basic','pro'] %}
+              <strong>{{ plan_days }} day{{ 's' if plan_days != 1 }}</strong> until next billing
+            {% else %}
+              Your plan has expired — upgrade to continue
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-card-right">
+        {% if not is_clinic_associate %}
+          {% if plan_status in ['solo','duo','clinic','hospital','enterprise','basic','pro'] %}
+            <a href="/billing" class="sub-card-btn sub-card-btn--manage">
+              Manage Plan →
+            </a>
+          {% else %}
+            <a href="/pricing" class="sub-card-btn sub-card-btn--upgrade">
+              {% if plan_status == 'expired' %}Choose a Plan →{% else %}Upgrade Now →{% endif %}
+            </a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    {% if is_clinic_associate %}
+    <div class="sub-card-assoc">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
+      </svg>
+      <span>
+        {% if assoc_clinic_name %}
+          You are a member of <strong style="color:var(--text);">{{ assoc_clinic_name }}</strong>.
+        {% endif %}
+        Billing is handled by the clinic owner.
+      </span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────────────── -->
 <!--  1. Working Hours                                      -->
 <!-- ───────────────────────────────────────────────────── -->
 <form method="POST" action="/doctors/settings/schedule">
@@ -317,59 +492,6 @@
       <button type="submit" class="btn btn-secondary btn-sm">Add</button>
     </form>
   </div>
-</div>
-
-<!-- ───────────────────────────────────────────────────── -->
-<!--  4. Subscription                                       -->
-<!-- ───────────────────────────────────────────────────── -->
-<div class="settings-card">
-  <div class="settings-card-header" style="margin-bottom:0;">
-    <div>
-      <div class="settings-card-title">Subscription</div>
-      <div class="settings-card-sub">
-        {% if is_clinic_associate %}
-          Access covered by your clinic
-        {% elif plan_status == 'trial' %}
-          Free Trial — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
-        {% elif plan_status in ['solo','duo','clinic','hospital','enterprise'] %}
-          {{ plan_status.title() }} Plan — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
-        {% elif plan_status in ['basic','pro'] %}
-          {{ plan_status.title() }} Plan (legacy) — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
-        {% else %}
-          Your plan has expired
-        {% endif %}
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span class="sub-status-badge sub-status-badge--{{ 'solo' if is_clinic_associate else plan_status }}">
-        {% if is_clinic_associate %}Clinic
-        {% elif plan_status == 'trial' %}Trial
-        {% elif plan_status == 'expired' %}Expired
-        {% else %}{{ plan_status.title() }}{% endif %}
-      </span>
-      {% if not is_clinic_associate %}
-      <a href="/pricing" class="btn btn-primary btn-sm">
-        {% if plan_status == 'expired' %}Choose Plan{% else %}Upgrade{% endif %}
-        &nbsp;→
-      </a>
-      {% endif %}
-    </div>
-  </div>
-
-  {% if is_clinic_associate %}
-  <div style="display:flex;align-items:flex-start;gap:14px;padding:16px 18px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:16px;">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-         stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0;margin-top:2px;">
-      <circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
-    </svg>
-    <div style="font-size:12px;color:var(--muted);line-height:1.6;">
-      {% if assoc_clinic_name %}
-        You are a member of <strong style="color:var(--text);">{{ assoc_clinic_name }}</strong>.
-      {% endif %}
-      Billing is handled by the clinic owner.
-    </div>
-  </div>
-  {% endif %}
 </div>
 
 <!-- ───────────────────────────────────────────────────── -->

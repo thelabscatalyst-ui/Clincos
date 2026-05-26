@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pricing — ClinicOS</title>
-  <meta name="description" content="Simple, honest pricing for Indian clinics. Starts at ₹399/month." />
+  <meta name="description" content="Simple, honest pricing for Indian clinics. Starts at ₹599/month." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -306,8 +306,8 @@
     <div class="pc">
       <div class="pc-seats">1 Doctor</div>
       <div class="pc-name">Solo</div>
-      <div class="pc-price">₹399<span>/month</span></div>
-      <div class="pc-per">₹399 per doctor</div>
+      <div class="pc-price">₹599<span>/month</span></div>
+      <div class="pc-per">₹599 per doctor</div>
       <div class="pc-divider"></div>
       <ul class="pc-features">
         <li>Unlimited appointments</li>
@@ -362,8 +362,8 @@
     <div class="pc">
       <div class="pc-seats">Up to 5 Doctors</div>
       <div class="pc-name">Clinic</div>
-      <div class="pc-price">₹1,299<span>/month</span></div>
-      <div class="pc-per">₹260 per doctor</div>
+      <div class="pc-price">₹1,599<span>/month</span></div>
+      <div class="pc-per">₹320 per doctor</div>
       <div class="pc-divider"></div>
       <ul class="pc-features">
         <li>Everything in Solo</li>
@@ -402,7 +402,7 @@
             {% if razorpay_configured %}
               <button type="button" class="pc-btn pc-btn--primary"
                       onclick="startPayment('clinic', {{ plans['clinic']['amount'] }}, this)">
-                {% if plan_status == "active" %}Upgrade to Clinic →
+                {% if plan_status == "active" %}Upgrade — ₹1,599/mo
                 {% elif plan_status == "expired" %}Renew Now →
                 {% else %}Upgrade to Clinic →{% endif %}
               </button>
