@@ -28,9 +28,9 @@ class AppointmentType(str, enum.Enum):
 
 class PlanType(str, enum.Enum):
     trial      = "trial"
-    solo       = "solo"       # 1 doctor   ₹399/mo
+    solo       = "solo"       # 1 doctor   ₹599/mo
     duo        = "duo"        # 2 doctors  ₹699/mo
-    clinic     = "clinic"     # 5 doctors  ₹1,299/mo
+    clinic     = "clinic"     # 5 doctors  ₹1,599/mo
     hospital   = "hospital"   # 15 doctors ₹2,499/mo
     enterprise = "enterprise" # unlimited  ₹3,999/mo
     # legacy plans kept for existing subscribers
