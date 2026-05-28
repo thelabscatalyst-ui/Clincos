@@ -40,12 +40,27 @@ def _run_migrations():
     from sqlalchemy import text
 
     def _add_column(conn, sql):
-        """Run ALTER TABLE … ADD COLUMN, silently ignore if column exists."""
+        """Run ALTER TABLE … ADD COLUMN, silently ignore if column exists.
+
+        Rolls back on failure so PostgreSQL doesn't leave the transaction in an
+        aborted state (which would break every subsequent statement)."""
         try:
             conn.execute(text(sql))
             conn.commit()
         except Exception:
-            pass
+            conn.rollback()
+
+    def _safe_ddl(conn, sql):
+        """Run legacy SQLite-flavoured DDL, ignore failures, roll back cleanly.
+
+        On a fresh PostgreSQL DB every table already exists (created by the ORM
+        via create_all), so these CREATE statements are redundant and raise a
+        syntax error on AUTOINCREMENT — caught here so migration continues."""
+        try:
+            conn.execute(text(sql))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
     with engine.connect() as conn:
         # ── Tier 1 ──────────────────────────────────────────────────────────
@@ -62,13 +77,18 @@ def _run_migrations():
         # For each doctor that has no clinic_doctors entry, create a Clinic row
         # and a ClinicDoctor row (role=owner), then backfill clinic_id on child
         # tables.  Safe to re-run: we check for existing clinic_doctors rows.
-        doctors_without_clinic = conn.execute(text(
-            "SELECT d.id, d.clinic_name, d.clinic_address, d.city, d.slug "
-            "FROM doctors d "
-            "WHERE NOT EXISTS ("
-            "  SELECT 1 FROM clinic_doctors cd WHERE cd.doctor_id = d.id"
-            ")"
-        )).fetchall()
+        # On a fresh PostgreSQL DB there are no doctors yet, so this is a no-op.
+        try:
+            doctors_without_clinic = conn.execute(text(
+                "SELECT d.id, d.clinic_name, d.clinic_address, d.city, d.slug "
+                "FROM doctors d "
+                "WHERE NOT EXISTS ("
+                "  SELECT 1 FROM clinic_doctors cd WHERE cd.doctor_id = d.id"
+                ")"
+            )).fetchall()
+        except Exception:
+            conn.rollback()
+            doctors_without_clinic = []
 
         for row in doctors_without_clinic:
             doctor_id   = row[0]
@@ -124,7 +144,7 @@ def _run_migrations():
         _add_column(conn, "ALTER TABLE appointments ADD COLUMN is_emergency BOOLEAN DEFAULT 0")
 
         # ── Phase 3: Patient notes & file attachments ────────────────────────
-        conn.execute(text(
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS patient_notes ("
             "  id         INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  patient_id INTEGER NOT NULL REFERENCES patients(id), "
@@ -132,8 +152,8 @@ def _run_migrations():
             "  note_text  TEXT    NOT NULL, "
             "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             ")"
-        ))
-        conn.execute(text(
+        )
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS note_files ("
             "  id            INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  note_id       INTEGER NOT NULL REFERENCES patient_notes(id), "
@@ -142,9 +162,9 @@ def _run_migrations():
             "  file_size     INTEGER, "
             "  uploaded_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             ")"
-        ))
+        )
         # ── Blocked time ranges ──────────────────────────────────────────────
-        conn.execute(text(
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS blocked_times ("
             "  id           INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  doctor_id    INTEGER NOT NULL REFERENCES doctors(id), "
@@ -153,20 +173,20 @@ def _run_migrations():
             "  end_time     TIME    NOT NULL, "
             "  reason       VARCHAR(200)"
             ")"
-        ))
+        )
         # ── Patient age / gender ─────────────────────────────────────────────
         _add_column(conn, "ALTER TABLE patients ADD COLUMN age INTEGER")
         _add_column(conn, "ALTER TABLE patients ADD COLUMN gender VARCHAR(10)")
 
         # ── Pinned patients ──────────────────────────────────────────────────
-        conn.execute(text(
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS pinned_patients ("
             "  id         INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  doctor_id  INTEGER NOT NULL REFERENCES doctors(id), "
             "  patient_id INTEGER NOT NULL REFERENCES patients(id), "
             "  pinned_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
             ")"
-        ))
+        )
         conn.commit()
 
         # ── v2: doctor mode + walk-in policy ─────────────────────────────────
@@ -178,7 +198,7 @@ def _run_migrations():
         _add_column(conn, "ALTER TABLE appointments ADD COLUMN arrival_status VARCHAR(20)")
 
         # ── v2: visits table ──────────────────────────────────────────────────
-        conn.execute(text(
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS visits ("
             "  id             INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  doctor_id      INTEGER NOT NULL REFERENCES doctors(id), "
@@ -199,11 +219,11 @@ def _run_migrations():
             "  created_by     INTEGER, "
             "  UNIQUE(doctor_id, visit_date, token_number)"
             ")"
-        ))
+        )
         conn.commit()
 
         # ── v2: bills + bill_items ────────────────────────────────────────────
-        conn.execute(text(
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS bills ("
             "  id           INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  visit_id     INTEGER UNIQUE NOT NULL REFERENCES visits(id), "
@@ -221,8 +241,8 @@ def _run_migrations():
             "  created_by   INTEGER, "
             "  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             ")"
-        ))
-        conn.execute(text(
+        )
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS bill_items ("
             "  id          INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  bill_id     INTEGER NOT NULL REFERENCES bills(id), "
@@ -233,11 +253,11 @@ def _run_migrations():
             "  total       NUMERIC(10,2) NOT NULL, "
             "  gst_rate    NUMERIC(4,2)  DEFAULT 0"
             ")"
-        ))
+        )
         conn.commit()
 
         # ── v2: price catalog ─────────────────────────────────────────────────
-        conn.execute(text(
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS price_catalog ("
             "  id            INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  doctor_id     INTEGER NOT NULL REFERENCES doctors(id), "
@@ -250,11 +270,11 @@ def _run_migrations():
             "  is_active     BOOLEAN NOT NULL DEFAULT 1, "
             "  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             ")"
-        ))
+        )
         conn.commit()
 
         # ── v2: expenses + recurring expenses ─────────────────────────────────
-        conn.execute(text(
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS recurring_expenses ("
             "  id           INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  doctor_id    INTEGER NOT NULL REFERENCES doctors(id), "
@@ -266,8 +286,8 @@ def _run_migrations():
             "  is_active    BOOLEAN NOT NULL DEFAULT 1, "
             "  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             ")"
-        ))
-        conn.execute(text(
+        )
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS expenses ("
             "  id           INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  doctor_id    INTEGER NOT NULL REFERENCES doctors(id), "
@@ -280,7 +300,7 @@ def _run_migrations():
             "  created_by   INTEGER, "
             "  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             ")"
-        ))
+        )
         conn.commit()
 
         # ── appointment card — new patient + appointment fields ───────────────
@@ -304,7 +324,7 @@ def _run_migrations():
         conn.commit()
 
         # ── patient document vault ────────────────────────────────────────────
-        conn.execute(text(
+        _safe_ddl(conn,
             "CREATE TABLE IF NOT EXISTS patient_documents ("
             "  id            INTEGER PRIMARY KEY AUTOINCREMENT, "
             "  doctor_id     INTEGER NOT NULL REFERENCES doctors(id), "
@@ -317,7 +337,7 @@ def _run_migrations():
             "  description   TEXT, "
             "  uploaded_at   DATETIME DEFAULT CURRENT_TIMESTAMP"
             ")"
-        ))
+        )
         conn.commit()
 
         # ── YCloud notification system: avg consult time per doctor ──────────
@@ -336,7 +356,7 @@ def _run_migrations():
             )).scalar() or ""
         if "appointment_id INTEGER NOT NULL" in has_nullable:
             conn.execute(text("ALTER TABLE notifications_log RENAME TO notifications_log_old"))
-            conn.execute(text(
+            _safe_ddl(conn,
                 "CREATE TABLE notifications_log ("
                 "  id             INTEGER PRIMARY KEY AUTOINCREMENT, "
                 "  appointment_id INTEGER REFERENCES appointments(id), "
@@ -346,7 +366,7 @@ def _run_migrations():
                 "  status         VARCHAR(10), "
                 "  sent_at        TIMESTAMP"
                 ")"
-            ))
+            )
             conn.execute(text(
                 "INSERT INTO notifications_log SELECT * FROM notifications_log_old"
             ))
