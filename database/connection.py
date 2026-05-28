@@ -2,9 +2,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from config import settings
 
+# Rewrite URL for correct SQLAlchemy driver
+_db_url = settings.DATABASE_URL
+_is_sqlite = "sqlite" in _db_url
+if not _is_sqlite:
+    # Railway provides postgresql:// or postgres:// — rewrite to pg8000 driver
+    _db_url = _db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+    _db_url = _db_url.replace("postgres://", "postgresql+pg8000://", 1)
+
 engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
+    _db_url,
+    connect_args={"check_same_thread": False} if _is_sqlite else {},
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -320,9 +328,12 @@ def _run_migrations():
 
         # ── Make notifications_log.appointment_id nullable ───────────────────
         # SQLite doesn't support ALTER COLUMN, so recreate the table.
-        has_nullable = conn.execute(text(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name='notifications_log'"
-        )).scalar() or ""
+        # On PostgreSQL the ORM creates it correctly — skip this block.
+        has_nullable = ""
+        if _is_sqlite:
+            has_nullable = conn.execute(text(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='notifications_log'"
+            )).scalar() or ""
         if "appointment_id INTEGER NOT NULL" in has_nullable:
             conn.execute(text("ALTER TABLE notifications_log RENAME TO notifications_log_old"))
             conn.execute(text(
