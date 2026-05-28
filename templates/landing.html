@@ -119,6 +119,97 @@
     margin-bottom: 48px;
   }
 
+  /* ── Demo Video ────────────────────────────────────────── */
+  .ln-video-section {
+    padding: 84px 60px 24px;
+    text-align: center;
+  }
+  .ln-video-head {
+    max-width: 660px;
+    margin: 0 auto 44px;
+  }
+  .ln-video-head .ln-section-sub {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .ln-video-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 14px;
+    box-shadow: 0 40px 90px -28px rgba(0,0,0,.45);
+  }
+  .ln-video-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 14px;
+  }
+  .ln-video-dot {
+    width: 11px; height: 11px; border-radius: 50%;
+  }
+  .ln-video-bar-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+  .ln-video-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0d0b08;
+    border: 1px solid var(--border);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    cursor: pointer;
+  }
+  /* When a designed thumbnail is loaded, hide our overlay play button/caption */
+  .ln-video-poster--has-thumb .ln-video-play,
+  .ln-video-poster--has-thumb .ln-video-caption {
+    display: none;
+  }
+  .ln-video-frame iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .ln-video-poster {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: linear-gradient(140deg, #2e1e0c 0%, #1a1410 100%);
+    transition: opacity .25s ease;
+  }
+  .ln-video-play {
+    width: 78px; height: 78px;
+    border-radius: 50%;
+    background: var(--amber);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 44px rgba(196,154,108,.45);
+    transition: transform .2s ease;
+  }
+  .ln-video-frame:hover .ln-video-play {
+    transform: scale(1.08);
+  }
+  .ln-video-caption {
+    color: #c8bfb5;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: .02em;
+  }
+
   /* ── Hero ──────────────────────────────────────────────── */
   .ln-hero {
     padding: 100px 60px 90px;
@@ -582,6 +673,9 @@
     .ln-hero-mock { display: none; }
     .ln-hero-title { font-size: 38px; }
     .ln-section { padding: 64px 32px; }
+    .ln-video-section { padding: 56px 24px 16px; }
+    .ln-video-shell { border-radius: 22px; padding: 10px; }
+    .ln-section-title { font-size: 26px; }
     .ln-strip { padding: 16px 32px; gap: 16px; }
     .ln-nav { padding: 0 24px; }
     .ln-how-grid { grid-template-columns: 1fr; }
@@ -700,6 +794,33 @@
           <div class="ln-mock-ptime">Walk-in · ~28 min wait</div>
         </div>
         <span class="ln-mock-badge ln-mock-badge--wait">Waiting</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     DEMO VIDEO
+══════════════════════════════════════════════════════════ -->
+<section class="ln-video-section" id="demo">
+  <div class="ln-video-head">
+    <div class="ln-section-label">See it in action</div>
+    <h2 class="ln-section-title">Watch ClinicOS run a real clinic day</h2>
+    <p class="ln-section-sub">A quick walkthrough of the live queue, billing, patient records, and income dashboard — exactly how your clinic would use it, page by page.</p>
+  </div>
+  <div class="ln-video-shell">
+    <div class="ln-video-bar">
+      <span class="ln-video-dot" style="background:#f87171;"></span>
+      <span class="ln-video-dot" style="background:#fbbf24;"></span>
+      <span class="ln-video-dot" style="background:#4ade80;"></span>
+      <span class="ln-video-bar-title">ClinicOS — Product Demo</span>
+    </div>
+    <div class="ln-video-frame" id="videoFrame" onclick="loadDemoVideo()" role="button" tabindex="0" aria-label="Play ClinicOS demo video">
+      <div class="ln-video-poster" id="videoPoster">
+        <div class="ln-video-play">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="#1a1410" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="ln-video-caption">Play demo · 4:30</div>
       </div>
     </div>
   </div>
@@ -921,6 +1042,52 @@
 </footer>
 
 <script>
+// ── Demo video: click-to-load YouTube embed (keeps page fast) ──────────────
+// ▼▼▼ REPLACE 'YOUR_VIDEO_ID' WITH YOUR YOUTUBE VIDEO ID ▼▼▼
+// e.g. if your video URL is https://youtu.be/dQw4w9WgXcQ
+// then the ID is: dQw4w9WgXcQ
+var DEMO_VIDEO_ID = '3W1woN1gTA8';
+// ▲▲▲ REPLACE ABOVE ▲▲▲
+
+// Optional custom thumbnail. Leave '' to auto-use YouTube's thumbnail.
+// To use a custom image: drop it in static/img/ and set e.g.
+//   var DEMO_THUMBNAIL = '/static/img/demo-thumb.jpg';
+var DEMO_THUMBNAIL = '';
+
+// Set the poster background: custom image → YouTube thumbnail → amber gradient
+(function setDemoPoster() {
+  var poster = document.getElementById('videoPoster');
+  if (!poster) return;
+  var bg = '';
+  if (DEMO_THUMBNAIL) {
+    bg = DEMO_THUMBNAIL;
+  } else if (DEMO_VIDEO_ID && DEMO_VIDEO_ID !== 'YOUR_VIDEO_ID') {
+    bg = 'https://img.youtube.com/vi/' + DEMO_VIDEO_ID + '/maxresdefault.jpg';
+  }
+  if (bg) {
+    // The thumbnail is a designed 16:9 image (with its own play button), so
+    // fill the frame edge-to-edge and hide our overlay to avoid double buttons.
+    poster.style.backgroundImage = 'url(' + bg + ')';
+    poster.style.backgroundSize = 'cover';
+    poster.style.backgroundPosition = 'center';
+    poster.style.backgroundRepeat = 'no-repeat';
+    poster.classList.add('ln-video-poster--has-thumb');
+  }
+})();
+
+function loadDemoVideo() {
+  if (!DEMO_VIDEO_ID || DEMO_VIDEO_ID === 'YOUR_VIDEO_ID') {
+    alert('Demo video coming soon.');
+    return;
+  }
+  var frame = document.getElementById('videoFrame');
+  frame.innerHTML =
+    '<iframe src="https://www.youtube.com/embed/' + DEMO_VIDEO_ID +
+    '?autoplay=1&rel=0&modestbranding=1" title="ClinicOS Product Demo" ' +
+    'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ' +
+    'allowfullscreen></iframe>';
+}
+
 function toggleTheme() {
   const isLight = document.documentElement.classList.toggle('light');
   localStorage.setItem('theme', isLight ? 'light' : 'dark');
