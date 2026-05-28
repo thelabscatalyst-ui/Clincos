@@ -841,6 +841,7 @@ html.light .tub-btn { color: #fff; }
   grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   margin-bottom: 32px;
+  padding-top: 4px;
 }
 
 .stat-card {
@@ -848,8 +849,10 @@ html.light .tub-btn { color: #fff; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
+  padding-top: 22px;
   box-shadow: var(--glow);
   transition: var(--transition-pop);
+  overflow: visible;
 }
 
 .stat-card:hover {
