@@ -123,7 +123,6 @@
   .ln-video-section {
     padding: 84px 60px 24px;
     text-align: center;
-    border-top: 1px solid var(--border);
   }
   .ln-video-head {
     max-width: 660px;
@@ -137,7 +136,7 @@
     max-width: 960px;
     margin: 0 auto;
     background: var(--bg-2);
-    border: 1px solid var(--border);
+    border: 2px solid #c2a98a;
     border-radius: 24px;
     padding: 14px;
     box-shadow: 0 40px 90px -28px rgba(0,0,0,.45);
@@ -164,12 +163,19 @@
     border-radius: 14px;
     overflow: hidden;
     background: #0d0b08;
-    border: 1px solid var(--border);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
     cursor: pointer;
   }
-  /* When a designed thumbnail is loaded, hide our overlay play button/caption */
-  .ln-video-poster--has-thumb .ln-video-play,
+  /* Border drawn as an overlay so it doesn't shrink the 16:9 video area */
+  .ln-video-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid #c2a98a;
+    border-radius: 14px;
+    pointer-events: none;
+    z-index: 3;
+  }
+  /* When a designed thumbnail is loaded, keep the play button but hide caption */
   .ln-video-poster--has-thumb .ln-video-caption {
     display: none;
   }
@@ -742,7 +748,7 @@
     <div class="ln-hero-pills">
       <span class="ln-hero-pill">₹599/month</span>
       <span class="ln-hero-pill">WhatsApp-first</span>
-      <span class="ln-hero-pill">Works offline</span>
+      <span class="ln-hero-pill">Opens in any browser</span>
       <span class="ln-hero-pill">No IT required</span>
     </div>
     <div class="ln-hero-actions">
@@ -801,6 +807,31 @@
 </section>
 
 <!-- ══════════════════════════════════════════════════════════
+     SOCIAL PROOF STRIP
+══════════════════════════════════════════════════════════ -->
+<div class="ln-strip">
+  <div class="ln-strip-item">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    Built for Tier 2 &amp; 3 India
+  </div>
+  <div class="ln-strip-sep"></div>
+  <div class="ln-strip-item">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    Works on any phone or browser
+  </div>
+  <div class="ln-strip-sep"></div>
+  <div class="ln-strip-item">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    WhatsApp-first notifications
+  </div>
+  <div class="ln-strip-sep"></div>
+  <div class="ln-strip-item">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    14-day free trial, no card needed
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
      DEMO VIDEO
 ══════════════════════════════════════════════════════════ -->
 <section class="ln-video-section" id="demo">
@@ -826,31 +857,6 @@
     </div>
   </div>
 </section>
-
-<!-- ══════════════════════════════════════════════════════════
-     SOCIAL PROOF STRIP
-══════════════════════════════════════════════════════════ -->
-<div class="ln-strip">
-  <div class="ln-strip-item">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-    Built for Tier 2 &amp; 3 India
-  </div>
-  <div class="ln-strip-sep"></div>
-  <div class="ln-strip-item">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-    Works on any phone or browser
-  </div>
-  <div class="ln-strip-sep"></div>
-  <div class="ln-strip-item">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-    WhatsApp-first notifications
-  </div>
-  <div class="ln-strip-sep"></div>
-  <div class="ln-strip-item">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-    14-day free trial, no card needed
-  </div>
-</div>
 
 <!-- ══════════════════════════════════════════════════════════
      FEATURES
@@ -1068,7 +1074,9 @@ var DEMO_THUMBNAIL = '';
   if (bg) {
     // The thumbnail is a designed 16:9 image (with its own play button), so
     // fill the frame edge-to-edge and hide our overlay to avoid double buttons.
-    poster.style.backgroundImage = 'url(' + bg + ')';
+    // Warm-brown tint over the thumbnail
+    poster.style.backgroundImage =
+      'linear-gradient(rgba(46,30,12,.40), rgba(46,30,12,.50)), url(' + bg + ')';
     poster.style.backgroundSize = 'cover';
     poster.style.backgroundPosition = 'center';
     poster.style.backgroundRepeat = 'no-repeat';
