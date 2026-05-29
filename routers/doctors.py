@@ -98,6 +98,13 @@ def dashboard(
         trial_active = delta >= 0
         days_left = max(delta, 0)
 
+    # ── Onboarding welcome — show for the first 2 days after registration ──
+    # created_at is stored in UTC; compare with utcnow to keep it consistent.
+    from datetime import datetime as _dtw, timedelta as _tdw
+    show_welcome = bool(
+        doctor.created_at and (_dtw.utcnow() - doctor.created_at) < _tdw(days=2)
+    )
+
     # Time-aware greeting — use datetime.now() not date.today() (date has no hour)
     hour = datetime.now().hour
     if hour < 12:
@@ -227,6 +234,7 @@ def dashboard(
         "past_appointments":  past_appointments,
         "trial_active": trial_active,
         "days_left": days_left,
+        "show_welcome": show_welcome,
         "active": "dashboard",
         "is_clinic_owner": is_clinic_owner,
         "primary_clinic": primary_clinic,

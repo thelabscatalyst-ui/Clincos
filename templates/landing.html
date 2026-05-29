@@ -121,25 +121,32 @@
 
   /* ── Demo Video ────────────────────────────────────────── */
   .ln-video-section {
-    padding: 84px 60px 24px;
-    text-align: center;
+    padding: 84px 60px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ln-video-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 52px;
+    align-items: center;
   }
   .ln-video-head {
-    max-width: 660px;
-    margin: 0 auto 44px;
+    text-align: left;
   }
   .ln-video-head .ln-section-sub {
-    max-width: 560px;
-    margin: 0 auto;
+    margin-bottom: 28px;
   }
   .ln-video-shell {
-    max-width: 960px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
     background: var(--bg-2);
-    border: 2px solid #c2a98a;
+    border: 1px solid #c2a98a;
     border-radius: 24px;
     padding: 14px;
-    box-shadow: 0 40px 90px -28px rgba(0,0,0,.45);
+    box-shadow: 0 30px 60px -20px rgba(46,30,12,.45),
+                0 60px 120px -30px rgba(46,30,12,.35);
   }
   .ln-video-bar {
     display: flex;
@@ -170,7 +177,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    border: 2px solid #c2a98a;
+    border: 1px solid #c2a98a;
     border-radius: 14px;
     pointer-events: none;
     z-index: 3;
@@ -198,13 +205,13 @@
     transition: opacity .25s ease;
   }
   .ln-video-play {
-    width: 78px; height: 78px;
-    border-radius: 50%;
-    background: var(--amber);
+    width: 74px; height: 50px;
+    border-radius: 12px;
+    background: rgba(139, 104, 48, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 12px 44px rgba(196,154,108,.45);
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.28);
     transition: transform .2s ease;
   }
   .ln-video-frame:hover .ln-video-play {
@@ -227,6 +234,7 @@
     background: var(--bg);
     position: relative;
     overflow: hidden;
+    perspective: 1400px;
   }
   .ln-hero::before {
     content: '';
@@ -337,6 +345,49 @@
     padding: 20px;
     box-shadow: 0 24px 64px rgba(0,0,0,.5);
     position: relative;
+    perspective: 1200px;
+    animation: heroMockEnter .9s cubic-bezier(.22,1,.36,1) both,
+               heroMockFloat 7s ease-in-out 1s infinite;
+  }
+  @keyframes heroMockEnter {
+    from { opacity: 0; transform: translateY(26px) scale(.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes heroMockFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-9px); }
+  }
+  /* Inner 3D layer — tilts with the cursor */
+  .ln-mock-3d {
+    transform-style: preserve-3d;
+    transition: transform .35s cubic-bezier(.22,1,.36,1);
+  }
+  /* Floating layers — depth + parallax (mouse offset via CSS vars) */
+  .ln-mock-layer {
+    transition: transform .35s cubic-bezier(.22,1,.36,1);
+  }
+  .ln-mock-bar.ln-mock-layer     { transform: translate3d(var(--mx,0),var(--my,0),8px); }
+  .ln-mock-serving.ln-mock-layer { transform: translate3d(var(--mx,0),var(--my,0),22px); }
+  .ln-mock-queue.ln-mock-layer   { transform: translate3d(var(--mx,0),var(--my,0),14px); }
+
+  /* ── Scroll reveal (added via JS so content is visible without JS) ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity .7s ease, transform .7s cubic-bezier(.22,1,.36,1);
+    will-change: opacity, transform;
+  }
+  .reveal.reveal-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ── Respect reduced-motion: disable all the decorative motion ── */
+  @media (prefers-reduced-motion: reduce) {
+    .ln-hero-mock,
+    .ln-hero-eyebrow-dot { animation: none !important; }
+    .ln-mock-3d, .ln-mock-layer { transition: none !important; transform: none !important; }
+    .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
   }
   .ln-mock-bar {
     display: flex;
@@ -594,36 +645,49 @@
   .ln-pricing-link a { color: var(--amber); text-decoration: none; font-weight: 600; }
   .ln-pricing-link a:hover { text-decoration: underline; }
 
-  /* ── CTA banner ────────────────────────────────────────── */
+  /* ── CTA banner — full-width subtle closing band ───────── */
   .ln-cta-section {
-    padding: 80px 60px;
+    padding: 104px 60px;
     text-align: center;
-    border-left: none;
   }
-  .ln-cta-box {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--amber);
-    border-radius: var(--radius);
-    padding: 56px 48px;
-    max-width: 640px;
+  .ln-cta-inner {
+    max-width: 620px;
     margin: 0 auto;
-    box-shadow: var(--glow);
+  }
+  .ln-cta-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 16px;
   }
   .ln-cta-title {
     font-family: 'Playfair Display', serif;
-    font-size: 34px;
+    font-size: 44px;
     font-weight: 700;
     color: var(--text);
-    line-height: 1.2;
-    margin-bottom: 12px;
+    line-height: 1.12;
+    margin-bottom: 16px;
   }
   .ln-cta-sub {
-    font-size: 14px;
+    font-size: 16px;
     color: var(--muted);
-    margin-bottom: 32px;
-    line-height: 1.6;
+    margin: 0 auto 34px;
+    max-width: 500px;
+    line-height: 1.7;
   }
+  .ln-cta-trust {
+    margin-top: 26px;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    gap: 10px 22px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .ln-cta-trust span { display: inline-flex; align-items: center; gap: 6px; }
+  .ln-cta-trust svg { color: var(--amber); }
 
   /* ── Footer ────────────────────────────────────────────── */
   .ln-footer {
@@ -680,7 +744,9 @@
     .ln-hero-mock { display: none; }
     .ln-hero-title { font-size: 38px; }
     .ln-section { padding: 64px 32px; }
-    .ln-video-section { padding: 56px 24px 16px; }
+    .ln-video-section { padding: 56px 24px; }
+    .ln-video-grid { grid-template-columns: 1fr; gap: 28px; }
+    .ln-video-head { text-align: center; }
     .ln-video-shell { border-radius: 22px; padding: 10px; }
     .ln-section-title { font-size: 26px; }
     .ln-strip { padding: 16px 32px; gap: 16px; }
@@ -688,9 +754,8 @@
     .ln-how-grid { grid-template-columns: 1fr; }
     .ln-pricing-grid { grid-template-columns: 1fr; }
     .ln-footer { padding: 32px 24px; flex-direction: column; gap: 24px; }
-    .ln-cta-section { padding: 60px 32px; }
-    .ln-cta-box { padding: 36px 28px; }
-    .ln-cta-title { font-size: 26px; }
+    .ln-cta-section { padding: 72px 24px; }
+    .ln-cta-title { font-size: 30px; }
   }
   @media (max-width: 540px) {
     .ln-features-grid { grid-template-columns: 1fr; }
@@ -762,13 +827,14 @@
 
   <!-- App mock -->
   <div class="ln-hero-mock">
-    <div class="ln-mock-bar">
+   <div class="ln-mock-3d" id="heroMock3d">
+    <div class="ln-mock-bar ln-mock-layer" data-depth="4">
       <div class="ln-mock-dot" style="background:#f87171;"></div>
       <div class="ln-mock-dot" style="background:#fbbf24;"></div>
       <div class="ln-mock-dot" style="background:#4ade80;"></div>
       <span class="ln-mock-title">Today's Queue — Dr. Mehta</span>
     </div>
-    <div class="ln-mock-serving">
+    <div class="ln-mock-serving ln-mock-layer" data-depth="14">
       <div>
         <div class="ln-mock-serving-label">Now Serving</div>
         <div class="ln-mock-serving-name">Ramesh Patil</div>
@@ -776,7 +842,7 @@
       </div>
       <div class="ln-mock-token">03</div>
     </div>
-    <div class="ln-mock-queue">
+    <div class="ln-mock-queue ln-mock-layer" data-depth="9">
       <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Waiting — 4 patients</div>
       <div class="ln-mock-row">
         <div class="ln-mock-num">04</div>
@@ -803,6 +869,7 @@
         <span class="ln-mock-badge ln-mock-badge--wait">Waiting</span>
       </div>
     </div>
+   </div><!-- /ln-mock-3d -->
   </div>
 </section>
 
@@ -835,25 +902,34 @@
      DEMO VIDEO
 ══════════════════════════════════════════════════════════ -->
 <section class="ln-video-section" id="demo">
-  <div class="ln-video-head">
-    <div class="ln-section-label">See it in action</div>
-    <h2 class="ln-section-title">Watch ClinicOS run a real clinic day</h2>
-    <p class="ln-section-sub">A quick walkthrough of the live queue, billing, patient records, and income dashboard — exactly how your clinic would use it, page by page.</p>
-  </div>
-  <div class="ln-video-shell">
-    <div class="ln-video-bar">
-      <span class="ln-video-dot" style="background:#f87171;"></span>
-      <span class="ln-video-dot" style="background:#fbbf24;"></span>
-      <span class="ln-video-dot" style="background:#4ade80;"></span>
-      <span class="ln-video-bar-title">ClinicOS — Product Demo</span>
-    </div>
-    <div class="ln-video-frame" id="videoFrame" onclick="loadDemoVideo()" role="button" tabindex="0" aria-label="Play ClinicOS demo video">
-      <div class="ln-video-poster" id="videoPoster">
-        <div class="ln-video-play">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="#1a1410" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-        </div>
-        <div class="ln-video-caption">Play demo · 4:30</div>
+  <div class="ln-video-grid">
+    <!-- LEFT: video player -->
+    <div class="ln-video-shell">
+      <div class="ln-video-bar">
+        <span class="ln-video-dot" style="background:#f87171;"></span>
+        <span class="ln-video-dot" style="background:#fbbf24;"></span>
+        <span class="ln-video-dot" style="background:#4ade80;"></span>
+        <span class="ln-video-bar-title">ClinicOS — Product Demo</span>
       </div>
+      <div class="ln-video-frame" id="videoFrame" onclick="loadDemoVideo()" role="button" tabindex="0" aria-label="Play ClinicOS demo video">
+        <div class="ln-video-poster" id="videoPoster">
+          <div class="ln-video-play">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="#f5f0ea" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="ln-video-caption">Play demo · 4:30</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: text -->
+    <div class="ln-video-head">
+      <div class="ln-section-label">See it in action</div>
+      <h2 class="ln-section-title">Watch how ClinicOS works</h2>
+      <p class="ln-section-sub">A quick walkthrough of the live queue, billing, patient records, and income dashboard — page by page, so you know exactly what to expect.</p>
+      <a href="#" class="ln-btn-primary" onclick="loadDemoVideo(); return false;" style="margin-top:8px;display:inline-flex;">
+        Play the demo
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </a>
     </div>
   </div>
 </section>
@@ -946,74 +1022,13 @@
       <div class="ln-step-num">3</div>
       <div class="ln-step-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
         </svg>
       </div>
-      <div class="ln-step-title">Share your booking link</div>
-      <div class="ln-step-desc">Send your personal link to patients on WhatsApp. They book online. Walk-ins just show up.</div>
+      <div class="ln-step-title">You're good to go</div>
+      <div class="ln-step-desc">That's it — start managing your queue, appointments, and billing right away. No setup calls, no training.</div>
     </div>
 
-  </div>
-</section>
-
-<!-- ══════════════════════════════════════════════════════════
-     PRICING TEASER
-══════════════════════════════════════════════════════════ -->
-<section class="ln-section">
-  <div class="ln-section-label">Pricing</div>
-  <h2 class="ln-section-title">Simple pricing. No surprises.</h2>
-  <p class="ln-section-sub">Same features on every plan. You only pay more when you need more doctor seats.</p>
-
-  <div class="ln-pricing-grid">
-    <div class="pc">
-      <div class="pc-seats">1 Doctor</div>
-      <div class="pc-name">Solo</div>
-      <div class="pc-price">₹599<span>/month</span></div>
-      <div class="pc-per">₹599 per doctor</div>
-      <div class="pc-divider"></div>
-      <ul class="pc-features">
-        <li>Unlimited appointments</li>
-        <li>Walk-in queue &amp; tokens</li>
-        <li>WhatsApp reminders</li>
-        <li>Patient records &amp; vault</li>
-        <li>Reports &amp; analytics</li>
-      </ul>
-      <a href="/register" class="pc-btn">Start Free Trial</a>
-    </div>
-    <div class="pc">
-      <div class="pc-seats">Up to 5 Doctors</div>
-      <div class="pc-name">Clinic</div>
-      <div class="pc-price">₹1,599<span>/month</span></div>
-      <div class="pc-per">₹320 per doctor</div>
-      <div class="pc-divider"></div>
-      <ul class="pc-features">
-        <li>Everything in Solo</li>
-        <li>5 doctor seats</li>
-        <li>Clinic admin dashboard</li>
-        <li>Receptionist workspace</li>
-        <li>Unified public booking</li>
-      </ul>
-      <a href="/register" class="pc-btn">Start Free Trial</a>
-    </div>
-    <div class="pc">
-      <div class="pc-seats">6+ Doctors</div>
-      <div class="pc-name">Enterprise</div>
-      <div class="pc-price" style="font-size:26px;padding-top:4px;">Custom<span style="font-size:13px;"> pricing</span></div>
-      <div class="pc-per">Tailored to your setup</div>
-      <div class="pc-divider"></div>
-      <ul class="pc-features">
-        <li>Everything in Clinic</li>
-        <li>Unlimited doctor seats</li>
-        <li>Dedicated account manager</li>
-        <li>SLA guarantee</li>
-        <li>Custom integrations</li>
-      </ul>
-      <a href="mailto:support@clinicos.in" class="pc-btn">Contact us</a>
-    </div>
-  </div>
-
-  <div class="ln-pricing-link">
-    <a href="/pricing">See full pricing details →</a>
   </div>
 </section>
 
@@ -1021,13 +1036,28 @@
      CTA BANNER
 ══════════════════════════════════════════════════════════ -->
 <section class="ln-section ln-section--alt ln-cta-section">
-  <div class="ln-cta-box">
-    <h2 class="ln-cta-title">Start your 14-day free trial</h2>
-    <p class="ln-cta-sub">No credit card required. Full access to every feature. Cancel anytime — no questions asked.</p>
+  <div class="ln-cta-inner">
+    <div class="ln-cta-eyebrow">Get started</div>
+    <h2 class="ln-cta-title">Leave the paper register behind.</h2>
+    <p class="ln-cta-sub">Run your queue, billing, and patient records from one simple app. Free for 14 days — no credit card, no setup calls.</p>
     <a href="/register" class="ln-btn-primary" style="display:inline-flex;">
       Create free account
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
     </a>
+    <div class="ln-cta-trust">
+      <span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        No credit card
+      </span>
+      <span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Cancel anytime
+      </span>
+      <span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Setup in 10 minutes
+      </span>
+    </div>
   </div>
 </section>
 
@@ -1045,10 +1075,65 @@
     <a href="/register" class="ln-footer-link">Register</a>
     <a href="mailto:support@clinicos.in" class="ln-footer-link">Support</a>
   </div>
-  <div class="ln-footer-copy">© 2025 ClinicOS. All rights reserved.</div>
+  <div class="ln-footer-copy">© <span id="footerYear">2026</span> ClinicOS. All rights reserved.</div>
 </footer>
 
 <script>
+// ── Landing animations: 3D mock parallax + scroll reveal ───────────────────
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) return;
+
+  // 1) Pseudo-3D parallax on the hero dashboard mock
+  var hero = document.querySelector('.ln-hero');
+  var mock3d = document.getElementById('heroMock3d');
+  if (hero && mock3d) {
+    var layers = mock3d.querySelectorAll('.ln-mock-layer');
+    var raf = null;
+    hero.addEventListener('mousemove', function (e) {
+      var r = hero.getBoundingClientRect();
+      var cx = (e.clientX - r.left) / r.width - 0.5;   // -0.5 .. 0.5
+      var cy = (e.clientY - r.top) / r.height - 0.5;
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(function () {
+        mock3d.style.transform = 'rotateY(' + (cx * 4.5).toFixed(2) + 'deg) rotateX(' + (-cy * 4.5).toFixed(2) + 'deg)';
+        layers.forEach(function (el) {
+          var d = parseFloat(el.getAttribute('data-depth')) || 0;
+          el.style.setProperty('--mx', (cx * d).toFixed(1) + 'px');
+          el.style.setProperty('--my', (cy * d).toFixed(1) + 'px');
+        });
+      });
+    });
+    hero.addEventListener('mouseleave', function () {
+      mock3d.style.transform = '';
+      layers.forEach(function (el) {
+        el.style.setProperty('--mx', '0px');
+        el.style.setProperty('--my', '0px');
+      });
+    });
+  }
+
+  // 2) Scroll reveal — fade/slide sections in as they enter the viewport
+  var revealTargets = document.querySelectorAll(
+    '.ln-feat, .ln-step, .ln-video-grid, .ln-cta-inner, .ln-strip-item'
+  );
+  if ('IntersectionObserver' in window && revealTargets.length) {
+    revealTargets.forEach(function (el, i) {
+      el.classList.add('reveal');
+      el.style.transitionDelay = (Math.min(i % 6, 5) * 60) + 'ms';
+    });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('reveal-in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    revealTargets.forEach(function (el) { io.observe(el); });
+  }
+})();
+
 // ── Demo video: click-to-load YouTube embed (keeps page fast) ──────────────
 // ▼▼▼ REPLACE 'YOUR_VIDEO_ID' WITH YOUR YOUTUBE VIDEO ID ▼▼▼
 // e.g. if your video URL is https://youtu.be/dQw4w9WgXcQ
@@ -1074,9 +1159,9 @@ var DEMO_THUMBNAIL = '';
   if (bg) {
     // The thumbnail is a designed 16:9 image (with its own play button), so
     // fill the frame edge-to-edge and hide our overlay to avoid double buttons.
-    // Warm-brown tint over the thumbnail
+    // Light warm-brown tint over the thumbnail
     poster.style.backgroundImage =
-      'linear-gradient(rgba(46,30,12,.40), rgba(46,30,12,.50)), url(' + bg + ')';
+      'linear-gradient(rgba(46,30,12,.08), rgba(46,30,12,.10)), url(' + bg + ')';
     poster.style.backgroundSize = 'cover';
     poster.style.backgroundPosition = 'center';
     poster.style.backgroundRepeat = 'no-repeat';
@@ -1108,6 +1193,11 @@ function toggleTheme() {
   const isLight = document.documentElement.classList.contains('light');
   document.getElementById('themeIconSun').style.display  = isLight ? 'block' : 'none';
   document.getElementById('themeIconMoon').style.display = isLight ? 'none'  : 'block';
+})();
+// Keep footer copyright year current automatically
+(function() {
+  var y = document.getElementById('footerYear');
+  if (y) y.textContent = new Date().getFullYear();
 })();
 </script>
 </body>

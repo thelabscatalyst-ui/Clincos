@@ -111,6 +111,8 @@
 </div>
 
 <!-- ── Patient Detail Split Layout ─────────────────────────────────────── -->
+<div class="notes-backdrop" id="notesBackdrop" onclick="toggleNotesFullscreen()"></div>
+
 <div class="patient-detail-split">
 
   <!-- LEFT 40%: Doctor's Notes -->
@@ -121,9 +123,29 @@
           <div class="settings-card-title">Doctor's Notes</div>
           <div class="settings-card-sub">Private — visible only to you</div>
         </div>
+        <button type="button" class="note-expand-btn" id="notesExpandBtn"
+                onclick="toggleNotesFullscreen()" title="View all notes full screen"
+                aria-label="Expand notes to full screen">
+          <svg class="note-expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+          <svg class="note-collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               style="display:none;">
+            <polyline points="4 14 10 14 10 20"></polyline>
+            <polyline points="20 10 14 10 14 4"></polyline>
+            <line x1="14" y1="10" x2="21" y2="3"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+        </button>
       </div>
 
-      <!-- Saved notes timeline -->
+      <!-- Saved notes timeline (scrolls internally; card height tracks the info card) -->
+      <div class="note-timeline-wrap">
       <div class="note-timeline" id="noteTimeline">
         {% if notes_data %}
           {% for note in notes_data %}
@@ -183,6 +205,7 @@
           </div>
         {% endif %}
       </div><!-- /note-timeline -->
+      </div><!-- /note-timeline-wrap -->
 
       <!-- Compose new note -->
       <div class="note-compose">
@@ -436,6 +459,22 @@
 
 {% block scripts %}
 <script>
+/* ── Notes fullscreen toggle ────────────────────────────────────── */
+function toggleNotesFullscreen() {
+  const col = document.querySelector('.patient-notes-col');
+  const backdrop = document.getElementById('notesBackdrop');
+  const isFull = col.classList.toggle('notes-fullscreen');
+  if (backdrop) backdrop.classList.toggle('active', isFull);
+  document.body.style.overflow = isFull ? 'hidden' : '';
+}
+// Close fullscreen on Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const col = document.querySelector('.patient-notes-col');
+    if (col && col.classList.contains('notes-fullscreen')) toggleNotesFullscreen();
+  }
+});
+
 /* ── Constants & URL helpers ────────────────────────────────────── */
 const PATIENT_ID       = {{ patient.id }};
 const ADD_NOTE_URL     = `/patients/${PATIENT_ID}/notes/add`;

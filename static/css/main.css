@@ -844,6 +844,115 @@ html.light .tub-btn { color: #fff; }
   padding-top: 4px;
 }
 
+/* ── First-run welcome / onboarding overlay ──────────────────────────── */
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 15, 10, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: welcomeFade 0.3s ease;
+}
+@keyframes welcomeFade { from { opacity: 0; } to { opacity: 1; } }
+.welcome-overlay.welcome-hide { opacity: 0; transition: opacity 0.25s ease; }
+.welcome-card {
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 38px;
+  box-shadow: 0 40px 90px -24px rgba(0, 0, 0, 0.6);
+  animation: welcomePop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes welcomePop {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+.welcome-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #b8893f;
+  background: rgba(184, 137, 63, 0.12);
+  border: 1px solid rgba(184, 137, 63, 0.3);
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+.welcome-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+.welcome-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 26px;
+  line-height: 1.6;
+}
+.welcome-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+.welcome-step { display: flex; gap: 14px; align-items: flex-start; }
+.welcome-step-num {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #b8893f;
+  color: #1a1410;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.welcome-step-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.welcome-step-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+/* "Maybe later" — full-width like the primary button, but secondary emphasis */
+.welcome-btn-full {
+  width: 100%;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+@media (max-width: 540px) {
+  .welcome-card { padding: 30px 24px; }
+  .welcome-actions .btn { flex: 1; text-align: center; }
+}
+
 .stat-card {
   background: var(--bg-2);
   border: 1px solid var(--border);
@@ -4142,11 +4251,24 @@ html.light .data-table tbody tr:hover td {
 }
 
 /* ── Patient Note Timeline ──────────────────────────────────────── */
+/* Wrapper takes the leftover space in the card; the timeline scrolls inside it.
+   Because the timeline is absolutely positioned it contributes no intrinsic
+   height, so the card height is driven by the Patient Information card instead
+   of growing with the number of notes. */
+.note-timeline-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 90px;
+  margin-bottom: 8px;
+}
 .note-timeline {
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin-bottom: 8px;
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .note-entry {
@@ -7111,10 +7233,66 @@ html.light .stat-value--warn { color: #7a5020; }
   display: grid;
   grid-template-columns: 40% 1fr;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 .patient-notes-col { display: flex; flex-direction: column; }
-.patient-notes-col .settings-card { flex: 1; }
+.patient-notes-col .settings-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+/* Header and compose stay fixed; only the timeline wrapper flexes/scrolls */
+.patient-notes-col .settings-card-header,
+.patient-notes-col .note-compose { flex-shrink: 0; }
+
+/* Expand-to-fullscreen button in the notes header */
+.note-expand-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.note-expand-btn:hover {
+  color: var(--text);
+  border-color: var(--border-light);
+  background: var(--bg-3);
+}
+
+/* Backdrop shown behind the fullscreen notes card */
+.notes-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 900;
+}
+.notes-backdrop.active { display: block; }
+
+/* Fullscreen notes card */
+.patient-notes-col.notes-fullscreen {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(880px, 92vw);
+  height: 88vh;
+  z-index: 1000;
+  margin: 0;
+}
+.patient-notes-col.notes-fullscreen .settings-card {
+  height: 100%;
+  box-shadow: 0 40px 90px -20px rgba(0,0,0,.5);
+}
+.patient-notes-col.notes-fullscreen .note-expand-icon { display: none; }
+.patient-notes-col.notes-fullscreen .note-collapse-icon { display: block !important; }
 .patient-info-col { display: flex; flex-direction: column; gap: 0; }
 
 /* Stats row inside patient info card */
@@ -7167,8 +7345,12 @@ html.light .stat-value--warn { color: #7a5020; }
   border-right: 1px solid var(--border);
 }
 .patient-info-row:nth-child(even) { border-right: none; }
-.patient-info-row:last-child,
-.patient-info-row:nth-last-child(2):not(.patient-info-row--full) { border-bottom: none; }
+.patient-info-row:last-child { border-bottom: none; }
+/* Strip the trailing pair's bottom border ONLY when the grid does not end in a
+   full-width row — otherwise the cell above a full-width row (e.g. Allergies)
+   loses its border and the table line looks half-drawn. */
+.patient-info-grid:not(:has(.patient-info-row--full:last-child))
+  .patient-info-row:nth-last-child(2):not(.patient-info-row--full) { border-bottom: none; }
 .patient-info-row--full {
   grid-column: 1 / -1;
   border-right: none;

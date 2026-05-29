@@ -2,6 +2,69 @@
 {% block title %}Dashboard — ClinicOS{% endblock %}
 {% block content %}
 
+{% if show_welcome %}
+<!-- ── First-run welcome / onboarding overlay (first 2 days) ──────────── -->
+<div class="welcome-overlay" id="welcomeOverlay">
+  <div class="welcome-card">
+    <div class="welcome-badge">Welcome to ClinicOS</div>
+    <h2 class="welcome-title">Let's get your clinic ready, Dr. {{ doctor.name.split()[-1] }}</h2>
+    <p class="welcome-sub">A few quick steps and you're good to go. It takes about 5 minutes — all from the Settings page.</p>
+
+    <div class="welcome-steps">
+      <div class="welcome-step">
+        <div class="welcome-step-num">1</div>
+        <div>
+          <div class="welcome-step-title">Set your working hours</div>
+          <div class="welcome-step-desc">Add the days you see patients, your start and end times, and how long each slot takes.</div>
+        </div>
+      </div>
+      <div class="welcome-step">
+        <div class="welcome-step-num">2</div>
+        <div>
+          <div class="welcome-step-title">Add your clinic details</div>
+          <div class="welcome-step-desc">Your clinic name, address, and city — these appear on bills and patient messages.</div>
+        </div>
+      </div>
+      <div class="welcome-step">
+        <div class="welcome-step-num">3</div>
+        <div>
+          <div class="welcome-step-title">Set up your price catalog</div>
+          <div class="welcome-step-desc">Preset your charges — consultation fee, X-ray, dressing, injection — so billing is one tap.</div>
+        </div>
+      </div>
+      <div class="welcome-step">
+        <div class="welcome-step-num">4</div>
+        <div>
+          <div class="welcome-step-title">Block dates &amp; times off</div>
+          <div class="welcome-step-desc">Mark holidays or hours you're unavailable so patients can't book then.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="welcome-actions">
+      <a href="/doctors/settings" class="btn btn-primary">Go to Settings &rarr;</a>
+      <button type="button" class="btn btn-secondary welcome-btn-full" onclick="dismissWelcome()">Maybe later</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var KEY = 'clinicos_welcome_seen';
+  var overlay = document.getElementById('welcomeOverlay');
+  if (!overlay) return;
+  // Show once per browser session (i.e. each time they open the app), within the 2-day window
+  if (sessionStorage.getItem(KEY)) { overlay.remove(); return; }
+  document.body.style.overflow = 'hidden';
+})();
+function dismissWelcome() {
+  try { sessionStorage.setItem('clinicos_welcome_seen', '1'); } catch (e) {}
+  var o = document.getElementById('welcomeOverlay');
+  if (o) { o.classList.add('welcome-hide'); setTimeout(function () { if (o.parentNode) o.remove(); }, 250); }
+  document.body.style.overflow = '';
+}
+</script>
+{% endif %}
+
 <!-- Page Header -->
 <div class="page-header dash-header">
   <div>

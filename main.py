@@ -1,3 +1,14 @@
+# ── Force the whole process to India Standard Time ─────────────────────────
+# Railway servers run in UTC; without this every date.today()/datetime.now()
+# is 5.5 hours behind IST, which shows the wrong day's queue and visit times.
+import os
+import time
+os.environ["TZ"] = "Asia/Kolkata"
+try:
+    time.tzset()  # applies TZ to the running process (Unix/Linux — Railway & macOS)
+except AttributeError:
+    pass  # Windows has no tzset()
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -6,7 +17,6 @@ from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
-import time
 import collections
 
 from database.connection import create_tables
