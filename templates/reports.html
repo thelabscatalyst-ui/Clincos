@@ -45,16 +45,71 @@
   </div>
 </div>
 
-<!-- Monthly Trend Chart -->
+<!-- Wait-time + Peak-hours card — operational insights -->
 <div class="settings-card" style="margin-bottom:16px;">
-  <div class="settings-card-header" style="margin-bottom:20px;">
-    <div>
-      <div class="settings-card-title">Appointments — Last 6 Months</div>
-      <div class="settings-card-sub">Non-cancelled appointments per month</div>
+  <div class="reports-wait-row">
+    <!-- LEFT: Avg patient wait time -->
+    <div class="reports-wait-stat">
+      <div class="settings-card-sub" style="margin-bottom:8px;letter-spacing:.06em;text-transform:uppercase;font-size:11px;">
+        Average wait this week
+      </div>
+      <div class="reports-wait-value">
+        {% if avg_wait_this_week is not none %}
+          {{ avg_wait_this_week }}<span class="reports-wait-unit">min</span>
+        {% else %}
+          <span style="color:var(--text-dim);font-size:32px;">No data yet</span>
+        {% endif %}
+      </div>
+      {% if avg_wait_this_week is not none %}
+        <div class="reports-wait-trend">
+          {% if wait_delta_mins is not none and avg_wait_last_week %}
+            {% if wait_delta_mins < 0 %}
+              <span class="reports-wait-trend--good">↓ {{ -wait_delta_mins }} min faster vs last week</span>
+            {% elif wait_delta_mins > 0 %}
+              <span class="reports-wait-trend--bad">↑ {{ wait_delta_mins }} min slower vs last week</span>
+            {% else %}
+              <span style="color:var(--muted);">Same as last week</span>
+            {% endif %}
+          {% else %}
+            <span style="color:var(--muted);">Last week: no data</span>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="reports-wait-trend" style="color:var(--muted);">
+          Check patients in to start tracking wait times
+        </div>
+      {% endif %}
     </div>
-  </div>
-  <div style="position:relative;height:220px;">
-    <canvas id="monthlyChart"></canvas>
+
+    <!-- RIGHT: Peak hours heatmap -->
+    <div class="reports-peak">
+      <div class="settings-card-header" style="margin-bottom:14px;">
+        <div>
+          <div class="settings-card-title" style="font-size:15px;">Peak hours</div>
+          <div class="settings-card-sub">Last 30 days · darker = busier</div>
+        </div>
+      </div>
+      {% if peak_max %}
+      <div class="reports-hourbars">
+        {% for h in peak_hour_labels %}
+          {% set h_idx = loop.index0 %}
+          {% set cnt = peak_hour_counts[h_idx] %}
+          {% set pct = (cnt / peak_max * 100) if peak_max else 0 %}
+          <div class="reports-hourbar"
+               title="{{ '%d%s' | format(h % 12 or 12, 'am' if h < 12 else 'pm') }} — {{ cnt }} visit{{ 's' if cnt != 1 else '' }}">
+            <div class="reports-hourbar-track">
+              <div class="reports-hourbar-fill" style="height: {{ pct }}%;"></div>
+            </div>
+            <div class="reports-hourbar-label">
+              {{ '%d%s' | format(h % 12 or 12, 'a' if h < 12 else 'p') }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="settings-empty" style="margin-top:8px;">No visits in the last 30 days yet.</p>
+      {% endif %}
+    </div>
   </div>
 </div>
 
@@ -84,6 +139,37 @@
     </div>
     {% else %}
     <p class="settings-empty">No data yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Sources — where patients heard about the clinic -->
+  <div class="settings-card">
+    <div class="settings-card-header" style="margin-bottom:16px;">
+      <div>
+        <div class="settings-card-title">Sources</div>
+        <div class="settings-card-sub">
+          How patients found you
+          {% if source_known_count or source_unknown_count %}
+          · {{ source_known_count }} known
+          {% if source_unknown_count %}<span style="color:var(--text-dim);">· {{ source_unknown_count }} unknown</span>{% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% if source_breakdown %}
+    <div class="report-type-list">
+      {% for row in source_breakdown %}
+      <div class="report-type-row">
+        <div class="report-type-label">{{ row.label }}</div>
+        <div class="report-type-bar-wrap">
+          <div class="report-type-bar" style="width:{{ row.pct }}%;"></div>
+        </div>
+        <div class="report-type-pct">{{ row.pct }}%</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="settings-empty">No source data yet — ask new patients how they heard about you when they book.</p>
     {% endif %}
   </div>
 
@@ -131,96 +217,4 @@
 
 {% endblock %}
 
-{% block scripts %}
-<script>
-function chartColors() {
-  const light = document.documentElement.classList.contains('light');
-  return light ? {
-    bar:        'rgba(0,0,0,0.40)',
-    barHover:   'rgba(0,0,0,0.55)',
-    border:     'rgba(0,0,0,0.70)',
-    grid:       'rgba(0,0,0,0.08)',
-    tick:       '#555',
-    tooltipBg:  '#ffffff',
-    tooltipBdr: '#cccccc',
-    titleCol:   '#111111',
-    bodyCol:    '#666666',
-  } : {
-    bar:        'rgba(255,255,255,0.40)',
-    barHover:   'rgba(255,255,255,0.55)',
-    border:     'rgba(255,255,255,0.70)',
-    grid:       'rgba(255,255,255,0.07)',
-    tick:       '#777',
-    tooltipBg:  '#1a1a1a',
-    tooltipBdr: '#2e2e2e',
-    titleCol:   '#f0f0f0',
-    bodyCol:    '#888',
-  };
-}
-
-const c = chartColors();
-const ctx = document.getElementById('monthlyChart').getContext('2d');
-const monthlyChart = new Chart(ctx, {
-  type: 'bar',
-  data: {
-    labels: {{ monthly_labels | safe }},
-    datasets: [{
-      data: {{ monthly_counts | safe }},
-      backgroundColor: c.bar,
-      borderColor:     c.border,
-      borderWidth: 1,
-      borderRadius: 6,
-      hoverBackgroundColor: c.barHover,
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: c.tooltipBg,
-        borderColor:     c.tooltipBdr,
-        borderWidth: 1,
-        titleColor: c.titleCol,
-        bodyColor:  c.bodyCol,
-        callbacks: { label: ctx => ` ${ctx.parsed.y} appointments` }
-      }
-    },
-    scales: {
-      x: {
-        grid:  { color: c.grid },
-        ticks: { color: c.tick, font: { size: 12 } },
-        border:{ color: 'transparent' },
-      },
-      y: {
-        grid:  { color: c.grid },
-        ticks: { color: c.tick, font: { size: 12 }, stepSize: 1 },
-        border:{ color: 'transparent' },
-        beginAtZero: true,
-      }
-    }
-  }
-});
-
-// Re-colour chart whenever theme is toggled
-const _origToggle = window.toggleTheme;
-window.toggleTheme = function() {
-  _origToggle();
-  const nc = chartColors();
-  const ds = monthlyChart.data.datasets[0];
-  ds.backgroundColor      = nc.bar;
-  ds.borderColor          = nc.border;
-  ds.hoverBackgroundColor = nc.barHover;
-  const sc = monthlyChart.options.scales;
-  sc.x.grid.color  = sc.y.grid.color  = nc.grid;
-  sc.x.ticks.color = sc.y.ticks.color = nc.tick;
-  const tt = monthlyChart.options.plugins.tooltip;
-  tt.backgroundColor = nc.tooltipBg;
-  tt.borderColor     = nc.tooltipBdr;
-  tt.titleColor      = nc.titleCol;
-  tt.bodyColor       = nc.bodyCol;
-  monthlyChart.update();
-};
-</script>
-{% endblock %}
+{% block scripts %}{% endblock %}

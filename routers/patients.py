@@ -17,7 +17,7 @@ PER_PAGE = 10
 from datetime import datetime
 
 from database.connection import get_db
-from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill, PatientDocument, DOCUMENT_CATEGORIES
+from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill, PatientDocument, DOCUMENT_CATEGORIES, ReferralSource
 from services.auth_service import get_paying_doctor, require_pin
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -260,6 +260,51 @@ def unpin_patient(
 
     back = f"/patients?sort={sort}" + (f"&q={q}" if q.strip() else "")
     return RedirectResponse(url=back, status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+#  Edit referral source                                                         #
+# --------------------------------------------------------------------------- #
+
+@router.post("/{patient_id}/source")
+def update_patient_source(
+    patient_id: int,
+    referral_source: str = Form(""),
+    referral_source_other: str = Form(""),
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    """Set/edit the patient's marketing referral source from the profile page.
+
+    Unlike the auto-capture in booking flows (which preserves the first touch),
+    an explicit edit from the profile *does* override any previous value — that
+    is the entire purpose of this endpoint.
+    """
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.doctor_id == doctor.id,
+    ).first()
+    if not patient:
+        return RedirectResponse(url="/patients", status_code=303)
+
+    raw = referral_source.strip()
+    if not raw:
+        # Clearing the source
+        patient.referral_source = None
+        patient.referral_source_other = None
+    else:
+        try:
+            patient.referral_source = ReferralSource(raw)
+            if raw == ReferralSource.other.value:
+                patient.referral_source_other = referral_source_other.strip()[:120] or None
+            else:
+                patient.referral_source_other = None
+        except ValueError:
+            # Unknown enum value — silently no-op so we don't 500
+            pass
+
+    db.commit()
+    return RedirectResponse(url=f"/patients/{patient_id}", status_code=303)
 
 
 # --------------------------------------------------------------------------- #

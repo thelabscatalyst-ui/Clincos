@@ -12,7 +12,7 @@ from database.models import (
     Doctor, Appointment, Patient, AppointmentStatus, BookedBy,
     DoctorSchedule, BlockedDate, BlockedTime, PriceCatalog,
     Bill, Expense, ExpenseCategory, PaymentMode,
-    Visit, VisitStatus,
+    Visit, VisitStatus, ReferralSource,
 )
 from services.auth_service import (
     get_current_doctor, get_paying_doctor,
@@ -786,25 +786,82 @@ def reports_page(
     completion_rate = round(completed_count / past_total * 100) if past_total else 0
     no_show_rate    = round(no_show_count   / past_total * 100) if past_total else 0
 
-    # ---- Monthly trend — last 6 months ----
-    monthly_labels = []
-    monthly_counts = []
-    for i in range(5, -1, -1):
-        m = today.replace(day=1)
-        for _ in range(i):
-            m = (m - timedelta(days=1)).replace(day=1)
-        if m.month == 12:
-            next_m = m.replace(year=m.year + 1, month=1)
-        else:
-            next_m = m.replace(month=m.month + 1)
-        cnt = db.query(func.count(Appointment.id)).filter(
-            Appointment.doctor_id == doctor.id,
-            Appointment.appointment_date >= m,
-            Appointment.appointment_date < next_m,
-            Appointment.status != AppointmentStatus.cancelled,
-        ).scalar() or 0
-        monthly_labels.append(m.strftime("%b %Y"))
-        monthly_counts.append(cnt)
+    # ---- Average wait time (check_in → call) for this week vs last week ----
+    # The most operationally important UX metric for any clinic.
+    def _avg_wait_mins(visit_date_from: date, visit_date_to: date) -> int | None:
+        rows = (
+            db.query(Visit.check_in_time, Visit.call_time)
+            .filter(
+                Visit.doctor_id == doctor.id,
+                Visit.visit_date >= visit_date_from,
+                Visit.visit_date <  visit_date_to,
+                Visit.check_in_time.isnot(None),
+                Visit.call_time.isnot(None),
+            )
+            .all()
+        )
+        if not rows:
+            return None
+        total_secs = sum(
+            (call - chk).total_seconds()
+            for chk, call in rows
+            if call and chk and call > chk
+        )
+        # Filter out visits where call == check_in (instant calls) or negative.
+        valid = [(chk, call) for chk, call in rows if call and chk and call > chk]
+        if not valid:
+            return None
+        avg_secs = total_secs / len(valid)
+        return max(0, int(round(avg_secs / 60)))
+
+    # Week-aligned: current week starts Mon
+    _today_weekday = today.weekday()
+    week_start  = today - timedelta(days=_today_weekday)
+    week_end    = week_start + timedelta(days=7)
+    prev_start  = week_start - timedelta(days=7)
+    avg_wait_this_week = _avg_wait_mins(week_start, week_end)
+    avg_wait_last_week = _avg_wait_mins(prev_start, week_start)
+    # Trend delta — positive = got worse, negative = got faster
+    if avg_wait_this_week is not None and avg_wait_last_week:
+        wait_delta_mins = avg_wait_this_week - avg_wait_last_week
+        wait_delta_pct  = round((wait_delta_mins / avg_wait_last_week) * 100)
+    else:
+        wait_delta_mins = None
+        wait_delta_pct  = None
+
+    # ---- Peak-hours heatmap (last 30 days, Mon-Sun × hour-of-day) ----
+    # Counts visits by weekday + hour of check_in_time so doctors can see
+    # when they're busiest and plan staffing / blocked time accordingly.
+    heatmap_from = today - timedelta(days=30)
+    visit_rows = (
+        db.query(Visit.check_in_time)
+        .filter(
+            Visit.doctor_id == doctor.id,
+            Visit.check_in_time.isnot(None),
+            Visit.visit_date >= heatmap_from,
+        )
+        .all()
+    )
+    # Fixed 8am – 10pm band (14 columns) — keeps the grid visually consistent
+    # regardless of how sparse the data is. Out-of-band visits get bucketed
+    # into the nearest edge column so they aren't silently dropped.
+    # IST clinics often run evening hours up to 9–10 PM; 8 PM cutoff was
+    # clamping late-evening visits into the 7 PM bar.
+    peak_hour_start = 8
+    peak_hour_end   = 22
+
+    hour_labels = list(range(peak_hour_start, peak_hour_end))
+    # Total visits per hour across the whole 30-day window. One bar per hour.
+    hour_counts = [0] * len(hour_labels)
+    for v in visit_rows:
+        if not v.check_in_time:
+            continue
+        h = v.check_in_time.hour
+        # Clamp out-of-band hours to the nearest edge so off-hours visits show
+        if h < peak_hour_start: h = peak_hour_start
+        if h >= peak_hour_end:  h = peak_hour_end - 1
+        hour_counts[h - peak_hour_start] += 1
+    peak_max = max(hour_counts) if hour_counts else 0
 
     # ---- Top 5 patients ----
     top_patients = (
@@ -840,6 +897,52 @@ def reports_page(
         for r in type_rows
     ]
 
+    # ---- Source breakdown (marketing attribution per patient) ----
+    # Aggregate distinct patients per first-touch source. Patients with no
+    # source set are excluded from the pct denominator and shown separately
+    # in the card subtitle so the bars are meaningful.
+    _src_labels = {
+        ReferralSource.instagram:       "Instagram",
+        ReferralSource.facebook:        "Facebook",
+        ReferralSource.youtube:         "YouTube",
+        ReferralSource.google:          "Google",
+        ReferralSource.pamphlet:        "Pamphlet",
+        ReferralSource.hoarding:        "Hoarding",
+        ReferralSource.referral_friend: "Referral",
+        ReferralSource.walk_by:         "Walked by",
+        ReferralSource.other:           "Other",
+    }
+    src_rows = (
+        db.query(Patient.referral_source, func.count(Patient.id).label("cnt"))
+        .filter(
+            Patient.doctor_id == doctor.id,
+            Patient.referral_source.isnot(None),
+        )
+        .group_by(Patient.referral_source)
+        .all()
+    )
+    src_total = sum(r.cnt for r in src_rows) or 1
+    source_breakdown = sorted(
+        [
+            {
+                "label": _src_labels.get(r.referral_source, r.referral_source.value.title()),
+                "count": r.cnt,
+                "pct":   round(r.cnt / src_total * 100),
+            }
+            for r in src_rows
+        ],
+        key=lambda x: x["count"], reverse=True,
+    )
+    source_known_count = sum(r.cnt for r in src_rows)
+    source_unknown_count = (
+        db.query(func.count(Patient.id))
+        .filter(
+            Patient.doctor_id == doctor.id,
+            Patient.referral_source.is_(None),
+        )
+        .scalar() or 0
+    )
+
     # ---- New patients this month vs last ----
     start_this_month = today.replace(day=1)
     start_last_month = (start_this_month - timedelta(days=1)).replace(day=1)
@@ -862,10 +965,20 @@ def reports_page(
         "last_week":           last_week,
         "completion_rate":     completion_rate,
         "no_show_rate":        no_show_rate,
-        "monthly_labels":      json.dumps(monthly_labels),
-        "monthly_counts":      json.dumps(monthly_counts),
+        # Wait-time stat
+        "avg_wait_this_week":  avg_wait_this_week,
+        "avg_wait_last_week":  avg_wait_last_week,
+        "wait_delta_mins":     wait_delta_mins,
+        "wait_delta_pct":      wait_delta_pct,
+        # Peak-hours bar chart
+        "peak_hour_labels":    hour_labels,
+        "peak_hour_counts":    hour_counts,
+        "peak_max":            peak_max,
         "top_patients":        top_patients,
         "type_breakdown":      type_breakdown,
+        "source_breakdown":    source_breakdown,
+        "source_known_count":  source_known_count,
+        "source_unknown_count": source_unknown_count,
         "patients_this_month": patients_this_month,
         "patients_last_month": patients_last_month,
         "active":              "reports",

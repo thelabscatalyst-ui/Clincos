@@ -78,6 +78,19 @@ class VisitSource(str, enum.Enum):
     referral    = "referral"
 
 
+class ReferralSource(str, enum.Enum):
+    """How a patient first heard about the clinic — used for marketing analytics."""
+    instagram       = "instagram"
+    facebook        = "facebook"
+    youtube         = "youtube"
+    google          = "google"
+    pamphlet        = "pamphlet"
+    hoarding        = "hoarding"
+    referral_friend = "referral_friend"
+    walk_by         = "walk_by"
+    other           = "other"
+
+
 class PaymentMode(str, enum.Enum):
     cash      = "cash"
     upi       = "upi"
@@ -208,6 +221,11 @@ class Patient(Base):
     preferred_contact  = Column(String(20), nullable=True, default="phone")  # phone | whatsapp | none
     language_pref = Column(String(20), default="english")
     notes = Column(Text, nullable=True)
+    # Marketing first-touch attribution — set only when the patient is created
+    # via walk-in / appointment / public booking, then frozen unless edited from
+    # the profile. Aggregated on the Reports page.
+    referral_source       = Column(SAEnum(ReferralSource), nullable=True)
+    referral_source_other = Column(String(120), nullable=True)
     visit_count = Column(Integer, default=0)
     first_visit = Column(Date, nullable=True)
     last_visit = Column(Date, nullable=True)

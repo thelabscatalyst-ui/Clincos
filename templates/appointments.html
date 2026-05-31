@@ -85,6 +85,25 @@
         </select>
         <input type="text" name="patient_notes" placeholder="Notes (optional)" class="input-sm walkin-notes" />
       </div>
+      <!-- Optional source — first-touch marketing attribution -->
+      <div class="walkin-row" style="margin-top:6px;">
+        <select name="referral_source" class="input-sm" style="flex:1;"
+                onchange="this.parentNode.querySelector('.walkin-src-other').style.display = this.value==='other' ? 'block' : 'none';">
+          <option value="">How did they hear about us? (optional)</option>
+          <option value="instagram">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="youtube">YouTube</option>
+          <option value="google">Google</option>
+          <option value="pamphlet">Pamphlet</option>
+          <option value="hoarding">Hoarding</option>
+          <option value="referral_friend">Referral (friend/family)</option>
+          <option value="walk_by">Walked by / signboard</option>
+          <option value="other">Other</option>
+        </select>
+        <input type="text" name="referral_source_other" maxlength="120"
+               placeholder="Specify…" class="input-sm walkin-src-other"
+               style="flex:1;display:none;" />
+      </div>
       <input type="checkbox" name="is_emergency" id="emergencyCheck" style="display:none;" />
       <div class="walkin-actions">
         <button type="button" class="btn-emergency-toggle" id="emergencyToggle" onclick="toggleEmergency()">Emergency</button>

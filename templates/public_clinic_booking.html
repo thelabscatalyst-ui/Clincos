@@ -131,6 +131,26 @@
                   placeholder="Reason for visit, symptoms...">{{ form_data.get('patient_notes', '') }}</textarea>
       </div>
 
+      <div class="pub-form-group">
+        <label class="pub-label">How did you hear about us? (optional)</label>
+        <select name="referral_source" class="pub-input"
+                onchange="document.getElementById('pubcSrcOther').style.display = this.value==='other' ? 'block' : 'none';">
+          <option value="">— Select —</option>
+          <option value="instagram">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="youtube">YouTube</option>
+          <option value="google">Google search</option>
+          <option value="pamphlet">Pamphlet</option>
+          <option value="hoarding">Hoarding / billboard</option>
+          <option value="referral_friend">A friend or family</option>
+          <option value="walk_by">Walked by / signboard</option>
+          <option value="other">Other</option>
+        </select>
+        <input type="text" id="pubcSrcOther" name="referral_source_other" maxlength="120"
+               class="pub-input" placeholder="Please specify…"
+               style="margin-top:8px;display:none;" />
+      </div>
+
       <button type="submit" class="pub-submit-btn">Confirm Appointment</button>
     </form>
   </div>

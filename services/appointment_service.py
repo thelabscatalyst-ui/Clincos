@@ -3,7 +3,8 @@ from typing import List, Tuple
 from sqlalchemy.orm import Session
 
 from database.models import (
-    Appointment, AppointmentStatus, BookedBy, DoctorSchedule, BlockedDate, BlockedTime, Patient
+    Appointment, AppointmentStatus, BookedBy, DoctorSchedule, BlockedDate, BlockedTime,
+    Patient, ReferralSource,
 )
 
 
@@ -271,9 +272,16 @@ def _title_name(name: str) -> str:
 def get_or_create_patient(
     doctor_id: int, name: str, phone: str, db: Session,
     age: int | None = None, gender: str | None = None,
+    referral_source: str | None = None,
+    referral_source_other: str | None = None,
 ) -> Patient:
     """Look up patient by phone for this doctor, or create a new record.
+
     If age/gender are provided they are always written (update existing too).
+
+    `referral_source` is first-touch only — it is applied **only if the patient
+    has no source yet** so we never overwrite a known origin on return visits.
+    Explicit edits from the patient profile bypass this helper and may override.
     """
     name = _title_name(name)
     patient = db.query(Patient).filter(
@@ -288,4 +296,16 @@ def get_or_create_patient(
         patient.age = age
     if gender:
         patient.gender = gender
+
+    # First-touch attribution: write source only if unset
+    if referral_source and patient.referral_source is None:
+        try:
+            patient.referral_source = ReferralSource(referral_source)
+            if referral_source == ReferralSource.other.value and referral_source_other:
+                # Trim and cap to the column length (120)
+                patient.referral_source_other = referral_source_other.strip()[:120]
+        except ValueError:
+            # Unknown source value submitted — silently ignore so we never block a booking
+            pass
+
     return patient

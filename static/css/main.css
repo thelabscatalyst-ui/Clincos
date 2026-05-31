@@ -3117,11 +3117,113 @@ html.light .pt-btn--active {
 
 /* ─── Reports ───────────────────────────────────────── */
 
+/* Wait-time + Peak-hours combined card */
+.reports-wait-row {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  align-items: stretch;
+}
+.reports-wait-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 16px;
+  border-right: 1px solid var(--border);
+}
+.reports-wait-value {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.reports-wait-unit {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+.reports-wait-trend { font-size: 13px; color: var(--muted); }
+.reports-wait-trend--good { color: #4ade80; font-weight: 600; }
+.reports-wait-trend--bad  { color: #f87171; font-weight: 600; }
+
+/* Peak hours — vertical bar chart (8am – 8pm) */
+.reports-peak {}
+.reports-hourbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 160px;
+  padding: 4px 0 0;
+}
+.reports-hourbar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 100%;
+  min-width: 0;
+}
+.reports-hourbar-track {
+  position: relative;
+  flex: 1;
+  background: var(--bg-3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  transition: filter .12s ease;
+}
+.reports-hourbar:hover .reports-hourbar-track {
+  filter: brightness(1.12);
+}
+.reports-hourbar-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, #b8893f 0%, #d4a866 100%);
+  border-radius: 4px 4px 0 0;
+  transition: height .25s cubic-bezier(.22,1,.36,1);
+  min-height: 2px;
+}
+.reports-hourbar-label {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: .02em;
+}
+
+/* Mobile: stack the wait-time card vertically */
+@media (max-width: 900px) {
+  .reports-wait-row {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .reports-wait-stat {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 16px;
+  }
+}
+
 .reports-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 16px;
+  align-items: stretch;
+}
+/* Tablet: 2 columns */
+@media (max-width: 1100px) {
+  .reports-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* Top Patients list */

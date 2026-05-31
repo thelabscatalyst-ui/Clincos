@@ -316,6 +316,8 @@ async def create_appointment(
     patient_notes: str = Form(""),
     booked_by_field: str = Form("doctor"),
     for_doctor_id: int = Form(0),
+    referral_source: str = Form(""),
+    referral_source_other: str = Form(""),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -384,8 +386,13 @@ async def create_appointment(
     age_val = int(patient_age) if patient_age.strip().isdigit() else None
     gender_val = patient_gender.strip() or None
 
-    # Get or create patient
-    patient = get_or_create_patient(target.id, name, phone, db, age=age_val, gender=gender_val)
+    # Get or create patient (with first-touch source attribution)
+    patient = get_or_create_patient(
+        target.id, name, phone, db,
+        age=age_val, gender=gender_val,
+        referral_source=(referral_source.strip() or None),
+        referral_source_other=(referral_source_other.strip() or None),
+    )
 
     # Parse appointment type
     try:
@@ -477,6 +484,8 @@ async def create_walkin(
     patient_notes: str = Form(""),
     for_doctor_id: int = Form(0),
     is_emergency: str = Form(""),   # "on" if emergency checkbox ticked
+    referral_source: str = Form(""),
+    referral_source_other: str = Form(""),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -495,7 +504,12 @@ async def create_walkin(
 
     age_val    = int(patient_age) if patient_age.strip().isdigit() else None
     gender_val = patient_gender.strip() or None
-    patient = get_or_create_patient(target.id, name, phone, db, age=age_val, gender=gender_val)
+    patient = get_or_create_patient(
+        target.id, name, phone, db,
+        age=age_val, gender=gender_val,
+        referral_source=(referral_source.strip() or None),
+        referral_source_other=(referral_source_other.strip() or None),
+    )
 
     now = datetime.now()
     appt_date = now.date()

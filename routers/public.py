@@ -112,6 +112,8 @@ async def clinic_book_appointment(
     appt_time: str = Form(...),
     appointment_type: str = Form("new_patient"),
     patient_notes: str = Form(""),
+    referral_source: str = Form(""),
+    referral_source_other: str = Form(""),
     db: Session = Depends(get_db),
 ):
     clinic = db.query(Clinic).filter(Clinic.slug == slug).first()
@@ -173,7 +175,11 @@ async def clinic_book_appointment(
     if not ok:
         return render_error(reason)
 
-    patient = get_or_create_patient(selected.id, name, phone, db)
+    patient = get_or_create_patient(
+        selected.id, name, phone, db,
+        referral_source=(referral_source.strip() or None),
+        referral_source_other=(referral_source_other.strip() or None),
+    )
 
     try:
         appt_type = AppointmentType(appointment_type)
@@ -322,6 +328,8 @@ async def book_appointment(
     appt_time: str = Form(...),
     appointment_type: str = Form("new_patient"),
     patient_notes: str = Form(""),
+    referral_source: str = Form(""),
+    referral_source_other: str = Form(""),
     db: Session = Depends(get_db),
 ):
     doctor = db.query(Doctor).filter(
@@ -392,7 +400,11 @@ async def book_appointment(
         return render_error(reason)
 
     # Get or create patient
-    patient = get_or_create_patient(doctor.id, name, phone, db)
+    patient = get_or_create_patient(
+        doctor.id, name, phone, db,
+        referral_source=(referral_source.strip() or None),
+        referral_source_other=(referral_source_other.strip() or None),
+    )
 
     try:
         appt_type = AppointmentType(appointment_type)

@@ -346,6 +346,10 @@ def _run_migrations():
         # ── Seat-based billing: max doctors per plan ──────────────────────────
         _add_column(conn, "ALTER TABLE doctors ADD COLUMN plan_seats INTEGER")
 
+        # ── Marketing source tracking on patients (first-touch attribution) ──
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN referral_source VARCHAR(30)")
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN referral_source_other VARCHAR(120)")
+
         # ── Make notifications_log.appointment_id nullable ───────────────────
         # SQLite doesn't support ALTER COLUMN, so recreate the table.
         # On PostgreSQL the ORM creates it correctly — skip this block.

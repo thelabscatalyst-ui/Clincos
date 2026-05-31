@@ -237,6 +237,29 @@
                       placeholder="Chief complaint, reason for visit...">{{ form_data.get('patient_notes', '') }}</textarea>
           </div>
         </div>
+
+        <!-- Optional source — first-touch marketing attribution -->
+        <div class="form-group" style="margin:24px 0 0;">
+          <label class="form-label" style="font-size:12px;color:var(--muted);margin-bottom:8px;display:block;">
+            How did they hear about the clinic? <span style="font-weight:400;">(optional)</span>
+          </label>
+          <select name="referral_source" class="input-sm" style="width:100%;"
+                  onchange="document.getElementById('apnSrcOther').style.display = this.value==='other' ? 'block' : 'none';">
+            <option value="">— Select source —</option>
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="youtube">YouTube</option>
+            <option value="google">Google</option>
+            <option value="pamphlet">Pamphlet</option>
+            <option value="hoarding">Hoarding</option>
+            <option value="referral_friend">Referral (friend/family)</option>
+            <option value="walk_by">Walked by / signboard</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="text" id="apnSrcOther" name="referral_source_other" maxlength="120"
+                 placeholder="Specify where they heard about you…" class="input-sm"
+                 style="width:100%;margin-top:8px;display:none;" />
+        </div>
       </div>
 
       <!-- Actions -->

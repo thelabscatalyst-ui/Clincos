@@ -4,7 +4,7 @@
 
 {% if show_welcome %}
 <!-- ── First-run welcome / onboarding overlay (first 2 days) ──────────── -->
-<div class="welcome-overlay" id="welcomeOverlay">
+<div class="welcome-overlay" id="welcomeOverlay" style="display:none;">
   <div class="welcome-card">
     <div class="welcome-badge">Welcome to ClinicOS</div>
     <h2 class="welcome-title">Let's get your clinic ready, Dr. {{ doctor.name.split()[-1] }}</h2>
@@ -52,9 +52,25 @@
   var KEY = 'clinicos_welcome_seen';
   var overlay = document.getElementById('welcomeOverlay');
   if (!overlay) return;
-  // Show once per browser session (i.e. each time they open the app), within the 2-day window
+  // Show once per browser session — if already seen this session, just drop it
   if (sessionStorage.getItem(KEY)) { overlay.remove(); return; }
-  document.body.style.overflow = 'hidden';
+
+  // Defer showing by 1.5s after the dashboard paints so it doesn't glitch
+  // during the initial render. Using requestAnimationFrame ensures the page
+  // has had at least one paint before we even start the timer.
+  function showWelcome() {
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+  if ('requestAnimationFrame' in window) {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        setTimeout(showWelcome, 1500);
+      });
+    });
+  } else {
+    setTimeout(showWelcome, 1500);
+  }
 })();
 function dismissWelcome() {
   try { sessionStorage.setItem('clinicos_welcome_seen', '1'); } catch (e) {}
