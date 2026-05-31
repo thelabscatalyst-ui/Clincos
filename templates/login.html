@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login — ClinicOS</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=141" />
+  <link rel="stylesheet" href="/static/css/main.css?v=147" />
   <style>
     /* Auth pages default to light theme — override dark unless user explicitly chose dark */
     .auth-page-wrap {
@@ -97,6 +97,14 @@
   </script>
 </head>
 <body>
+
+<!-- Ambient drifting brown blobs — fixed to the viewport, behind everything -->
+<div class="ln-ambient" aria-hidden="true">
+  <span class="ln-blob ln-blob-1"></span>
+  <span class="ln-blob ln-blob-2"></span>
+  <span class="ln-blob ln-blob-3"></span>
+  <span class="ln-blob ln-blob-4"></span>
+</div>
 
 <div class="auth-page-wrap">
 

@@ -85,12 +85,18 @@ html, body {
   height: 100%;
 }
 
+html {
+  /* Put the page background on <html> so the ambient .ln-ambient (z-index:-1)
+     can sit between html bg and body content on pages that include it. */
+  background-color: var(--bg);
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 15px;
   line-height: 1.6;
   color: var(--text);
-  background-color: var(--bg);
+  background-color: transparent;
 }
 
 a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
@@ -7566,4 +7572,82 @@ html.light .skeleton::after {
 }
 .auth-page-wrap {
   min-height: 100vh;
+}
+
+/* ── Ambient drifting brown blobs (shared across landing + auth pages) ─ */
+.ln-ambient {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+.ln-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+}
+.ln-blob-1 {
+  width: 360px; height: 360px;
+  background: #8b6830;
+  opacity: .40;
+  top: -8%; left: -6%;
+  animation: blobFloat1 18s linear infinite;
+}
+.ln-blob-2 {
+  width: 320px; height: 320px;
+  background: #a07845;
+  opacity: .36;
+  top: -4%; right: -6%;
+  animation: blobFloat2 22s linear infinite;
+}
+.ln-blob-3 {
+  width: 380px; height: 380px;
+  background: #7a5828;
+  opacity: .32;
+  bottom: -10%; right: 8%;
+  animation: blobFloat3 24s linear infinite;
+}
+.ln-blob-4 {
+  width: 300px; height: 300px;
+  background: #b48a52;
+  opacity: .34;
+  bottom: -6%; left: 12%;
+  animation: blobFloat4 20s linear infinite;
+}
+@keyframes blobFloat1 {
+  0%   { transform: translate(0px,   0px)   scale(1);   }
+  20%  { transform: translate(220px, 80px)  scale(1.08); }
+  40%  { transform: translate(320px, 240px) scale(.95); }
+  60%  { transform: translate(140px, 300px) scale(1.05); }
+  80%  { transform: translate(-40px, 160px) scale(1.00); }
+  100% { transform: translate(0px,   0px)   scale(1);   }
+}
+@keyframes blobFloat2 {
+  0%   { transform: translate(0px,    0px)   scale(1);   }
+  20%  { transform: translate(-220px, 100px) scale(.96); }
+  40%  { transform: translate(-300px, 260px) scale(1.08); }
+  60%  { transform: translate(-160px, 340px) scale(1.02); }
+  80%  { transform: translate(60px,   180px) scale(.94); }
+  100% { transform: translate(0px,    0px)   scale(1);   }
+}
+@keyframes blobFloat3 {
+  0%   { transform: translate(0px,    0px)    scale(1);   }
+  20%  { transform: translate(-220px, -120px) scale(1.06); }
+  40%  { transform: translate(-340px, -300px) scale(.94); }
+  60%  { transform: translate(-160px, -360px) scale(1.10); }
+  80%  { transform: translate(40px,   -200px) scale(1.00); }
+  100% { transform: translate(0px,    0px)    scale(1);   }
+}
+@keyframes blobFloat4 {
+  0%   { transform: translate(0px,   0px)    scale(1);   }
+  20%  { transform: translate(180px, -120px) scale(1.05); }
+  40%  { transform: translate(320px, -280px) scale(.96); }
+  60%  { transform: translate(180px, -380px) scale(1.08); }
+  80%  { transform: translate(-40px, -200px) scale(1.00); }
+  100% { transform: translate(0px,   0px)    scale(1);   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ln-blob { animation: none !important; }
 }

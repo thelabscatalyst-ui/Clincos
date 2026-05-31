@@ -40,11 +40,12 @@
   }
 
   html, body { height: 100%; }
+  html { background: var(--bg); }
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 15px;
     line-height: 1.6;
-    background: var(--bg);
+    background: transparent;
     color: var(--text);
   }
 
@@ -132,12 +133,21 @@
     border: 1px solid #c9b99a;
     font-weight: 600;
   }
+  .pn-left { display: flex; align-items: center; gap: 16px; }
   .pn-back {
-    font-size: 13px; color: #9a8f85;
+    font-size: 13px; color: #c9b99a;
     display: flex; align-items: center; gap: 6px;
     text-decoration: none;
+    padding: 6px 12px;
+    border: 1px solid rgba(201, 185, 154, 0.25);
+    border-radius: 8px;
+    transition: opacity 0.15s, border-color 0.15s, background 0.15s;
   }
-  .pn-back:hover { color: #c9b99a; }
+  .pn-back:hover {
+    color: #f0e6d4;
+    border-color: rgba(201, 185, 154, 0.5);
+    background: rgba(255, 255, 255, 0.04);
+  }
   .pn-back svg { flex-shrink: 0; }
 
   /* ── Page content ── */
@@ -258,21 +268,78 @@
   }
 
   /* ── Toast ── */
+
+  /* ── Ambient drifting brown blobs ── */
+  .ln-ambient {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: -1;
+    overflow: hidden;
+  }
+  .ln-blob {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); will-change: transform;
+  }
+  .ln-blob-1 { width:360px; height:360px; background:#8b6830; opacity:.40; top:-8%; left:-6%;  animation: blobFloat1 18s linear infinite; }
+  .ln-blob-2 { width:320px; height:320px; background:#a07845; opacity:.36; top:-4%; right:-6%; animation: blobFloat2 22s linear infinite; }
+  .ln-blob-3 { width:380px; height:380px; background:#7a5828; opacity:.32; bottom:-10%; right:8%; animation: blobFloat3 24s linear infinite; }
+  .ln-blob-4 { width:300px; height:300px; background:#b48a52; opacity:.34; bottom:-6%;  left:12%; animation: blobFloat4 20s linear infinite; }
+  @keyframes blobFloat1 {
+    0%   { transform: translate(0,    0)    scale(1);   }
+    20%  { transform: translate(220px, 80px) scale(1.08); }
+    40%  { transform: translate(320px, 240px) scale(.95); }
+    60%  { transform: translate(140px, 300px) scale(1.05); }
+    80%  { transform: translate(-40px, 160px) scale(1.00); }
+    100% { transform: translate(0,    0)    scale(1);   }
+  }
+  @keyframes blobFloat2 {
+    0%   { transform: translate(0,     0)    scale(1);   }
+    20%  { transform: translate(-220px, 100px) scale(.96); }
+    40%  { transform: translate(-300px, 260px) scale(1.08); }
+    60%  { transform: translate(-160px, 340px) scale(1.02); }
+    80%  { transform: translate(60px,   180px) scale(.94); }
+    100% { transform: translate(0,     0)    scale(1);   }
+  }
+  @keyframes blobFloat3 {
+    0%   { transform: translate(0,     0)     scale(1);   }
+    20%  { transform: translate(-220px,-120px) scale(1.06); }
+    40%  { transform: translate(-340px,-300px) scale(.94); }
+    60%  { transform: translate(-160px,-360px) scale(1.10); }
+    80%  { transform: translate(40px,  -200px) scale(1.00); }
+    100% { transform: translate(0,     0)     scale(1);   }
+  }
+  @keyframes blobFloat4 {
+    0%   { transform: translate(0,    0)     scale(1);   }
+    20%  { transform: translate(180px,-120px) scale(1.05); }
+    40%  { transform: translate(320px,-280px) scale(.96); }
+    60%  { transform: translate(180px,-380px) scale(1.08); }
+    80%  { transform: translate(-40px,-200px) scale(1.00); }
+    100% { transform: translate(0,    0)     scale(1);   }
+  }
+  @media (prefers-reduced-motion: reduce) { .ln-blob { animation: none !important; } }
   </style>
 </head>
 <body>
 
-<!-- ── Boot screen (only for unauthenticated visitors) ─────── -->
-{% if not doctor %}
-<div id="boot">
-  <div class="boot-brand">ClinicOS</div>
-  <div class="boot-lines" id="bootLines"></div>
+<!-- Ambient drifting brown blobs — fixed to the viewport, behind everything -->
+<div class="ln-ambient" aria-hidden="true">
+  <span class="ln-blob ln-blob-1"></span>
+  <span class="ln-blob ln-blob-2"></span>
+  <span class="ln-blob ln-blob-3"></span>
+  <span class="ln-blob ln-blob-4"></span>
 </div>
-{% endif %}
 
 <!-- ── Navbar ── -->
 <nav class="pn">
-  <a href="/" class="pn-brand">ClinicOS</a>
+  <div class="pn-left">
+    <a href="/" class="pn-back" aria-label="Back to landing page">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Back
+    </a>
+    <a href="/" class="pn-brand">ClinicOS</a>
+  </div>
   <div class="pn-actions">
     {% if doctor %}
     <a href="/dashboard" class="pn-btn pn-btn--ghost">Dashboard →</a>
@@ -546,72 +613,6 @@ async function startPayment(plan, amount, btn) {
 })();
 </script>
 
-{% if not doctor %}
-<script>
-(function () {
-  var LINES_POOL = [
-    "Connecting to ClinicOS network…",
-    "Loading appointment engine…",
-    "Initializing queue system…",
-    "Fetching clinic data…",
-    "Preparing patient records…",
-    "Syncing billing infrastructure…",
-    "Loading price catalog…",
-    "Verifying session integrity…",
-    "Calibrating schedule engine…",
-    "Establishing secure connection…",
-  ];
-
-  // Shuffle and pick 4, always end with "Ready."
-  function shuffle(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var t = a[i]; a[i] = a[j]; a[j] = t;
-    }
-    return a;
-  }
-
-  var picked = shuffle(LINES_POOL).slice(0, 4);
-  picked.push("ClinicOS ready.");
-
-  var container = document.getElementById('bootLines');
-
-  // Build DOM
-  picked.forEach(function (text) {
-    var row = document.createElement('div');
-    row.className = 'boot-line';
-    var dot = document.createElement('span'); dot.className = 'boot-dot';
-    var label = document.createElement('span'); label.textContent = text;
-    row.appendChild(dot); row.appendChild(label);
-    container.appendChild(row);
-  });
-
-  var rows = container.querySelectorAll('.boot-line');
-  var STEP = 280; // ms between lines
-
-  rows.forEach(function (row, i) {
-    setTimeout(function () {
-      row.classList.add('visible');
-    }, i * STEP);
-
-    setTimeout(function () {
-      row.classList.add('done');
-    }, i * STEP + 200);
-  });
-
-  // After all lines shown + small hold, fade boot screen out
-  var total = (rows.length - 1) * STEP + 500;
-  setTimeout(function () {
-    document.getElementById('boot').classList.add('out');
-    setTimeout(function () {
-      var b = document.getElementById('boot');
-      if (b) b.style.display = 'none';
-    }, 420);
-  }, total);
-})();
-</script>
-{% endif %}
 
 </body>
 </html>

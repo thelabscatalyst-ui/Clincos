@@ -18,9 +18,10 @@
   :root         { --amber: #c9b99a; }
   html.light    { --amber: #8a6520; }
 
+  html { background: var(--bg); }
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--bg);
+    background: transparent;
     color: var(--text);
     line-height: 1.6;
   }
@@ -91,7 +92,8 @@
     padding: 90px 60px;
   }
   .ln-section--alt {
-    background: var(--bg-2);
+    /* transparent so the ambient blobs show through; keep borders for rhythm */
+    background: transparent;
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
   }
@@ -125,11 +127,11 @@
     border-bottom: 1px solid var(--border);
   }
   .ln-video-grid {
-    max-width: 1200px;
+    max-width: 1320px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 1.5fr 1fr;
-    gap: 52px;
+    grid-template-columns: 1.75fr 1fr;
+    gap: 56px;
     align-items: center;
   }
   .ln-video-head {
@@ -145,8 +147,10 @@
     border: 1px solid #c2a98a;
     border-radius: 24px;
     padding: 14px;
-    box-shadow: 0 30px 60px -20px rgba(46,30,12,.45),
-                0 60px 120px -30px rgba(46,30,12,.35);
+    box-shadow: -35px 0 70px -22px rgba(46,30,12,.42),
+                 35px 0 70px -22px rgba(46,30,12,.42),
+                 0 36px 70px -20px rgba(46,30,12,.50),
+                 0 14px 28px -10px rgba(46,30,12,.32);
   }
   .ln-video-bar {
     display: flex;
@@ -182,7 +186,9 @@
     pointer-events: none;
     z-index: 3;
   }
-  /* When a designed thumbnail is loaded, keep the play button but hide caption */
+  /* When a designed thumbnail is loaded, hide our overlay play button + caption
+     so the thumbnail's own design (incl. its play button) shows uncluttered */
+  .ln-video-poster--has-thumb .ln-video-play,
   .ln-video-poster--has-thumb .ln-video-caption {
     display: none;
   }
@@ -231,7 +237,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 64px;
     align-items: center;
-    background: var(--bg);
+    background: transparent;
     position: relative;
     overflow: hidden;
     perspective: 1400px;
@@ -247,6 +253,87 @@
     background: radial-gradient(ellipse at center, rgba(180,130,60,.07) 0%, transparent 70%);
     pointer-events: none;
   }
+  /* Ambient drifting brown blobs — pure CSS, always animating.
+     Fixed to the viewport and pushed behind everything so the blobs stay
+     visible across the whole landing page as the user scrolls. */
+  .ln-ambient {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+  }
+  .ln-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    will-change: transform;
+  }
+  /* Each blob is anchored to its own quadrant and travels a curving loop
+     within that zone — keeps them from fully overlapping. Linear timing
+     means they never decelerate / pause at keyframe stops. */
+  .ln-blob-1 {     /* top-left zone */
+    width: 360px; height: 360px;
+    background: #8b6830;
+    opacity: .40;
+    top: -8%; left: -6%;
+    animation: blobFloat1 18s linear infinite;
+  }
+  .ln-blob-2 {     /* top-right zone */
+    width: 320px; height: 320px;
+    background: #a07845;
+    opacity: .36;
+    top: -4%; right: -6%;
+    animation: blobFloat2 22s linear infinite;
+  }
+  .ln-blob-3 {     /* bottom-right zone */
+    width: 380px; height: 380px;
+    background: #7a5828;
+    opacity: .32;
+    bottom: -10%; right: 8%;
+    animation: blobFloat3 24s linear infinite;
+  }
+  .ln-blob-4 {     /* bottom-left zone */
+    width: 300px; height: 300px;
+    background: #b48a52;
+    opacity: .34;
+    bottom: -6%; left: 12%;
+    animation: blobFloat4 20s linear infinite;
+  }
+  @keyframes blobFloat1 {
+    0%   { transform: translate(0px,   0px)   scale(1);   }
+    20%  { transform: translate(220px, 80px)  scale(1.08); }
+    40%  { transform: translate(320px, 240px) scale(.95); }
+    60%  { transform: translate(140px, 300px) scale(1.05); }
+    80%  { transform: translate(-40px, 160px) scale(1.00); }
+    100% { transform: translate(0px,   0px)   scale(1);   }
+  }
+  @keyframes blobFloat2 {
+    0%   { transform: translate(0px,    0px)   scale(1);   }
+    20%  { transform: translate(-220px, 100px) scale(.96); }
+    40%  { transform: translate(-300px, 260px) scale(1.08); }
+    60%  { transform: translate(-160px, 340px) scale(1.02); }
+    80%  { transform: translate(60px,   180px) scale(.94); }
+    100% { transform: translate(0px,    0px)   scale(1);   }
+  }
+  @keyframes blobFloat3 {
+    0%   { transform: translate(0px,    0px)    scale(1);   }
+    20%  { transform: translate(-220px, -120px) scale(1.06); }
+    40%  { transform: translate(-340px, -300px) scale(.94); }
+    60%  { transform: translate(-160px, -360px) scale(1.10); }
+    80%  { transform: translate(40px,   -200px) scale(1.00); }
+    100% { transform: translate(0px,    0px)    scale(1);   }
+  }
+  @keyframes blobFloat4 {
+    0%   { transform: translate(0px,   0px)    scale(1);   }
+    20%  { transform: translate(180px, -120px) scale(1.05); }
+    40%  { transform: translate(320px, -280px) scale(.96); }
+    60%  { transform: translate(180px, -380px) scale(1.08); }
+    80%  { transform: translate(-40px, -200px) scale(1.00); }
+    100% { transform: translate(0px,   0px)    scale(1);   }
+  }
+  /* Hero content sits in front of the blobs */
+  .ln-hero-left, .ln-hero-mock { position: relative; z-index: 1; }
   .ln-hero-eyebrow {
     display: inline-flex;
     align-items: center;
@@ -474,7 +561,7 @@
 
   /* ── Social proof strip ────────────────────────────────── */
   .ln-strip {
-    background: var(--bg-2);
+    background: transparent;
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
     padding: 18px 60px;
@@ -796,6 +883,14 @@
 <!-- ══════════════════════════════════════════════════════════
      HERO
 ══════════════════════════════════════════════════════════ -->
+<!-- Ambient blurred brown blobs — fixed to the viewport, behind everything -->
+<div class="ln-ambient" aria-hidden="true">
+  <span class="ln-blob ln-blob-1"></span>
+  <span class="ln-blob ln-blob-2"></span>
+  <span class="ln-blob ln-blob-3"></span>
+  <span class="ln-blob ln-blob-4"></span>
+</div>
+
 <section class="ln-hero" id="hero">
   <div class="ln-hero-left">
     <div class="ln-hero-eyebrow">
@@ -905,12 +1000,6 @@
   <div class="ln-video-grid">
     <!-- LEFT: video player -->
     <div class="ln-video-shell">
-      <div class="ln-video-bar">
-        <span class="ln-video-dot" style="background:#f87171;"></span>
-        <span class="ln-video-dot" style="background:#fbbf24;"></span>
-        <span class="ln-video-dot" style="background:#4ade80;"></span>
-        <span class="ln-video-bar-title">ClinicOS — Product Demo</span>
-      </div>
       <div class="ln-video-frame" id="videoFrame" onclick="loadDemoVideo()" role="button" tabindex="0" aria-label="Play ClinicOS demo video">
         <div class="ln-video-poster" id="videoPoster">
           <div class="ln-video-play">
@@ -1089,13 +1178,13 @@
   var mock3d = document.getElementById('heroMock3d');
   if (hero && mock3d) {
     var layers = mock3d.querySelectorAll('.ln-mock-layer');
-    var raf = null;
+    var mockRaf = null;
     hero.addEventListener('mousemove', function (e) {
       var r = hero.getBoundingClientRect();
       var cx = (e.clientX - r.left) / r.width - 0.5;   // -0.5 .. 0.5
       var cy = (e.clientY - r.top) / r.height - 0.5;
-      if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(function () {
+      if (mockRaf) cancelAnimationFrame(mockRaf);
+      mockRaf = requestAnimationFrame(function () {
         mock3d.style.transform = 'rotateY(' + (cx * 4.5).toFixed(2) + 'deg) rotateX(' + (-cy * 4.5).toFixed(2) + 'deg)';
         layers.forEach(function (el) {
           var d = parseFloat(el.getAttribute('data-depth')) || 0;
@@ -1113,9 +1202,12 @@
     });
   }
 
+  // Ambient blobs are pure CSS now — no JS needed for the floating motion.
+
   // 2) Scroll reveal — fade/slide sections in as they enter the viewport
+  //    (video + cards excluded — their pop-in was distracting)
   var revealTargets = document.querySelectorAll(
-    '.ln-feat, .ln-step, .ln-video-grid, .ln-cta-inner, .ln-strip-item'
+    '.ln-cta-inner, .ln-strip-item'
   );
   if ('IntersectionObserver' in window && revealTargets.length) {
     revealTargets.forEach(function (el, i) {
