@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Edit Appointment #{{ appt.id }} — ClinicOS{% endblock %}
+{% block title %}Edit Appointment #{{ appt.id }} · ClinicOS{% endblock %}
 
 {% block content %}
 
@@ -9,7 +9,7 @@
     <div class="page-sub">{{ appt.patient.name }} · #{{ appt.id }}</div>
   </div>
   <a href="/appointments?filter_date={{ appt.appointment_date.isoformat() }}" class="btn btn-secondary btn-sm">← Cancel</a>
-  {# is_staff passed so templates/detail can use it too — no visible change here #}
+  {# is_staff passed so templates/detail can use it too · no visible change here #}
 </div>
 
 {% if error %}

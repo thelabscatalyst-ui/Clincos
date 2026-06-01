@@ -120,7 +120,7 @@
             <option value="{{ s }}" {% if form_data.get('appt_time') == s %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
           {% else %}
-            <option value="">No slots available — try another date</option>
+            <option value="">No slots available · try another date</option>
           {% endif %}
         </select>
       </div>
@@ -135,7 +135,7 @@
         <label class="pub-label">How did you hear about us? (optional)</label>
         <select name="referral_source" class="pub-input"
                 onchange="document.getElementById('pubcSrcOther').style.display = this.value==='other' ? 'block' : 'none';">
-          <option value="">— Select —</option>
+          <option value="">Select</option>
           <option value="instagram">Instagram</option>
           <option value="facebook">Facebook</option>
           <option value="youtube">YouTube</option>

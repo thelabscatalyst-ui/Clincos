@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pricing — ClinicOS</title>
+  <title>Pricing · ClinicOS</title>
   <meta name="description" content="Simple, honest pricing for Indian clinics. Starts at ₹599/month." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -320,7 +320,7 @@
 </head>
 <body>
 
-<!-- Ambient drifting brown blobs — fixed to the viewport, behind everything -->
+<!-- Ambient drifting brown blobs · fixed to the viewport, behind everything -->
 <div class="ln-ambient" aria-hidden="true">
   <span class="ln-blob ln-blob-1"></span>
   <span class="ln-blob ln-blob-2"></span>
@@ -360,10 +360,10 @@
   </div>
 
   <div class="trial-banner">
-    <strong>14-day free trial</strong> — no credit card required. Full access from day one.
+    <strong>14-day free trial</strong> · no credit card required. Full access from day one.
   </div>
 
-  {# Plan rank — higher number = more seats. Used to block downgrades. #}
+  {# Plan rank · higher number = more seats. Used to block downgrades. #}
   {% set PLAN_RANK = {'trial': 0, 'basic': 1, 'solo': 1, 'pro': 2, 'duo': 2, 'clinic': 3, 'hospital': 4, 'enterprise': 5} %}
   {% set my_rank = PLAN_RANK.get(current_plan, 0) %}
 
@@ -388,7 +388,7 @@
       {% if doctor %}
         {% set solo_seats = plans['solo']['seats'] %}
         {% if solo_seats is not none and solo_seats < min_seats_needed %}
-          {# Clinic owner — too many doctors for this plan #}
+          {# Clinic owner · too many doctors for this plan #}
           <span class="pc-btn" style="opacity:.45;cursor:not-allowed;"
                 title="Your clinic has {{ min_seats_needed }} doctors. This plan only covers {{ solo_seats }}. Upgrade to a multi-doctor plan.">
             Not enough seats for your clinic
@@ -444,7 +444,7 @@
       {% if doctor %}
         {% set clinic_seats = plans['clinic']['seats'] %}
         {% if clinic_seats is not none and clinic_seats < min_seats_needed %}
-          {# Not enough seats even in Clinic plan — shouldn't normally happen #}
+          {# Not enough seats even in Clinic plan · shouldn't normally happen #}
           <span class="pc-btn" style="opacity:.45;cursor:not-allowed;"
                 title="Your clinic has {{ min_seats_needed }} doctors. Contact support for a larger plan.">
             Not enough seats for your clinic
@@ -469,7 +469,7 @@
             {% if razorpay_configured %}
               <button type="button" class="pc-btn pc-btn--primary"
                       onclick="startPayment('clinic', {{ plans['clinic']['amount'] }}, this)">
-                {% if plan_status == "active" %}Upgrade — ₹1,599/mo
+                {% if plan_status == "active" %}Upgrade · ₹1,599/mo
                 {% elif plan_status == "expired" %}Renew Now →
                 {% else %}Upgrade to Clinic →{% endif %}
               </button>
@@ -548,7 +548,7 @@ async function startPayment(plan, amount, btn) {
     var res  = await fetch('/billing/create-order?plan=' + plan, { method: 'POST' });
     var data = await res.json();
     if (data.error) {
-      showPayToast('Could not start payment — ' + data.error, true);
+      showPayToast('Could not start payment · ' + data.error, true);
       btn.disabled = false; btn.textContent = origText; return;
     }
     var options = {
@@ -557,14 +557,14 @@ async function startPayment(plan, amount, btn) {
       currency:    data.currency,
       order_id:    data.order_id,
       name:        'ClinicOS',
-      description: plan.charAt(0).toUpperCase() + plan.slice(1) + ' Plan — 1 Month',
+      description: plan.charAt(0).toUpperCase() + plan.slice(1) + ' Plan · 1 Month',
       prefill:     { name: '{{ doctor.name }}', email: '{{ doctor.email }}', contact: '{{ doctor.phone }}' },
       theme:       { color: '#b48230' },
       modal: {
         ondismiss: function() {
           if (paid) return;
           btn.disabled = false; btn.textContent = origText;
-          showPayToast('Payment cancelled — no charge was made.');
+          showPayToast('Payment cancelled · no charge was made.');
         }
       },
       handler: function(response) {

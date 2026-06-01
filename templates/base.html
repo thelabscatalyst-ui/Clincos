@@ -55,7 +55,7 @@
 {% if pin_required is defined and pin_required %}
 <div class="pin-overlay" id="pinOverlay">
 
-  <!-- Back arrow — top-left corner of overlay -->
+  <!-- Back arrow · top-left corner of overlay -->
   <a href="javascript:history.back()" class="pin-back-btn" title="Go back">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -75,7 +75,7 @@
     <p class="pin-dialog-label">PIN required</p>
 
     {% if request.query_params.get('pin_error') %}
-    <p class="pin-dialog-error">Incorrect PIN — try again</p>
+    <p class="pin-dialog-error">Incorrect PIN · try again</p>
     {% endif %}
 
     <form method="POST" action="/pin-prompt" class="pin-dialog-form">
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('themeIconMoon').style.display = isLight ? 'none'  : 'block';
 });
 
-/* ── Phone input — strip non-digits, enforce exactly 10, live counter ── */
+/* ── Phone input · strip non-digits, enforce exactly 10, live counter ── */
 function initPhoneInput(inputEl) {
   if (!inputEl) return;
 
@@ -221,7 +221,7 @@ function initPhoneInput(inputEl) {
       counter.textContent = '';
       counter.className   = 'phone-counter';
     } else if (n < 10) {
-      counter.textContent = `${n}/10 digits — need ${10 - n} more`;
+      counter.textContent = `${n}/10 digits · need ${10 - n} more`;
       counter.className   = 'phone-counter bad';
     } else {
       counter.textContent = '✓ 10 digits';
@@ -242,7 +242,7 @@ function initPhoneInput(inputEl) {
 {% block scripts %}{% endblock %}
 
 <script>
-/* ── Page transition — fade + lift ── */
+/* ── Page transition · fade + lift ── */
 (function () {
   document.addEventListener('DOMContentLoaded', function () {
     var main = document.querySelector('.main-content');
@@ -250,7 +250,7 @@ function initPhoneInput(inputEl) {
 
     var navEntry = performance.getEntriesByType('navigation')[0];
 
-    // Skip on reload — animating after F5 feels wrong
+    // Skip on reload · animating after F5 feels wrong
     if (navEntry && navEntry.type === 'reload') return;
 
     // Only animate when genuinely navigating within the app
@@ -389,7 +389,7 @@ window.showToast = function (message, type) {
 (function () {
   document.addEventListener('submit', function (e) {
     var form = e.target;
-    /* Skip PIN dialog — it has its own UX */
+    /* Skip PIN dialog · it has its own UX */
     if (form.classList.contains('pin-dialog-form')) return;
     var btn = form.querySelector('[type="submit"]');
     if (!btn) return;
@@ -424,7 +424,7 @@ window.showToast = function (message, type) {
           window.location.href = '/login';
         }
       })
-      .catch(function () { /* network error — stay put */ });
+      .catch(function () { /* network error · stay put */ });
   });
 })();
 </script>
@@ -448,7 +448,7 @@ window.showToast = function (message, type) {
 </style>
 
 <script>
-/* Re-execute <script> tags after innerHTML injection — browsers skip them by default */
+/* Re-execute <script> tags after innerHTML injection · browsers skip them by default */
 function _execScripts(container) {
   container.querySelectorAll('script').forEach(function(oldScript) {
     var s = document.createElement('script');

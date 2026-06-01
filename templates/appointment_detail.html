@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Appointment #{{ appt.id }} — ClinicOS{% endblock %}
+{% block title %}Appointment #{{ appt.id }} · ClinicOS{% endblock %}
 
 {% block content %}
 
@@ -191,7 +191,7 @@
       {% for item in price_catalog if item.is_pinned %}
       <button type="button" class="bill-quick-btn"
               onclick="addEditItem('{{ item.name }}', {{ item.default_price }})">
-        {{ item.name }} — ₹{{ "{:,.0f}".format(item.default_price) }}
+        {{ item.name }} · ₹{{ "{:,.0f}".format(item.default_price) }}
       </button>
       {% endfor %}
     </div>

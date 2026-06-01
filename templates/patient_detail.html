@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ patient.name }} — ClinicOS{% endblock %}
+{% block title %}{{ patient.name }} · ClinicOS{% endblock %}
 
 {% block content %}
 
@@ -50,7 +50,7 @@
         <div class="form-group">
           <label class="form-label">Gender</label>
           <select name="gender" class="input-sm" style="width:100%;box-sizing:border-box;">
-            <option value="">— Select —</option>
+            <option value="">Select</option>
             <option value="male"   {% if patient.gender == 'male'   %}selected{% endif %}>Male</option>
             <option value="female" {% if patient.gender == 'female' %}selected{% endif %}>Female</option>
             <option value="other"  {% if patient.gender == 'other'  %}selected{% endif %}>Other</option>
@@ -62,7 +62,7 @@
         <div class="form-group">
           <label class="form-label">Blood Group</label>
           <select name="blood_group" class="input-sm" style="width:100%;box-sizing:border-box;">
-            <option value="">— Select —</option>
+            <option value="">Select</option>
             {% for bg in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
             <option value="{{ bg }}" {% if patient.blood_group == bg %}selected{% endif %}>{{ bg }}</option>
             {% endfor %}
@@ -121,7 +121,7 @@
       <div class="settings-card-header" style="margin-bottom:20px;">
         <div>
           <div class="settings-card-title">Doctor's Notes</div>
-          <div class="settings-card-sub">Private — visible only to you</div>
+          <div class="settings-card-sub">Private · visible only to you</div>
         </div>
         <button type="button" class="note-expand-btn" id="notesExpandBtn"
                 onclick="toggleNotesFullscreen()" title="View all notes full screen"
@@ -201,7 +201,7 @@
           {% endfor %}
         {% else %}
           <div class="note-empty-state" id="noteEmptyState">
-            No notes yet — add your first note below.
+            No notes yet · add your first note below.
           </div>
         {% endif %}
       </div><!-- /note-timeline -->
@@ -264,7 +264,7 @@
         {% endif %}
       </div>
 
-      <!-- Info grid — mirrors appointment card style -->
+      <!-- Info grid · mirrors appointment card style -->
       <div class="patient-info-grid">
         <div class="patient-info-row">
           <span class="patient-info-label">Phone</span>
@@ -291,7 +291,7 @@
           <span class="patient-info-value">{{ (patient.preferred_contact or 'Phone').replace('_',' ').title() }}</span>
         </div>
 
-        <!-- Marketing source — editable inline so receptionist can fill it later -->
+        <!-- Marketing source · editable inline so receptionist can fill it later -->
         {% set _src_labels = {
           'instagram':'Instagram','facebook':'Facebook','youtube':'YouTube','google':'Google',
           'pamphlet':'Pamphlet','hoarding':'Hoarding','referral_friend':'Referral (friend/family)',
@@ -303,7 +303,7 @@
           <span class="patient-info-value" id="sourceView" style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
             <span style="{% if not patient.referral_source %}color:var(--text-dim);{% endif %}">
               {% if patient.referral_source %}
-                {{ _src_labels.get(_src_val, _src_val.title()) }}{% if patient.referral_source.value == 'other' and patient.referral_source_other %} — {{ patient.referral_source_other }}{% endif %}
+                {{ _src_labels.get(_src_val, _src_val.title()) }}{% if patient.referral_source.value == 'other' and patient.referral_source_other %} · {{ patient.referral_source_other }}{% endif %}
               {% else %}
                 Not set
               {% endif %}
@@ -318,7 +318,7 @@
                 style="display:none;margin-top:8px;flex-direction:column;gap:10px;">
             <select name="referral_source" class="input-sm"
                     onchange="document.getElementById('detailSrcOther').style.display = this.value==='other' ? 'block' : 'none';">
-              <option value="">— Not set —</option>
+              <option value="">Not set</option>
               <option value="instagram"       {% if _src_val=='instagram' %}selected{% endif %}>Instagram</option>
               <option value="facebook"        {% if _src_val=='facebook' %}selected{% endif %}>Facebook</option>
               <option value="youtube"         {% if _src_val=='youtube' %}selected{% endif %}>YouTube</option>
@@ -360,7 +360,7 @@
   </div><!-- /patient-info-col -->
 </div><!-- /patient-detail-split -->
 
-<!-- ── Appointment History — full width ─────────────────────────────────── -->
+<!-- ── Appointment History · full width ─────────────────────────────────── -->
 <div class="section-header" style="margin-top:24px;">
   <h2 class="section-title">Appointment History</h2>
   <span class="section-link">{{ appointments | length }} total</span>
@@ -399,7 +399,7 @@
 </div>
 {% endif %}
 
-<!-- ── Billing History — full width ─────────────────────────────────────── -->
+<!-- ── Billing History · full width ─────────────────────────────────────── -->
 {% if bills %}
 <div class="section-header" style="margin-top:28px;">
   <h2 class="section-title">Billing History</h2>
@@ -716,7 +716,7 @@ async function deleteNote(noteId, btn) {
         const timeline = document.getElementById('noteTimeline');
         if (timeline && !timeline.querySelector('.note-entry')) {
           timeline.insertAdjacentHTML('afterbegin',
-            '<div class="note-empty-state" id="noteEmptyState">No notes yet — add your first note below.</div>'
+            '<div class="note-empty-state" id="noteEmptyState">No notes yet · add your first note below.</div>'
           );
         }
       }, 260);
@@ -792,7 +792,7 @@ function cancelEdit(noteId) {
   delete noteEditState[noteId];
 }
 
-/* Remove an existing (already-saved) file — immediate AJAX */
+/* Remove an existing (already-saved) file · immediate AJAX */
 async function removeExistingFile(noteId, fileId, btn) {
   if (!confirm('Remove this file? This cannot be undone.')) return;
   btn.disabled = true;

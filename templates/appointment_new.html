@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}New Appointment — ClinicOS{% endblock %}
+{% block title %}New Appointment · ClinicOS{% endblock %}
 
 {% block content %}
 
@@ -52,7 +52,7 @@
             <select id="for_doctor_id" name="for_doctor_id" class="apn-input-icon-field" onchange="onDoctorChange()">
               {% for doc in clinic_doctors %}
               <option value="{{ doc.id }}" {% if doc.id == (form_data.get('for_doctor_id', doctor.id) | int) %}selected{% endif %}>
-                Dr. {{ doc.name }}{% if doc.specialization %} — {{ doc.specialization }}{% endif %}
+                Dr. {{ doc.name }}{% if doc.specialization %} · {{ doc.specialization }}{% endif %}
               </option>
               {% endfor %}
             </select>
@@ -173,7 +173,7 @@
                   <option value="{{ slot }}" {% if form_data.get('appt_time') == slot %}selected{% endif %}>{{ slot }}</option>
                   {% endfor %}
                 {% else %}
-                  <option value="">No slots — set working hours in Settings</option>
+                  <option value="">No slots · set working hours in Settings</option>
                 {% endif %}
               </select>
             </div>
@@ -238,14 +238,14 @@
           </div>
         </div>
 
-        <!-- Optional source — first-touch marketing attribution -->
+        <!-- Optional source · first-touch marketing attribution -->
         <div class="form-group" style="margin:24px 0 0;">
           <label class="form-label" style="font-size:12px;color:var(--muted);margin-bottom:8px;display:block;">
             How did they hear about the clinic? <span style="font-weight:400;">(optional)</span>
           </label>
           <select name="referral_source" class="input-sm" style="width:100%;"
                   onchange="document.getElementById('apnSrcOther').style.display = this.value==='other' ? 'block' : 'none';">
-            <option value="">— Select source —</option>
+            <option value="">Select source</option>
             <option value="instagram">Instagram</option>
             <option value="facebook">Facebook</option>
             <option value="youtube">YouTube</option>

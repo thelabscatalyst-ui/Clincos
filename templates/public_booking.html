@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}
-  {% if doctor %}Book Appointment — {{ doctor.clinic_name or doctor.name }}{% else %}Not Found{% endif %}
+  {% if doctor %}Book Appointment · {{ doctor.clinic_name or doctor.name }}{% else %}Not Found{% endif %}
 {% endblock %}
 
 {% block navbar %}{% endblock %}
@@ -117,7 +117,7 @@
         <label for="referral_source">How did you hear about us? (optional)</label>
         <select id="referral_source" name="referral_source"
                 onchange="document.getElementById('pubSrcOther').style.display = this.value==='other' ? 'block' : 'none';">
-          <option value="">— Select —</option>
+          <option value="">Select</option>
           <option value="instagram">Instagram</option>
           <option value="facebook">Facebook</option>
           <option value="youtube">YouTube</option>

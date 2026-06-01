@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Income — ClinicOS{% endblock %}
+{% block title %}Income · ClinicOS{% endblock %}
 
 {% block content %}
 
@@ -334,7 +334,7 @@
   const T = 0.28;
   const linePath = smoothD(coords, T);
 
-  // Area fill — close down to baseline
+  // Area fill · close down to baseline
   const areaD = linePath +
     ` L ${x(data.length - 1)},${H - PAD.bottom}` +
     ` L ${x(0)},${H - PAD.bottom} Z`;
@@ -406,7 +406,7 @@
   if (amounts[peakIdx] > 0) {
     const fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
     document.getElementById('chartPeakLabel').textContent =
-      `Peak: ${data[peakIdx].date} — ₹${fmt.format(amounts[peakIdx])}`;
+      `Peak: ${data[peakIdx].date} · ₹${fmt.format(amounts[peakIdx])}`;
   }
 })();
 </script>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — ClinicOS{% endblock %}
+{% block title %}Dashboard · ClinicOS{% endblock %}
 {% block content %}
 
 {% if show_welcome %}
@@ -8,7 +8,7 @@
   <div class="welcome-card">
     <div class="welcome-badge">Welcome to ClinicOS</div>
     <h2 class="welcome-title">Let's get your clinic ready, Dr. {{ doctor.name.split()[-1] }}</h2>
-    <p class="welcome-sub">A few quick steps and you're good to go. It takes about 5 minutes — all from the Settings page.</p>
+    <p class="welcome-sub">A few quick steps and you're good to go. It takes about 5 minutes · all from the Settings page.</p>
 
     <div class="welcome-steps">
       <div class="welcome-step">
@@ -22,14 +22,14 @@
         <div class="welcome-step-num">2</div>
         <div>
           <div class="welcome-step-title">Add your clinic details</div>
-          <div class="welcome-step-desc">Your clinic name, address, and city — these appear on bills and patient messages.</div>
+          <div class="welcome-step-desc">Your clinic name, address, and city · these appear on bills and patient messages.</div>
         </div>
       </div>
       <div class="welcome-step">
         <div class="welcome-step-num">3</div>
         <div>
           <div class="welcome-step-title">Set up your price catalog</div>
-          <div class="welcome-step-desc">Preset your charges — consultation fee, X-ray, dressing, injection — so billing is one tap.</div>
+          <div class="welcome-step-desc">Preset your charges · consultation fee, X-ray, dressing, injection · so billing is one tap.</div>
         </div>
       </div>
       <div class="welcome-step">
@@ -52,7 +52,7 @@
   var KEY = 'clinicos_welcome_seen';
   var overlay = document.getElementById('welcomeOverlay');
   if (!overlay) return;
-  // Show once per browser session — if already seen this session, just drop it
+  // Show once per browser session · if already seen this session, just drop it
   if (sessionStorage.getItem(KEY)) { overlay.remove(); return; }
 
   // Defer showing by 1.5s after the dashboard paints so it doesn't glitch
@@ -125,7 +125,7 @@ function dismissWelcome() {
         {% elif days_left == 1 %}1 day left on your free trial
         {% else %}{{ days_left }} days left on your free trial{% endif %}
       </div>
-      <div class="tub-sub">Upgrade now to keep your appointments, patients, and data — no interruptions.</div>
+      <div class="tub-sub">Upgrade now to keep your appointments, patients, and data · no interruptions.</div>
     </div>
   </div>
   <div class="tub-right">
@@ -327,7 +327,7 @@ function dismissWelcome() {
       <!-- Divider -->
       <div style="height:1px;background:var(--border);margin:14px 0;"></div>
 
-      <!-- Recent 5 bills — today only -->
+      <!-- Recent 5 bills · today only -->
       <div class="dash-mini-subheader">Today's Transactions</div>
       {% if recent_bills_dash %}
         {% for b in recent_bills_dash %}

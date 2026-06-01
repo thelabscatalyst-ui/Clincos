@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Edit Bill #{{ bill.id }} — ClinicOS{% endblock %}
+{% block title %}Edit Bill #{{ bill.id }} · ClinicOS{% endblock %}
 
 {% block content %}
 
@@ -29,7 +29,7 @@
         {% for item in pinned %}
         <button type="button" class="bill-quick-btn"
                 onclick="addItem('{{ item.name | replace("'", "\\'") }}', {{ item.default_price }})">
-          {{ item.name }} — ₹{{ "{:,.0f}".format(item.default_price) }}
+          {{ item.name }} · ₹{{ "{:,.0f}".format(item.default_price) }}
         </button>
         {% endfor %}
       </div>

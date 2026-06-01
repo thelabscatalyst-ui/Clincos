@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Billing — ClinicOS{% endblock %}
+{% block title %}Billing · ClinicOS{% endblock %}
 
 {% block content %}
 <style>
@@ -78,7 +78,7 @@ html.light     { --amber: #8a6520; }
   font-size: 12px; color: #f87171; line-height: 1.5;
 }
 
-/* ── Plan cards — compact, match pricing.html exactly ──── */
+/* ── Plan cards · compact, match pricing.html exactly ──── */
 .billing-plan-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -246,7 +246,7 @@ html.light .pc-btn--primary:hover { color: #fff; }
     {% endif %}
   </div>
 
-  <!-- ── Plan cards — always 3 columns ──────────────────── -->
+  <!-- ── Plan cards · always 3 columns ──────────────────── -->
   <div class="billing-plan-grid">
 
     <!-- Solo -->
@@ -279,7 +279,7 @@ html.light .pc-btn--primary:hover { color: #fff; }
       {% else %}
         <button type="button" class="pc-btn pc-btn--primary"
                 onclick="startPayment('solo', {{ plan_config['solo']['amount'] }}, this)">
-          {% if is_expired %}Subscribe — ₹599/mo{% else %}Upgrade Now →{% endif %}
+          {% if is_expired %}Subscribe · ₹599/mo{% else %}Upgrade Now →{% endif %}
         </button>
       {% endif %}
     </div>
@@ -314,8 +314,8 @@ html.light .pc-btn--primary:hover { color: #fff; }
       {% else %}
         <button type="button" class="pc-btn pc-btn--primary"
                 onclick="startPayment('clinic', {{ plan_config['clinic']['amount'] }}, this)">
-          {% if plan_ok %}Upgrade — ₹1,599/mo
-          {% elif is_expired %}Subscribe — ₹1,599/mo
+          {% if plan_ok %}Upgrade · ₹1,599/mo
+          {% elif is_expired %}Subscribe · ₹1,599/mo
           {% else %}Upgrade to Clinic →{% endif %}
         </button>
       {% endif %}
@@ -413,7 +413,7 @@ async function startPayment(plan, amount, btn) {
     var data = await res.json();
 
     if (data.error) {
-      showPayToast('Could not start payment — ' + data.error, true);
+      showPayToast('Could not start payment · ' + data.error, true);
       btn.disabled = false; btn.textContent = origText; return;
     }
 
@@ -423,7 +423,7 @@ async function startPayment(plan, amount, btn) {
       currency:    data.currency,
       order_id:    data.order_id,
       name:        'ClinicOS',
-      description: plan.charAt(0).toUpperCase() + plan.slice(1) + ' Plan — 1 Month',
+      description: plan.charAt(0).toUpperCase() + plan.slice(1) + ' Plan · 1 Month',
       prefill:     { name: '{{ doctor.name }}', email: '{{ doctor.email }}', contact: '{{ doctor.phone }}' },
       theme:       { color: '#b48230' },
       modal: {
@@ -431,7 +431,7 @@ async function startPayment(plan, amount, btn) {
           if (paid) return;
           btn.disabled    = false;
           btn.textContent = origText;
-          showPayToast('Payment cancelled — no charge was made.');
+          showPayToast('Payment cancelled · no charge was made.');
         }
       },
       handler: function(response) {

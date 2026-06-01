@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Settings — ClinicOS{% endblock %}
+{% block title %}Settings · ClinicOS{% endblock %}
 
 {% block content %}
 
@@ -18,7 +18,7 @@
 {% endif %}
 
 <!-- ───────────────────────────────────────────────────── -->
-<!--  0. Subscription — always first                        -->
+<!--  0. Subscription · always first                        -->
 <!-- ───────────────────────────────────────────────────── -->
 <style>
   :root          { --amber: #c9b99a; --amber-dim: rgba(180,130,60,.08); --amber-border: rgba(180,130,60,.35); }
@@ -155,7 +155,7 @@
             {% elif plan_status in ['solo','duo','clinic','hospital','enterprise','basic','pro'] %}
               <strong>{{ plan_days }} day{{ 's' if plan_days != 1 }}</strong> until next billing
             {% else %}
-              Your plan has expired — upgrade to continue
+              Your plan has expired · upgrade to continue
             {% endif %}
           </div>
         </div>
@@ -410,7 +410,7 @@
   <div class="settings-card-header">
     <div>
       <div class="settings-card-title">Blocked Dates</div>
-      <div class="settings-card-sub">Holidays and leaves — patients cannot book on these days</div>
+      <div class="settings-card-sub">Holidays and leaves · patients cannot book on these days</div>
     </div>
   </div>
 
@@ -453,7 +453,7 @@
   <div class="settings-card-header">
     <div>
       <div class="settings-card-title">Blocked Times</div>
-      <div class="settings-card-sub">Block a specific time window on a day — slots in that range won't be bookable</div>
+      <div class="settings-card-sub">Block a specific time window on a day · slots in that range won't be bookable</div>
     </div>
   </div>
 
@@ -502,7 +502,7 @@
   <div class="settings-card-header">
     <div>
       <div class="settings-card-title">Patient Booking Link</div>
-      <div class="settings-card-sub">Share this link — patients open it in any browser to book a slot</div>
+      <div class="settings-card-sub">Share this link · patients open it in any browser to book a slot</div>
     </div>
   </div>
 
@@ -530,7 +530,7 @@
   <div class="settings-card-header" style="margin-bottom:20px;">
     <div>
       <div class="settings-card-title">Price Catalog</div>
-      <div class="settings-card-sub">Pre-set consultation fees — they appear as quick-fill buttons in the billing modal</div>
+      <div class="settings-card-sub">Pre-set consultation fees · they appear as quick-fill buttons in the billing modal</div>
     </div>
   </div>
 

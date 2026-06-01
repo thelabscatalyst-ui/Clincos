@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Queue — {{ doctor.clinic_name or doctor.name }}</title>
+  <title>Queue · {{ doctor.clinic_name or doctor.name }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
   <style>
@@ -212,7 +212,7 @@
           ).join('');
         }
       } catch (e) {
-        // network issue — silent fail, keep showing stale data
+        // network issue · silent fail, keep showing stale data
       }
     }
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Appointments — ClinicOS{% endblock %}
+{% block title %}Appointments · ClinicOS{% endblock %}
 
 {% block content %}
 
@@ -57,7 +57,7 @@
 {% if is_today %}
 <div id="walkinPanel" class="walkin-panel" style="display:none;">
   <div class="walkin-panel-inner">
-    <div class="walkin-panel-title">Walk-in — enters queue immediately</div>
+    <div class="walkin-panel-title">Walk-in · enters queue immediately</div>
     <form method="POST" action="/appointments/walkin" class="walkin-form">
       {% if clinic_doctors %}
       <select name="for_doctor_id" class="input-sm walkin-field" style="margin-bottom:10px;">
@@ -85,7 +85,7 @@
         </select>
         <input type="text" name="patient_notes" placeholder="Notes (optional)" class="input-sm walkin-notes" />
       </div>
-      <!-- Optional source — first-touch marketing attribution -->
+      <!-- Optional source · first-touch marketing attribution -->
       <div class="walkin-row" style="margin-top:6px;">
         <select name="referral_source" class="input-sm" style="flex:1;"
                 onchange="this.parentNode.querySelector('.walkin-src-other').style.display = this.value==='other' ? 'block' : 'none';">
@@ -777,7 +777,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initPhoneInput(phoneEl);
   // initPhoneInput wraps the input in .phone-wrap and appends a counter span.
   // Move the badge into .phone-wrap. Make the counter absolutely positioned so
-  // it doesn't stretch the wrap height — badge top:50% then centers on the input.
+  // it doesn't stretch the wrap height · badge top:50% then centers on the input.
   var badge    = document.getElementById('walkinLookupBadge');
   var phoneWrap = phoneEl.closest('.phone-wrap');
   if (badge && phoneWrap) {
@@ -789,7 +789,7 @@ document.addEventListener('DOMContentLoaded', function() {
       counter.style.left       = '0';
       counter.style.marginTop  = '3px';
       phoneWrap.style.marginBottom = '18px';
-      // Keep name input parallel — give it the same bottom spacing
+      // Keep name input parallel · give it the same bottom spacing
       var nameEl = document.getElementById('walkinName');
       if (nameEl) nameEl.style.marginBottom = '18px';
     }
@@ -797,7 +797,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-/* Auto-refresh removed — page reloads on every action anyway */
+/* Auto-refresh removed · page reloads on every action anyway */
 
 /* ── Bill Modal ── */
 let _billDiscOn = false;
@@ -862,7 +862,7 @@ function openBillModal(visitId, patientName) {
       data.pinned.forEach(item => {
         const btn = document.createElement('button');
         btn.type = 'button'; btn.className = 'bill-quick-btn';
-        btn.textContent = item.name + ' — ₹' + item.price;
+        btn.textContent = item.name + ' · ₹' + item.price;
         btn.onclick = () => addBillItem(item.name, 1, item.price);
         pinned.appendChild(btn);
       });

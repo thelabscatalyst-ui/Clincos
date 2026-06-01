@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Join Clinic — ClinicOS</title>
+  <title>Join Clinic · ClinicOS</title>
   <link rel="stylesheet" href="/static/css/main.css?v=110" />
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -62,7 +62,7 @@
         <a href="/dashboard" class="btn btn-primary" style="margin-top:16px;">Go to Dashboard</a>
 
       {% elif logged_in_doctor %}
-        <!-- Doctor is logged in — show confirm button -->
+        <!-- Doctor is logged in · show confirm button -->
         <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin:20px 0;">
           <div style="font-size:14px;color:var(--text-muted);margin-bottom:4px;">Logged in as</div>
           <div style="font-size:16px;font-weight:600;color:var(--text);">Dr. {{ logged_in_doctor.name }}</div>
@@ -73,7 +73,7 @@
         </form>
 
       {% else %}
-        <!-- Not logged in — show options -->
+        <!-- Not logged in · show options -->
         <div style="display:flex;flex-direction:column;gap:12px;margin-top:24px;">
           <a href="/register?clinic_invite={{ invite.token }}"
              class="btn btn-primary">Register & Join</a>

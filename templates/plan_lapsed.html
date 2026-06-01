@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Plan Lapsed — ClinicOS</title>
+  <title>Plan Lapsed · ClinicOS</title>
   <link rel="stylesheet" href="/static/css/main.css?v=110" />
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -45,31 +45,38 @@
     </div>
 
     <h1 style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;margin:0 0 10px;">Subscription Lapsed</h1>
-    <p style="color:var(--muted);font-size:0.9rem;line-height:1.6;margin:0 0 32px;">
-      Your clinic's subscription has expired. Access to ClinicOS has been temporarily paused.<br>
-      Please ask your clinic administrator to renew the plan.
+    <p style="color:var(--muted);font-size:0.9rem;line-height:1.6;margin:0 0 28px;">
+      Your ClinicOS subscription has expired. Your data is safe — access will resume the moment the plan is renewed.
     </p>
 
+    <!-- Renew CTA -->
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;text-align:left;">
+      <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;">Renew your plan</div>
+      <p style="font-size:0.875rem;color:var(--text);line-height:1.5;margin:0 0 16px;">
+        Plans start at <strong>₹599/month</strong>. Renew now to restore access for your entire team instantly.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="/pricing" class="btn btn-primary btn-sm">View Plans &amp; Pricing</a>
+        <a href="https://wa.me/919999999999?text=Hi%2C+I+need+to+renew+my+ClinicOS+subscription."
+           target="_blank" rel="noopener"
+           class="btn btn-secondary btn-sm">WhatsApp Support</a>
+      </div>
+    </div>
+
     <div class="schedule-section" style="padding:20px 24px;text-align:left;margin-bottom:24px;">
-      <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;">What to do next</div>
+      <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;">What happens after renewal</div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;gap:12px;align-items:flex-start;">
           <div style="width:22px;height:22px;border-radius:50%;background:var(--bg-3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
             <span style="font-size:0.7rem;font-weight:700;color:var(--muted);">1</span>
           </div>
-          <span style="font-size:0.875rem;color:var(--text);line-height:1.5;">Contact your clinic admin or the doctor who manages the clinic account.</span>
+          <span style="font-size:0.875rem;color:var(--text);line-height:1.5;">Your plan is renewed and confirmed.</span>
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start;">
           <div style="width:22px;height:22px;border-radius:50%;background:var(--bg-3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
             <span style="font-size:0.7rem;font-weight:700;color:var(--muted);">2</span>
           </div>
-          <span style="font-size:0.875rem;color:var(--text);line-height:1.5;">Ask them to log in and renew the subscription from the Billing page.</span>
-        </div>
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--bg-3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
-            <span style="font-size:0.7rem;font-weight:700;color:var(--muted);">3</span>
-          </div>
-          <span style="font-size:0.875rem;color:var(--text);line-height:1.5;">Once renewed, log in again — your access will be restored immediately.</span>
+          <span style="font-size:0.875rem;color:var(--text);line-height:1.5;">Log in again · your full access is restored immediately, with all data intact.</span>
         </div>
       </div>
     </div>

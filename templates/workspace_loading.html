@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Starting Workspace — ClinicOS</title>
+  <title>Starting Workspace · ClinicOS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -167,12 +167,12 @@
     var serverReady = fetch('/dashboard', {
       method: 'GET',
       credentials: 'same-origin',
-      // We only need headers back — abort early once we get a response
+      // We only need headers back · abort early once we get a response
     }).then(function (r) {
       // Any response (even redirect) means the server answered
       return r;
     }).catch(function () {
-      // Network error — proceed anyway
+      // Network error · proceed anyway
       return null;
     });
 

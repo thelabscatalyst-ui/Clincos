@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Reports — ClinicOS{% endblock %}
+{% block title %}Reports · ClinicOS{% endblock %}
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -45,7 +45,7 @@
   </div>
 </div>
 
-<!-- Wait-time + Peak-hours card — operational insights -->
+<!-- Wait-time + Peak-hours card · operational insights -->
 <div class="settings-card" style="margin-bottom:16px;">
   <div class="reports-wait-row">
     <!-- LEFT: Avg patient wait time -->
@@ -96,7 +96,7 @@
           {% set cnt = peak_hour_counts[h_idx] %}
           {% set pct = (cnt / peak_max * 100) if peak_max else 0 %}
           <div class="reports-hourbar"
-               title="{{ '%d%s' | format(h % 12 or 12, 'am' if h < 12 else 'pm') }} — {{ cnt }} visit{{ 's' if cnt != 1 else '' }}">
+               title="{{ '%d%s' | format(h % 12 or 12, 'am' if h < 12 else 'pm') }} · {{ cnt }} visit{{ 's' if cnt != 1 else '' }}">
             <div class="reports-hourbar-track">
               <div class="reports-hourbar-fill" style="height: {{ pct }}%;"></div>
             </div>
@@ -142,7 +142,7 @@
     {% endif %}
   </div>
 
-  <!-- Sources — where patients heard about the clinic -->
+  <!-- Sources · where patients heard about the clinic -->
   <div class="settings-card">
     <div class="settings-card-header" style="margin-bottom:16px;">
       <div>
@@ -169,7 +169,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="settings-empty">No source data yet — ask new patients how they heard about you when they book.</p>
+    <p class="settings-empty">No source data yet · ask new patients how they heard about you when they book.</p>
     {% endif %}
   </div>
 
