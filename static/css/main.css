@@ -7755,3 +7755,958 @@ html.light .skeleton::after {
 @media (prefers-reduced-motion: reduce) {
   .ln-blob { animation: none !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE  ·  clinicos-styler 2026-06-01
+   All breakpoints consolidated here so they are easy to maintain.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. Global layout: reduce main-content padding on mobile ─────────── */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 16px 16px;
+    padding-top: calc(52px + 16px);
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 12px 12px;
+    padding-top: calc(52px + 12px);
+  }
+}
+
+/* ─── 2. Navbar: hide settings links on very small screens ────────────── */
+@media (max-width: 480px) {
+  .navbar {
+    padding: 0 14px;
+  }
+  /* Hide "Clinic Admin" and "Settings" text links — icon buttons stay */
+  .navbar-settings-link {
+    display: none;
+  }
+  /* Tighten gaps in controls */
+  .navbar-controls {
+    gap: 6px;
+    margin-left: 6px;
+  }
+}
+
+/* ─── 3. Mobile bottom nav bar (replaces hidden dock on mobile) ───────── */
+@media (max-width: 768px) {
+  /* dock-zone is already hidden at ≤768px via the existing rule above.
+     We add a bottom navigation bar instead. */
+  .mobile-nav {
+    display: flex;
+  }
+}
+
+.mobile-nav {
+  display: none; /* hidden by default on desktop */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 199; /* just below navbar */
+  background: #2e1e0c;
+  border-top: 1px solid rgba(255, 220, 170, 0.12);
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.mobile-nav-inner {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  height: 56px;
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1;
+  text-decoration: none;
+  color: #a0886a;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 4px;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 44px; /* touch target */
+}
+
+.mobile-nav-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.mobile-nav-item:hover,
+.mobile-nav-item--active {
+  color: #ede4d6;
+}
+
+.mobile-nav-item--active svg {
+  color: #c9b99a;
+}
+
+/* Push main-content above the mobile nav bar */
+@media (max-width: 768px) {
+  body:has(.mobile-nav) .main-content {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px);
+  }
+}
+
+/* ─── 4. Page headers: stack on small screens ─────────────────────────── */
+@media (max-width: 600px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  /* Right-side button group in page headers — full width on mobile */
+  .page-header > div:last-child {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .dash-greeting {
+    font-size: 18px;
+    letter-spacing: 1.5px;
+  }
+}
+
+/* ─── 5. Stats row ────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-value { font-size: 28px; }
+}
+
+@media (max-width: 400px) {
+  .stats-row { grid-template-columns: 1fr; gap: 8px; }
+}
+
+/* ─── 6. Dashboard grid (queue + schedule) ────────────────────────────── */
+@media (max-width: 900px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── 7. Appointment rows: prevent overflow ───────────────────────────── */
+@media (max-width: 600px) {
+  .appt-row {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .appt-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .appt-right {
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .appt-patient {
+    max-width: 160px;
+  }
+
+  .appt-name {
+    font-size: 13px;
+  }
+
+  /* Action buttons (serve / done etc) stay on second line */
+  .appt-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* ─── 8. Walk-in panel form: stack fields ─────────────────────────────── */
+@media (max-width: 600px) {
+  .walkin-form > div {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .walkin-form .form-group {
+    min-width: 0 !important;
+    flex: unset !important;
+  }
+
+  .walkin-form > div > div:last-child {
+    /* submit/cancel buttons */
+    padding-bottom: 0;
+  }
+}
+
+/* ─── 9. Patients list: hide extra columns ────────────────────────────── */
+@media (max-width: 640px) {
+  .patient-list-header { display: none; }
+
+  .patient-row {
+    grid-template-columns: 1fr auto 32px;
+  }
+
+  .patient-visits,
+  .patient-phone,
+  .patient-last {
+    display: none;
+  }
+
+  .patient-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .patient-search-form {
+    width: 100%;
+  }
+
+  .patient-search-wrap {
+    width: 100%;
+  }
+
+  .patient-sort-group {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* ─── 10. Patient detail: stack grid ─────────────────────────────────── */
+@media (max-width: 640px) {
+  .patient-detail-grid,
+  .patient-info-grid,
+  .pd-grid,
+  .pd-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Visit history table rows → flex wrap */
+  .visit-row,
+  .pd-visit-row {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+}
+
+/* ─── 11. Tables: horizontal scroll container ─────────────────────────── */
+@media (max-width: 768px) {
+  /* Wrap any data table in overflow-x: auto */
+  .table-scroll-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Admin table: horizontal scroll */
+  .admin-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+
+  /* Income / billing tables */
+  .income-table,
+  .billing-table,
+  .txn-table {
+    min-width: 540px;
+  }
+
+  /* Bill line items */
+  .bill-items-table {
+    min-width: 480px;
+  }
+}
+
+/* ─── 12. Income / billing page grids ────────────────────────────────── */
+@media (max-width: 640px) {
+  .income-kpi-grid,
+  .income-stats-grid,
+  .billing-stats-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .income-kpi-card {
+    padding: 16px 18px;
+  }
+
+  .income-kpi-amount {
+    font-size: 1.4rem;
+  }
+}
+
+/* ─── 13. Reports page ────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .reports-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .reports-new-patients {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .report-np-divider {
+    width: 100%;
+    height: 1px;
+  }
+
+  .reports-hourbars {
+    gap: 4px;
+  }
+
+  .reports-hourbar-label {
+    font-size: 8px;
+  }
+}
+
+/* ─── 14. Bill detail / edit grids ───────────────────────────────────── */
+@media (max-width: 640px) {
+  .bill-detail-grid,
+  .bill-header-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .bill-patient-section,
+  .bill-summary-section {
+    padding: 16px;
+  }
+
+  /* Bill total: smaller font */
+  .bill-total-amount {
+    font-size: 1.2rem;
+  }
+
+  /* Item rows: scrollable */
+  .bill-items-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ─── 15. Settings page ───────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .settings-card {
+    padding: 18px 16px;
+  }
+
+  .settings-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Schedule grid: compact on very small screens */
+  .schedule-row,
+  .schedule-shift-row,
+  .schedule-add-row {
+    grid-template-columns: 80px 40px 1fr 1fr 70px 70px 70px;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .schedule-header { display: none; }
+}
+
+@media (max-width: 480px) {
+  /* Schedule grid on tiny phones: consolidate to fewer visible columns */
+  .schedule-row,
+  .schedule-shift-row,
+  .schedule-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .schedule-day {
+    font-size: 13px;
+    min-width: 72px;
+  }
+
+  .schedule-label-col { /* slot duration label */
+    display: none;
+  }
+}
+
+/* ─── 16. Subscription / billing plan cards ───────────────────────────── */
+@media (max-width: 640px) {
+  .billing-plans {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .sub-plan-horizontal {
+    grid-template-columns: 1fr;
+  }
+
+  .sub-plan-horizontal .sub-divider {
+    display: none;
+  }
+
+  .sub-plan-row {
+    flex-direction: column;
+  }
+
+  .sub-plan-divider {
+    width: 100%;
+    height: 1px;
+  }
+
+  .sub-features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── 17. Auth pages ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand {
+    padding: 36px 24px 28px;
+    justify-content: flex-start;
+  }
+
+  .brand-title { font-size: 52px; }
+  .brand-features { display: none; }
+  .brand-divider  { display: none; }
+  .brand-tagline  { font-size: 15px; margin-bottom: 24px; }
+
+  .auth-panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 28px 20px 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-brand {
+    padding: 24px 16px 20px;
+  }
+
+  .brand-title { font-size: 40px; }
+
+  .auth-panel {
+    padding: 24px 16px 32px;
+  }
+
+  .auth-card-title {
+    font-size: 18px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── 18. Plan lapsed / billing expired ──────────────────────────────── */
+@media (max-width: 600px) {
+  .billing-expired-wrap,
+  .plan-lapsed-wrap {
+    padding: 24px 16px;
+  }
+
+  .billing-plans {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── 19. Income / transactions: month chips overflow ─────────────────── */
+@media (max-width: 640px) {
+  .txn-months-strip {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+
+  .txn-months-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .txn-months-inner {
+    white-space: nowrap;
+  }
+}
+
+/* ─── 20. Appointment card overlay: full-screen on mobile ─────────────── */
+@media (max-width: 640px) {
+  .appt-card-overlay.open {
+    align-items: flex-end;
+  }
+
+  .appt-card-container {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    margin: 0;
+  }
+}
+
+/* ─── 21. Visit cards (today's queue) ─────────────────────────────────── */
+@media (max-width: 640px) {
+  /* The two-column queue/schedule split becomes single column */
+  .visits-grid,
+  .dash-grid,
+  .queue-schedule-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .visit-card,
+  .visit-serving-card {
+    padding: 12px 14px;
+  }
+
+  .visit-token {
+    font-size: 1.8rem;
+  }
+
+  .visit-name {
+    font-size: 0.9rem;
+  }
+}
+
+/* ─── 22. Calendar: tighter cells ────────────────────────────────────── */
+@media (max-width: 480px) {
+  .cal-grid {
+    font-size: 12px;
+  }
+
+  .cal-day {
+    min-height: 52px;
+    padding: 4px 6px;
+  }
+
+  .cal-day-num {
+    font-size: 11px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .cal-count { display: none; }
+  .cal-header-cell { font-size: 9px; padding: 6px 2px; }
+
+  .date-nav {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .date-nav-input {
+    width: 120px;
+  }
+}
+
+/* ─── 23. Public booking pages ────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .pub-card {
+    padding: 20px 16px;
+  }
+
+  .pub-confirm-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pub-confirm-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ─── 24. Modals / overlays: prevent horizontal overflow ─────────────── */
+@media (max-width: 600px) {
+  .modal-box,
+  .appt-brand-panel,
+  .acm-modal-box,
+  .file-modal-box {
+    width: calc(100vw - 32px);
+    max-width: 100%;
+    padding: 20px 16px;
+  }
+}
+
+/* ─── 25. Misc touch target enforcement ──────────────────────────────── */
+@media (max-width: 768px) {
+  /* Ensure all buttons/links meet 44px minimum tap target */
+  .btn,
+  .btn-sm {
+    min-height: 44px;
+  }
+
+  .btn-xs {
+    min-height: 36px; /* smaller but acceptable for secondary controls */
+  }
+
+  /* Nav settings links */
+  .navbar-settings-link {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Patient rows */
+  .patient-row {
+    min-height: 52px;
+  }
+
+  /* Appointment rows */
+  .appt-row {
+    min-height: 52px;
+  }
+}
+
+/* ─── 26. No horizontal scroll on body ───────────────────────────────── */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* Prevent fixed-width elements from causing page-level overflow */
+  .main-content {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+}
+
+/* ─── 27. Toast: full-width on small screens ──────────────────────────── */
+@media (max-width: 480px) {
+  #toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: 70px; /* above mobile nav if present */
+    top: auto;
+  }
+
+  .toast {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+/* ─── 28. Income page bar chart ───────────────────────────────────────── */
+@media (max-width: 640px) {
+  .income-bar-chart-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .income-bar-chart {
+    min-width: 320px;
+  }
+}
+
+/* ─── 29. Dashboard quick-actions ────────────────────────────────────── */
+@media (max-width: 480px) {
+  .quick-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}
+
+/* ─── 30. Expense page ────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .expense-kpi-grid,
+  .expense-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .add-expense-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── 31. Trial upgrade banner: mobile ────────────────────────────────── */
+@media (max-width: 480px) {
+  .trial-upgrade-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .tub-sub { display: none; }
+
+  .tub-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ─── 32. Section headers: wrapping action buttons ────────────────────── */
+@media (max-width: 480px) {
+  .section-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* ─── 33. Appt-split-grid divider: horizontal on mobile ──────────────── */
+@media (max-width: 640px) {
+  .appt-split-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .appt-col-divider {
+    height: 1px;
+    width: 100%;
+  }
+}
+
+/* ─── 34. Welcome overlay: padding on small screens ──────────────────── */
+@media (max-width: 480px) {
+  .welcome-card {
+    padding: 24px 18px;
+    max-height: 88vh;
+  }
+
+  .welcome-title {
+    font-size: 20px;
+  }
+
+  .welcome-actions {
+    flex-direction: column;
+  }
+
+  .welcome-actions .btn {
+    width: 100%;
+  }
+}
+
+/* ─── 35. Landing page: complete ≤768px fixes ─────────────────────────── */
+/* Note: landing.html has an inline <style> block with its own breakpoints.
+   These rules target elements that were still breaking at 375–480px. */
+
+/* Landing navbar: reduce padding on phones */
+@media (max-width: 480px) {
+  .ln-nav {
+    padding: 0 16px;
+    height: 52px;
+  }
+
+  .ln-signin {
+    display: none; /* only show CTA on tiny screens */
+  }
+
+  /* Hero section adjustments */
+  .ln-hero {
+    padding: 60px 16px 48px;
+  }
+
+  .ln-hero-title {
+    font-size: 28px;
+  }
+
+  .ln-hero-sub {
+    font-size: 14px;
+  }
+
+  .ln-hero-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ln-btn-primary,
+  .ln-btn-outline {
+    width: 100%;
+    justify-content: center;
+    padding: 13px 20px;
+  }
+
+  /* Sections: reduce padding */
+  .ln-section {
+    padding: 48px 16px;
+  }
+
+  .ln-section-title {
+    font-size: 22px;
+  }
+
+  .ln-section-sub {
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+
+  /* Video section */
+  .ln-video-section {
+    padding: 40px 16px;
+  }
+
+  /* Strip: vertical layout */
+  .ln-strip {
+    padding: 14px 16px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ln-strip-sep { display: none; }
+
+  .ln-strip-item {
+    font-size: 12px;
+  }
+
+  /* CTA section */
+  .ln-cta-section {
+    padding: 56px 16px;
+  }
+
+  .ln-cta-title {
+    font-size: 26px;
+  }
+
+  .ln-cta-sub {
+    font-size: 14px;
+  }
+
+  /* Features grid: 1 column */
+  .ln-features-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .ln-feat {
+    padding: 20px 18px;
+  }
+
+  /* Steps: 1 column (already done at 860px in inline styles) */
+  .ln-how-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .ln-step {
+    padding: 20px 18px;
+  }
+
+  /* Pricing */
+  .ln-pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Footer */
+  .ln-footer {
+    padding: 28px 16px;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .ln-footer-links {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+}
+
+/* ─── 36. Overflow-safe images / media ────────────────────────────────── */
+@media (max-width: 768px) {
+  img, video, iframe {
+    max-width: 100%;
+  }
+}
+
+/* ─── 37. Appointment detail page: grid to single column ─────────────── */
+@media (max-width: 600px) {
+  .appt-detail-grid,
+  .appt-detail-section {
+    grid-template-columns: 1fr;
+  }
+
+  .appt-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .appt-search-form {
+    width: 100%;
+  }
+
+  .appt-status-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .appt-status-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ─── 38. Patient detail: action buttons row ──────────────────────────── */
+@media (max-width: 600px) {
+  .patient-detail-actions,
+  .pd-actions,
+  .patient-actions-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .patient-detail-actions .btn,
+  .pd-actions .btn {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+}
+
+/* ─── 39. Bill edit / detail responsive fixes ─────────────────────────── */
+@media (max-width: 600px) {
+  .bill-edit-grid,
+  .ac-info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .ac-bill-modal-wrap {
+    padding: 0 !important;
+  }
+
+  .ac-bottom-card {
+    padding: 14px 14px;
+  }
+}
+
+/* ─── 40. Dashboard income amount ─────────────────────────────────────── */
+@media (max-width: 480px) {
+  .dash-income-amount {
+    font-size: 1.5rem;
+  }
+
+  .dash-prev-btn {
+    font-size: 12px;
+  }
+}

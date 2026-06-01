@@ -326,11 +326,21 @@ SVG `feTurbulence` noise applied as `background-image` on `body`. Dark theme use
 | `≤960px` | *(noted in CLAUDE.md for brand panel)* |
 | `≤900px` | Auth → 1 col; stats/quick-actions → 2 cols; settings form → 1 col; schedule responsive; dash grid → 1 col; income grids → 1 col; expense grid → 1 col |
 | `≤800px` | Appointment split grid → 1 col |
-| `≤768px` | Dock hidden; billing plans → 1 col; admin table cols truncated |
+| `≤768px` | Dock hidden; **mobile bottom nav bar shown**; `main-content` padding reduced to `16px`; billing plans → 1 col; admin table cols truncated; `overflow-x: hidden` on html/body |
 | `≤760px` | Bill detail grid → 1 col; appointment card info grid → 1 col |
 | `≤700px` | Sub plan rows → column; sub-features-grid → 1 col |
-| `≤640px` | Stats → 2 cols; income KPI → 1 col; expense KPI → 1 col; add expense → 1 col; edit grid → 1 col |
-| `≤480px` | Auth title smaller; form-row → 1 col; various mobile fixes |
+| `≤640px` | Stats → 2 cols; income KPI → 1 col; expense KPI → 1 col; add expense → 1 col; edit grid → 1 col; patients list columns hidden; appt-split → 1 col; reports → 1 col; appt-card overlay full-width slide-up; walkin-form fields stack |
+| `≤600px` | Page headers stack; patient detail actions wrap; appt detail/controls stack; modals full-width |
+| `≤480px` | Auth title smaller; form-row → 1 col; schedule rows flex-wrap; stats → 1 col (≤400px); landing buttons full-width |
+| `≤400px` | Landing page tiny-phone: 14px side padding, all grids 1 col, hero title 26px |
+
+## § Mobile Bottom Navigation
+
+`.mobile-nav` — shown at `≤768px`, hidden on desktop. Dark brown `#2e1e0c` to match navbar.
+- Height: `56px` + `env(safe-area-inset-bottom)` padding (iPhone notch safe)
+- Items: Dashboard, Queue, Patients, Calendar, More (→ income)
+- `.mobile-nav-item--active`: color `#ede4d6`; icon color `#c9b99a`
+- Z-index: `199` (below navbar `200`, above content)
 
 ---
 

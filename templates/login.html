@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login · ClinicOS</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=147" />
+  <link rel="stylesheet" href="/static/css/main.css?v=160" />
   <style>
     /* Auth pages default to light theme · override dark unless user explicitly chose dark */
     .auth-page-wrap {
@@ -87,6 +87,15 @@
     @media (max-width: 900px) {
       .auth-page { grid-template-columns: 1fr; }
       .auth-nav  { padding: 0 20px; }
+    }
+    @media (max-width: 480px) {
+      .auth-nav  { padding: 0 14px; }
+      .auth-page { grid-template-columns: 1fr; }
+      .auth-brand { padding: 24px 16px 20px; }
+      .brand-title { font-size: 40px; }
+      .auth-panel { padding: 24px 16px 32px; }
+      .auth-nav-link { display: none; }
+      html, body { overflow-x: hidden; }
     }
   </style>
   <script>

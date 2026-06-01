@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}ClinicOS{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=152" />
+  <link rel="stylesheet" href="/static/css/main.css?v=160" />
   {% block head %}{% endblock %}
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -96,6 +96,51 @@
   </div>
 </div>
 {% endif %}
+
+<!-- ── Mobile Bottom Nav (≤768px) ── -->
+<nav class="mobile-nav" aria-label="Main navigation">
+  <div class="mobile-nav-inner">
+    <a href="/dashboard" class="mobile-nav-item {% if active == 'dashboard' %}mobile-nav-item--active{% endif %}" aria-label="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      </svg>
+      Home
+    </a>
+    <a href="/visits/today" class="mobile-nav-item {% if active == 'visits' %}mobile-nav-item--active{% endif %}" aria-label="Today's Queue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <polyline points="12 7 12 12 15.5 15.5"/>
+      </svg>
+      Queue
+    </a>
+    <a href="/patients" class="mobile-nav-item {% if active == 'patients' %}mobile-nav-item--active{% endif %}" aria-label="Patients">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4.4 3.58-8 8-8s8 3.6 8 8"/>
+      </svg>
+      Patients
+    </a>
+    <a href="/calendar" class="mobile-nav-item {% if active == 'calendar' %}mobile-nav-item--active{% endif %}" aria-label="Calendar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2.5"/>
+        <path d="M16 2v4M8 2v4M3 10h18"/>
+        <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none"/>
+      </svg>
+      Calendar
+    </a>
+    <a href="/income" class="mobile-nav-item {% if active == 'income' or active == 'reports' or active == 'expenses' %}mobile-nav-item--active{% endif %}" aria-label="More">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+      </svg>
+      More
+    </a>
+  </div>
+</nav>
 
 <!-- ── Global Dock ── -->
 <div class="dock-zone" id="dockZone">

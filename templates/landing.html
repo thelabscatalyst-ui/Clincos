@@ -53,7 +53,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/css/main.css?v=137" />
+  <link rel="stylesheet" href="/static/css/main.css?v=160" />
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
   <style>
   /* ── Landing-page-only styles ─────────────────────────── */
@@ -893,10 +893,40 @@
     .ln-features-grid { grid-template-columns: 1fr; }
     .ln-hero-title { font-size: 30px; }
     .ln-hero-actions { flex-direction: column; }
-    .ln-btn-primary, .ln-btn-outline { justify-content: center; }
+    .ln-btn-primary, .ln-btn-outline { justify-content: center; width: 100%; }
     .ln-strip { flex-direction: column; gap: 12px; }
     .ln-strip-sep { display: none; }
     .ln-pricing-grid { grid-template-columns: 1fr; }
+  }
+  /* ── 375px / tiny phones ─────────────────────────────────────────── */
+  @media (max-width: 400px) {
+    html, body { overflow-x: hidden; }
+    .ln-nav { padding: 0 14px; height: 52px; }
+    .ln-signin { display: none; }
+    .ln-cta-nav { padding: 8px 14px; font-size: 12px; }
+    .ln-hero { padding: 48px 14px 40px; gap: 32px; }
+    .ln-hero-title { font-size: 26px; letter-spacing: -.01em; }
+    .ln-hero-sub { font-size: 14px; }
+    .ln-hero-pills { gap: 6px; }
+    .ln-hero-pill { font-size: 11px; padding: 3px 9px; }
+    .ln-btn-primary, .ln-btn-outline { padding: 13px 16px; font-size: 13px; }
+    .ln-section { padding: 44px 14px; }
+    .ln-section-title { font-size: 22px; }
+    .ln-section-sub { font-size: 13px; margin-bottom: 28px; }
+    .ln-video-section { padding: 36px 14px; }
+    .ln-strip { padding: 12px 14px; }
+    .ln-features-grid { gap: 10px; }
+    .ln-feat { padding: 18px 16px; }
+    .ln-how-grid { gap: 10px; }
+    .ln-step { padding: 18px 16px; }
+    .ln-pricing-grid { gap: 10px; }
+    .pc { padding: 24px 18px 20px; }
+    .pc-price { font-size: 28px; }
+    .ln-cta-section { padding: 48px 14px; }
+    .ln-cta-title { font-size: 24px; }
+    .ln-cta-sub { font-size: 13px; }
+    .ln-footer { padding: 24px 14px; gap: 18px; }
+    .ln-footer-links { gap: 12px; }
   }
   </style>
 </head>
