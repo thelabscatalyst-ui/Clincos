@@ -24,6 +24,46 @@
   {% endfor %}
 </div>
 
+<!-- Monthly Summary Strip -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+  <!-- Total collected -->
+  <div class="income-kpi-card">
+    <div class="income-kpi-label">Total Collected · {{ month_name }}</div>
+    <div class="income-kpi-amount">₹{{ "{:,.0f}".format(month_total) }}</div>
+    <div class="income-kpi-sub">{{ total_txns }} transaction{{ "s" if total_txns != 1 }}</div>
+  </div>
+
+  <!-- Payment method breakdown -->
+  <div class="income-breakdown-card" style="margin:0;">
+    <div class="income-breakdown-title">By Payment Method</div>
+    {% if mode_breakdown %}
+      {% for row in mode_breakdown %}
+      <div class="income-bar-row">
+        <span class="income-bar-label" style="min-width:72px;">
+          {{ row.label }}
+          <span style="font-size:11px;color:var(--dim);margin-left:4px;">×{{ row.count }}</span>
+        </span>
+        {% if row.amount > 0 %}
+        <div class="income-bar-track">
+          <div class="income-bar-fill" style="width:{{ row.pct }}%;"></div>
+        </div>
+        <span class="income-bar-pct">{{ row.pct }}%</span>
+        <span class="income-bar-amount">₹{{ "{:,.0f}".format(row.amount) }}</span>
+        {% else %}
+        <div class="income-bar-track"><div class="income-bar-fill" style="width:0%;"></div></div>
+        <span class="income-bar-pct" style="color:var(--dim);">—</span>
+        <span class="income-bar-amount" style="color:var(--dim);">Free</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="income-empty-state">No transactions this month</div>
+    {% endif %}
+  </div>
+
+</div>
+
 <!-- Transactions table -->
 <div class="txn-card">
   {% if bills %}

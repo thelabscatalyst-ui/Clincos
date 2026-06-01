@@ -440,28 +440,58 @@ async def transactions_page(
     page_start = offset + 1 if total_txns > 0 else 0
     page_end   = min(offset + TXN_PER_PAGE, total_txns)
 
-    # Month total
-    month_total = sum(_f(b.total) for b in base.all() if b.payment_mode and b.payment_mode.value != "free")
+    # Month total + payment mode breakdown
+    all_month_bills = base.all()
+    month_total = sum(_f(b.total) for b in all_month_bills if b.payment_mode and b.payment_mode.value != "free")
+
+    # Breakdown by payment mode
+    mode_totals: dict[str, float] = defaultdict(float)
+    mode_counts: dict[str, int]   = defaultdict(int)
+    for b in all_month_bills:
+        label = b.payment_mode.value.title() if b.payment_mode else "Unknown"
+        if b.payment_mode and b.payment_mode.value == "free":
+            mode_counts[label] += 1
+        else:
+            mode_totals[label] += _f(b.total)
+            mode_counts[label] += 1
+
+    mode_breakdown = []
+    for label, amt in sorted(mode_totals.items(), key=lambda x: -x[1]):
+        mode_breakdown.append({
+            "label":  label,
+            "amount": amt,
+            "count":  mode_counts[label],
+            "pct":    round(amt / month_total * 100) if month_total > 0 else 0,
+        })
+    # Add free separately (no amount)
+    if mode_counts.get("Free"):
+        mode_breakdown.append({
+            "label":  "Free",
+            "amount": 0,
+            "count":  mode_counts["Free"],
+            "pct":    0,
+        })
 
     import calendar
     month_name = calendar.month_name[month]
 
     return templates.TemplateResponse(request, "income_transactions.html", {
-        "active":       "income",
-        "doctor":       doctor,
-        "pin_required": getattr(request.state, "pin_required", False),
-        "bills":        bills,
-        "month":        month,
-        "year":         year,
-        "month_name":   month_name,
-        "month_list":   month_list,
-        "total_txns":   total_txns,
-        "total_pages":  total_pages,
-        "page":         page,
-        "page_start":   page_start,
-        "page_end":     page_end,
-        "per_page":     TXN_PER_PAGE,
-        "month_total":  month_total,
+        "active":         "income",
+        "doctor":         doctor,
+        "pin_required":   getattr(request.state, "pin_required", False),
+        "bills":          bills,
+        "month":          month,
+        "year":           year,
+        "month_name":     month_name,
+        "month_list":     month_list,
+        "total_txns":     total_txns,
+        "total_pages":    total_pages,
+        "page":           page,
+        "page_start":     page_start,
+        "page_end":       page_end,
+        "per_page":       TXN_PER_PAGE,
+        "month_total":    month_total,
+        "mode_breakdown": mode_breakdown,
     })
 
 

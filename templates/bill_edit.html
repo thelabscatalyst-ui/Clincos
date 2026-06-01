@@ -46,17 +46,17 @@
           <button type="button" class="btn btn-secondary btn-xs" onclick="addItem()">+ Add Item</button>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 80px 80px 32px;gap:6px;padding:0 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px;">
+        <div style="display:grid;grid-template-columns:1fr 90px 70px 32px;gap:6px;padding:0 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px;">
           <span style="font-size:11px;color:var(--dim);font-weight:600;">Description</span>
-          <span style="font-size:11px;color:var(--dim);font-weight:600;text-align:right;">Price (₹)</span>
-          <span style="font-size:11px;color:var(--dim);font-weight:600;text-align:right;">Qty</span>
+          <span style="font-size:11px;color:var(--dim);font-weight:600;text-align:right;padding-right:4px;">Price (₹)</span>
+          <span style="font-size:11px;color:var(--dim);font-weight:600;text-align:right;padding-right:4px;">Qty</span>
           <span></span>
         </div>
 
         <div id="itemsList">
           {% if bill.items %}
             {% for item in bill.items %}
-            <div class="bill-item-row" style="grid-template-columns:1fr 80px 80px 32px;">
+            <div class="bill-item-row" style="grid-template-columns:1fr 90px 70px 32px;">
               <input type="text" name="item_name" class="form-input" style="flex:unset;" value="{{ item.description }}" placeholder="Service / item">
               <input type="number" name="item_price" class="form-input bill-item-price" style="text-align:right;"
                      value="{{ item.unit_price|int }}" min="0" oninput="updateTotal()">
@@ -70,7 +70,7 @@
             </div>
             {% endfor %}
           {% else %}
-            <div class="bill-item-row" style="grid-template-columns:1fr 80px 80px 32px;">
+            <div class="bill-item-row" style="grid-template-columns:1fr 90px 70px 32px;">
               <input type="text" name="item_name" class="form-input" style="flex:unset;" value="Consultation">
               <input type="number" name="item_price" class="form-input bill-item-price" style="text-align:right;"
                      value="{{ bill.subtotal|int }}" min="0" oninput="updateTotal()">
@@ -94,9 +94,15 @@
                  min="0" step="1" value="{{ bill.discount|int }}" oninput="updateTotal()">
         </div>
         <div class="form-group">
-          <label class="form-label">GST (₹)</label>
-          <input type="number" id="gstInput" name="gst_amount" class="form-input"
-                 min="0" step="1" value="{{ bill.gst_amount|int }}" oninput="updateTotal()">
+          <label class="form-label">GST (%)</label>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" id="gstPctInput" class="form-input"
+                   min="0" max="100" step="0.5"
+                   value="{{ ((bill.gst_amount / bill.subtotal * 100) | round(1)) if bill.subtotal and bill.subtotal > 0 else 0 }}"
+                   oninput="updateTotal()" placeholder="0">
+            <span style="font-size:13px;color:var(--muted);white-space:nowrap;">= ₹<span id="gstRupees">{{ bill.gst_amount|int }}</span></span>
+          </div>
+          <input type="hidden" id="gstInput" name="gst_amount" value="{{ bill.gst_amount|int }}">
         </div>
         <div class="form-group">
           <label class="form-label">Payment Mode</label>
@@ -195,7 +201,7 @@ function addItem(name, price) {
   const list = document.getElementById('itemsList');
   const row  = document.createElement('div');
   row.className = 'bill-item-row';
-  row.style.gridTemplateColumns = '1fr 80px 80px 32px';
+  row.style.gridTemplateColumns = '1fr 90px 70px 32px';
   row.innerHTML =
     '<input type="text" name="item_name" class="form-input" style="flex:unset;" value="' + (name || '') + '" placeholder="Service / item">' +
     '<input type="number" name="item_price" class="form-input bill-item-price" style="text-align:right;" value="' + (price || '') + '" min="0" placeholder="0" oninput="updateTotal()">' +
@@ -225,9 +231,17 @@ function updateTotal() {
     const qty   = parseInt(row.querySelector('[name="item_qty"]').value)    || 1;
     subtotal += price * qty;
   });
-  const discount = parseFloat(document.getElementById('discountInput').value) || 0;
-  const gst      = parseFloat(document.getElementById('gstInput').value)      || 0;
-  const total    = Math.max(0, subtotal - Math.min(discount, subtotal) + gst);
+  const discount    = parseFloat(document.getElementById('discountInput').value)  || 0;
+  const gstPct      = parseFloat(document.getElementById('gstPctInput').value)    || 0;
+  const afterDisc   = Math.max(0, subtotal - Math.min(discount, subtotal));
+  const gstRupees   = Math.round(afterDisc * gstPct / 100);
+  const total       = afterDisc + gstRupees;
+
+  // Update the hidden field (what gets submitted to server)
+  document.getElementById('gstInput').value = gstRupees;
+  // Update the live ₹ display next to the % input
+  document.getElementById('gstRupees').textContent =
+    new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(gstRupees);
   document.getElementById('billTotal').textContent =
     '₹' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(total);
 }
