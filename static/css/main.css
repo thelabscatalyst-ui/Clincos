@@ -6072,6 +6072,8 @@ html.light .btn-collect:hover {
   font-size: 13px;
 }
 .txn-row:last-child { border-bottom: none; }
+a.txn-row { color: inherit; border-radius: var(--radius-sm); padding-left: 8px; padding-right: 8px; margin: 0 -8px; transition: background 0.15s; }
+a.txn-row:hover { background: var(--bg-3); }
 .txn-token {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.85rem;

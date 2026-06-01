@@ -180,7 +180,7 @@
 <div class="txn-card">
   {% if bills %}
     {% for b in bills %}
-    <div class="txn-row">
+    <a href="/bills/{{ b.id }}" class="txn-row" style="text-decoration:none;cursor:pointer;">
       <span class="txn-token">#{{ b.visit.token_number if b.visit else "—" }}</span>
       <span class="txn-name">{{ b.visit.patient.name if b.visit and b.visit.patient else "—" }}</span>
       <span class="txn-type">{% if b.visit and b.visit.appointment_id %}Booked{% else %}Walk-in{% endif %}</span>
@@ -194,7 +194,7 @@
         {% if b.payment_mode and b.payment_mode.value == 'free' %}Free
         {% else %}₹{{ "{:,.0f}".format(b.total|float) }}{% endif %}
       </span>
-    </div>
+    </a>
     {% endfor %}
     <div class="txn-total-row">
       <span>{{ month_name }} {{ year }} Total</span>
