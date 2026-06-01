@@ -7,6 +7,14 @@
   <link rel="stylesheet" href="/static/css/main.css?v=160" />
   {% block head %}{% endblock %}
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9CWETFH28Q"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-9CWETFH28Q');
+  </script>
 </head>
 <body class="{% block body_class %}{% endblock %}{% if pin_required is defined and pin_required %} pin-active{% endif %}">
 <div id="nprogress-bar"></div>
