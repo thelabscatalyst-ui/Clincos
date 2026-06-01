@@ -1,40 +1,155 @@
 {% extends "base.html" %}
-{% block title %}All Payments — ClinicOS{% endblock %}
+{% block title %}Payments — ClinicOS{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
   <div>
     <h1 class="page-title">All Payments</h1>
-    <div class="page-date" style="margin-top:4px;">{{ month_name }} {{ year }} · {{ total_txns }} transaction{{ "s" if total_txns != 1 else "" }}</div>
+    <div class="page-date" style="margin-top:4px;">
+      {% if view == 'yearly' %}{{ year }} · {{ year_txn_count }} transaction{{ "s" if year_txn_count != 1 }}
+      {% else %}{{ month_name }} {{ year }} · {{ total_txns }} transaction{{ "s" if total_txns != 1 else "" }}{% endif %}
+    </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
+    <!-- Monthly / Yearly toggle -->
+    <div style="display:flex;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+      <a href="/income/transactions?year={{ year }}&month={{ month }}&view=monthly"
+         style="padding:8px 18px;font-size:13px;font-weight:600;text-decoration:none;
+                {% if view == 'monthly' %}background:var(--text);color:var(--bg);{% else %}color:var(--muted);{% endif %}">
+        Monthly
+      </a>
+      <a href="/income/transactions?year={{ year }}&view=yearly"
+         style="padding:8px 18px;font-size:13px;font-weight:600;text-decoration:none;
+                {% if view == 'yearly' %}background:var(--text);color:var(--bg);{% else %}color:var(--muted);{% endif %}">
+        Yearly
+      </a>
+    </div>
     <a href="/income" class="btn btn-secondary btn-sm">← Income</a>
   </div>
 </div>
 
-<!-- Month selector -->
-<div class="txn-month-bar">
-  {% for y, m in month_list %}
-  {% set is_active = (y == year and m == month) %}
-  <a href="/income/transactions?year={{ y }}&month={{ m }}"
-     class="txn-month-chip {% if is_active %}txn-month-chip--active{% endif %}">
-    {{ ["", "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m] }} {{ y }}
-  </a>
+
+{# ═══════════════════════════════════════════════════════════════════════ #}
+{# YEARLY VIEW                                                             #}
+{# ═══════════════════════════════════════════════════════════════════════ #}
+{% if view == 'yearly' %}
+
+<!-- Year navigator -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+  {% if prev_year in year_list %}
+  <a href="/income/transactions?year={{ prev_year }}&view=yearly" class="btn btn-secondary btn-sm">‹ {{ prev_year }}</a>
+  {% else %}
+  <button class="btn btn-secondary btn-sm" disabled style="opacity:.3;">‹</button>
+  {% endif %}
+
+  <span style="font-size:1.1rem;font-weight:700;font-family:'Playfair Display',serif;">{{ year }}</span>
+
+  {% if not is_current_year %}
+  <a href="/income/transactions?year={{ next_year }}&view=yearly" class="btn btn-secondary btn-sm">{{ next_year }} ›</a>
+  {% else %}
+  <button class="btn btn-secondary btn-sm" disabled style="opacity:.3;">›</button>
+  {% endif %}
+</div>
+
+<!-- Year grand total strip -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+  <div class="income-kpi-card">
+    <div class="income-kpi-label">Total Income · {{ year }}</div>
+    <div class="income-kpi-amount">₹{{ "{:,.0f}".format(year_grand_total) }}</div>
+    <div class="income-kpi-sub">{{ year_txn_count }} transactions across 12 months</div>
+  </div>
+  <div class="income-kpi-card">
+    <div class="income-kpi-label">Monthly Average · {{ year }}</div>
+    <div class="income-kpi-amount">₹{{ "{:,.0f}".format((year_grand_total / 12)|round|int) }}</div>
+    <div class="income-kpi-sub">Per month average</div>
+  </div>
+</div>
+
+<!-- Monthly breakdown grid -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+  {% for mo in yearly_months %}
+  <div class="income-breakdown-card" style="margin:0;{% if not mo.has_data %}opacity:.5;{% endif %}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <div style="font-size:14px;font-weight:700;">{{ mo.month_name }}</div>
+        <div style="font-size:11px;color:var(--dim);">{{ mo.count }} transaction{{ "s" if mo.count != 1 }}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;">
+          {% if mo.total > 0 %}₹{{ "{:,.0f}".format(mo.total) }}{% else %}<span style="color:var(--dim);">—</span>{% endif %}
+        </div>
+        {% if mo.has_data %}
+        <a href="/income/transactions?year={{ year }}&month={{ mo.month }}&view=monthly"
+           style="font-size:11px;color:var(--muted);text-decoration:none;">View details →</a>
+        {% endif %}
+      </div>
+    </div>
+    {% if mo.modes %}
+      {% for row in mo.modes %}
+      <div class="income-bar-row" style="margin-bottom:6px;">
+        <span class="income-bar-label" style="min-width:60px;font-size:12px;">
+          {{ row.label }}
+          <span style="font-size:10px;color:var(--dim);">×{{ row.count }}</span>
+        </span>
+        <div class="income-bar-track">
+          <div class="income-bar-fill" style="width:{{ row.pct }}%;"></div>
+        </div>
+        <span class="income-bar-amount" style="font-size:12px;">₹{{ "{:,.0f}".format(row.amount) }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div style="font-size:12px;color:var(--dim);text-align:center;padding:8px 0;">No transactions</div>
+    {% endif %}
+  </div>
   {% endfor %}
+</div>
+
+
+{# ═══════════════════════════════════════════════════════════════════════ #}
+{# MONTHLY VIEW                                                            #}
+{# ═══════════════════════════════════════════════════════════════════════ #}
+{% else %}
+
+<!-- Year tabs then month chips -->
+<div style="margin-bottom:16px;">
+  <!-- Year selector row -->
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+    {% for y in year_list %}
+    <a href="/income/transactions?year={{ y }}&month={% if y == year %}{{ month }}{% else %}12{% endif %}&view=monthly"
+       style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--border);
+              {% if y == year %}background:var(--text);color:var(--bg);border-color:var(--text);{% else %}color:var(--muted);background:var(--bg-3);{% endif %}">
+      {{ y }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Month chips for selected year only -->
+  <div class="txn-month-bar">
+    {% set mn = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
+    {% if months_by_year[year] is defined %}
+      {% for m in months_by_year[year] | sort(reverse=True) %}
+      <a href="/income/transactions?year={{ year }}&month={{ m }}&view=monthly"
+         class="txn-month-chip {% if m == month and year == year %}txn-month-chip--active{% endif %}">
+        {{ mn[m] }}
+      </a>
+      {% endfor %}
+    {% else %}
+      <a href="/income/transactions?year={{ year }}&month={{ month }}&view=monthly"
+         class="txn-month-chip txn-month-chip--active">
+        {{ mn[month] }}
+      </a>
+    {% endif %}
+  </div>
 </div>
 
 <!-- Monthly Summary Strip -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-
-  <!-- Total collected -->
   <div class="income-kpi-card">
     <div class="income-kpi-label">Total Collected · {{ month_name }}</div>
     <div class="income-kpi-amount">₹{{ "{:,.0f}".format(month_total) }}</div>
     <div class="income-kpi-sub">{{ total_txns }} transaction{{ "s" if total_txns != 1 }}</div>
   </div>
-
-  <!-- Payment method breakdown -->
   <div class="income-breakdown-card" style="margin:0;">
     <div class="income-breakdown-title">By Payment Method</div>
     {% if mode_breakdown %}
@@ -45,9 +160,7 @@
           <span style="font-size:11px;color:var(--dim);margin-left:4px;">×{{ row.count }}</span>
         </span>
         {% if row.amount > 0 %}
-        <div class="income-bar-track">
-          <div class="income-bar-fill" style="width:{{ row.pct }}%;"></div>
-        </div>
+        <div class="income-bar-track"><div class="income-bar-fill" style="width:{{ row.pct }}%;"></div></div>
         <span class="income-bar-pct">{{ row.pct }}%</span>
         <span class="income-bar-amount">₹{{ "{:,.0f}".format(row.amount) }}</span>
         {% else %}
@@ -61,7 +174,6 @@
       <div class="income-empty-state">No transactions this month</div>
     {% endif %}
   </div>
-
 </div>
 
 <!-- Transactions table -->
@@ -69,18 +181,10 @@
   {% if bills %}
     {% for b in bills %}
     <div class="txn-row">
-      <span class="txn-token">
-        #{{ b.visit.token_number if b.visit else "—" }}
-      </span>
-      <span class="txn-name">
-        {{ b.visit.patient.name if b.visit and b.visit.patient else "—" }}
-      </span>
-      <span class="txn-type">
-        {% if b.visit and b.visit.appointment_id %}Booked{% else %}Walk-in{% endif %}
-      </span>
-      <span class="txn-date">
-        {{ b.paid_at.strftime("%-d %b") if b.paid_at else b.created_at.strftime("%-d %b") if b.created_at else "—" }}
-      </span>
+      <span class="txn-token">#{{ b.visit.token_number if b.visit else "—" }}</span>
+      <span class="txn-name">{{ b.visit.patient.name if b.visit and b.visit.patient else "—" }}</span>
+      <span class="txn-type">{% if b.visit and b.visit.appointment_id %}Booked{% else %}Walk-in{% endif %}</span>
+      <span class="txn-date">{{ b.paid_at.strftime("%-d %b") if b.paid_at else b.created_at.strftime("%-d %b") if b.created_at else "—" }}</span>
       <span class="txn-mode">
         <span class="badge-channel badge-channel--{{ b.payment_mode.value if b.payment_mode else 'walkin' }}">
           {{ b.payment_mode.value.title() if b.payment_mode else "—" }}
@@ -92,28 +196,23 @@
       </span>
     </div>
     {% endfor %}
-
-    <!-- Month total row -->
     <div class="txn-total-row">
       <span>{{ month_name }} {{ year }} Total</span>
       <span>₹{{ "{:,.0f}".format(month_total) }}</span>
     </div>
-
   {% else %}
     <div class="income-empty-state">No transactions in {{ month_name }} {{ year }}</div>
   {% endif %}
 </div>
 
-<!-- Pagination bar -->
+<!-- Pagination -->
 {% if total_txns > per_page %}
 <div class="pt-bar">
-  <span class="pt-info">
-    Showing {{ page_start }}–{{ page_end }} of {{ total_txns }} transaction{{ "s" if total_txns != 1 else "" }}
-  </span>
+  <span class="pt-info">Showing {{ page_start }}–{{ page_end }} of {{ total_txns }} transaction{{ "s" if total_txns != 1 }}</span>
   <div class="pt-pages">
-    {% set base_url = "/income/transactions?year=" ~ year ~ "&month=" ~ month %}
+    {% set base_url = "/income/transactions?year=" ~ year ~ "&month=" ~ month ~ "&view=monthly" %}
     {% if page > 1 %}
-    <a href="{{ base_url }}&page={{ page - 1 }}" class="pt-btn pt-btn--arrow" aria-label="Previous">
+    <a href="{{ base_url }}&page={{ page - 1 }}" class="pt-btn pt-btn--arrow">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </a>
     {% else %}
@@ -121,28 +220,17 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </span>
     {% endif %}
-
     {% set win_start = [1, page - 2] | max %}
     {% set win_end   = [total_pages, win_start + 4] | min %}
     {% set win_start = [1, win_end - 4] | max %}
-    {% if win_start > 1 %}
-      <a href="{{ base_url }}&page=1" class="pt-btn">1</a>
-      {% if win_start > 2 %}<span class="pt-ellipsis">…</span>{% endif %}
-    {% endif %}
+    {% if win_start > 1 %}<a href="{{ base_url }}&page=1" class="pt-btn">1</a>{% if win_start > 2 %}<span class="pt-ellipsis">…</span>{% endif %}{% endif %}
     {% for p in range(win_start, win_end + 1) %}
-      {% if p == page %}
-        <span class="pt-btn pt-btn--active">{{ p }}</span>
-      {% else %}
-        <a href="{{ base_url }}&page={{ p }}" class="pt-btn">{{ p }}</a>
-      {% endif %}
+      {% if p == page %}<span class="pt-btn pt-btn--active">{{ p }}</span>
+      {% else %}<a href="{{ base_url }}&page={{ p }}" class="pt-btn">{{ p }}</a>{% endif %}
     {% endfor %}
-    {% if win_end < total_pages %}
-      {% if win_end < total_pages - 1 %}<span class="pt-ellipsis">…</span>{% endif %}
-      <a href="{{ base_url }}&page={{ total_pages }}" class="pt-btn">{{ total_pages }}</a>
-    {% endif %}
-
+    {% if win_end < total_pages %}{% if win_end < total_pages - 1 %}<span class="pt-ellipsis">…</span>{% endif %}<a href="{{ base_url }}&page={{ total_pages }}" class="pt-btn">{{ total_pages }}</a>{% endif %}
     {% if page < total_pages %}
-    <a href="{{ base_url }}&page={{ page + 1 }}" class="pt-btn pt-btn--arrow" aria-label="Next">
+    <a href="{{ base_url }}&page={{ page + 1 }}" class="pt-btn pt-btn--arrow">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </a>
     {% else %}
@@ -153,5 +241,7 @@
   </div>
 </div>
 {% endif %}
+
+{% endif %}{# end monthly view #}
 
 {% endblock %}

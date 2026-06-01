@@ -393,28 +393,106 @@ async def transactions_page(
     month:   int = _Q(default=0),
     year:    int = _Q(default=0),
     page:    int = _Q(default=1),
+    view:    str = _Q(default="monthly"),   # "monthly" | "yearly"
     db:      Session = Depends(get_db),
     doctor:  Doctor  = Depends(require_pin),
 ):
+    import calendar as _cal
     today = date.today()
-    if not month: month = today.month
     if not year:  year  = today.year
+    if not month: month = today.month
 
-    # Build month list for selector (all months that have bills)
+    # ── Build year list (all years that have bills + current year) ──────────
     all_bill_dates = (
         db.query(Bill.paid_at, Bill.created_at)
         .filter(Bill.doctor_id == doctor.id)
         .all()
     )
-    month_set = set()
+    year_set  = {today.year}
+    month_set = {(today.year, today.month)}
     for b_paid, b_created in all_bill_dates:
         d = b_paid or b_created
         if d:
+            year_set.add(d.year)
             month_set.add((d.year, d.month))
-    # Always include current month
-    month_set.add((today.year, today.month))
-    month_list = sorted(month_set, reverse=True)
+    year_list  = sorted(year_set,  reverse=True)
+    # months grouped by year for the monthly selector
+    months_by_year: dict[int, list[int]] = defaultdict(list)
+    for y, m in sorted(month_set, reverse=True):
+        months_by_year[y].append(m)
 
+    # ────────────────────────────────────────────────────────────────────────
+    #  YEARLY VIEW
+    # ────────────────────────────────────────────────────────────────────────
+    if view == "yearly":
+        yearly_months = []
+        year_grand_total = 0.0
+        year_txn_count   = 0
+
+        for mo in range(1, 13):
+            mf, ml = _month_range(year, mo)
+            mo_bills = (
+                db.query(Bill)
+                .filter(
+                    Bill.doctor_id == doctor.id,
+                    Bill.paid_at   >= _dt_start(mf),
+                    Bill.paid_at   <= _dt_end(ml),
+                )
+                .all()
+            )
+            mo_total  = sum(_f(b.total) for b in mo_bills if b.payment_mode and b.payment_mode.value != "free")
+            mo_count  = len(mo_bills)
+
+            # mode breakdown for this month
+            mt: dict[str, float] = defaultdict(float)
+            mc: dict[str, int]   = defaultdict(int)
+            for b in mo_bills:
+                lbl = b.payment_mode.value.title() if b.payment_mode else "Unknown"
+                if b.payment_mode and b.payment_mode.value != "free":
+                    mt[lbl] += _f(b.total)
+                mc[lbl] += 1
+
+            mo_modes = [
+                {"label": lbl, "amount": amt, "count": mc[lbl],
+                 "pct": round(amt / mo_total * 100) if mo_total > 0 else 0}
+                for lbl, amt in sorted(mt.items(), key=lambda x: -x[1])
+            ]
+
+            year_grand_total += mo_total
+            year_txn_count   += mo_count
+            yearly_months.append({
+                "month":      mo,
+                "month_name": _cal.month_abbr[mo],
+                "total":      mo_total,
+                "count":      mo_count,
+                "modes":      mo_modes,
+                "has_data":   mo_count > 0,
+            })
+
+        return templates.TemplateResponse(request, "income_transactions.html", {
+            "active":           "income",
+            "doctor":           doctor,
+            "pin_required":     getattr(request.state, "pin_required", False),
+            "view":             "yearly",
+            "year":             year,
+            "month":            month,
+            "year_list":        year_list,
+            "prev_year":        year - 1,
+            "next_year":        year + 1,
+            "is_current_year":  year == today.year,
+            "yearly_months":    yearly_months,
+            "year_grand_total": year_grand_total,
+            "year_txn_count":   year_txn_count,
+            # monthly view stubs (not used but avoids template errors)
+            "bills": [], "total_txns": 0, "total_pages": 1, "page": 1,
+            "page_start": 0, "page_end": 0, "per_page": TXN_PER_PAGE,
+            "month_total": 0, "mode_breakdown": [], "month_name": "",
+            "month_list": [], "months_by_year": {},
+        })
+
+    # ────────────────────────────────────────────────────────────────────────
+    #  MONTHLY VIEW
+    # ────────────────────────────────────────────────────────────────────────
     m_first, m_last = _month_range(year, month)
 
     base = (
@@ -435,16 +513,14 @@ async def transactions_page(
     bills = base.offset(offset).limit(TXN_PER_PAGE).all()
     for b in bills:
         if b.visit:
-            _ = b.visit.patient  # eager-load
+            _ = b.visit.patient
 
     page_start = offset + 1 if total_txns > 0 else 0
     page_end   = min(offset + TXN_PER_PAGE, total_txns)
 
-    # Month total + payment mode breakdown
     all_month_bills = base.all()
     month_total = sum(_f(b.total) for b in all_month_bills if b.payment_mode and b.payment_mode.value != "free")
 
-    # Breakdown by payment mode
     mode_totals: dict[str, float] = defaultdict(float)
     mode_counts: dict[str, int]   = defaultdict(int)
     for b in all_month_bills:
@@ -455,35 +531,26 @@ async def transactions_page(
             mode_totals[label] += _f(b.total)
             mode_counts[label] += 1
 
-    mode_breakdown = []
-    for label, amt in sorted(mode_totals.items(), key=lambda x: -x[1]):
-        mode_breakdown.append({
-            "label":  label,
-            "amount": amt,
-            "count":  mode_counts[label],
-            "pct":    round(amt / month_total * 100) if month_total > 0 else 0,
-        })
-    # Add free separately (no amount)
+    mode_breakdown = [
+        {"label": lbl, "amount": amt, "count": mode_counts[lbl],
+         "pct": round(amt / month_total * 100) if month_total > 0 else 0}
+        for lbl, amt in sorted(mode_totals.items(), key=lambda x: -x[1])
+    ]
     if mode_counts.get("Free"):
-        mode_breakdown.append({
-            "label":  "Free",
-            "amount": 0,
-            "count":  mode_counts["Free"],
-            "pct":    0,
-        })
-
-    import calendar
-    month_name = calendar.month_name[month]
+        mode_breakdown.append({"label": "Free", "amount": 0, "count": mode_counts["Free"], "pct": 0})
 
     return templates.TemplateResponse(request, "income_transactions.html", {
         "active":         "income",
         "doctor":         doctor,
         "pin_required":   getattr(request.state, "pin_required", False),
+        "view":           "monthly",
         "bills":          bills,
         "month":          month,
         "year":           year,
-        "month_name":     month_name,
-        "month_list":     month_list,
+        "month_name":     _cal.month_name[month],
+        "month_list":     sorted(month_set, reverse=True),
+        "months_by_year": dict(months_by_year),
+        "year_list":      year_list,
         "total_txns":     total_txns,
         "total_pages":    total_pages,
         "page":           page,
@@ -492,6 +559,10 @@ async def transactions_page(
         "per_page":       TXN_PER_PAGE,
         "month_total":    month_total,
         "mode_breakdown": mode_breakdown,
+        # yearly stubs
+        "yearly_months": [], "year_grand_total": 0, "year_txn_count": 0,
+        "prev_year": year - 1, "next_year": year + 1,
+        "is_current_year": year == today.year,
     })
 
 
