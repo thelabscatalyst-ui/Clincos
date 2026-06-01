@@ -639,7 +639,35 @@ def delete_patient(
         udir = Path(f"uploads/patients/{doctor.id}/{patient_id}")
         if udir.exists():
             shutil.rmtree(udir, ignore_errors=True)
-        db.query(Appointment).filter(Appointment.patient_id == patient.id).delete()
+
+        # Delete all child records in dependency order to avoid FK errors
+        # 1. NoteFiles attached to this patient's notes
+        note_ids = [n.id for n in db.query(PatientNote.id).filter(PatientNote.patient_id == patient.id)]
+        if note_ids:
+            db.query(NoteFile).filter(NoteFile.note_id.in_(note_ids)).delete(synchronize_session=False)
+
+        # 2. Patient notes
+        db.query(PatientNote).filter(PatientNote.patient_id == patient.id).delete(synchronize_session=False)
+
+        # 3. Bill items attached to this patient's bills
+        from database.models import Bill, BillItem, Visit
+        bill_ids = [b.id for b in db.query(Bill.id).filter(Bill.patient_id == patient.id)]
+        if bill_ids:
+            db.query(BillItem).filter(BillItem.bill_id.in_(bill_ids)).delete(synchronize_session=False)
+
+        # 4. Bills
+        db.query(Bill).filter(Bill.patient_id == patient.id).delete(synchronize_session=False)
+
+        # 5. Visits
+        db.query(Visit).filter(Visit.patient_id == patient.id).delete(synchronize_session=False)
+
+        # 6. Patient documents
+        db.query(PatientDocument).filter(PatientDocument.patient_id == patient.id).delete(synchronize_session=False)
+
+        # 7. Appointments
+        db.query(Appointment).filter(Appointment.patient_id == patient.id).delete(synchronize_session=False)
+
+        # 8. Finally delete the patient
         db.delete(patient)
         db.commit()
     return RedirectResponse(url="/patients", status_code=303)
