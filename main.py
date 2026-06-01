@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse, Response, PlainTextResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -137,6 +137,56 @@ app.include_router(clinic.router)
 app.include_router(visits.router)
 app.include_router(billing_ops.router)
 app.include_router(income.router)
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    content = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.clinicos.store/</loc>
+    <priority>1.0</priority>
+    <changefreq>weekly</changefreq>
+  </url>
+  <url>
+    <loc>https://www.clinicos.store/register</loc>
+    <priority>0.9</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://www.clinicos.store/login</loc>
+    <priority>0.7</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://www.clinicos.store/pricing</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+</urlset>"""
+    return Response(content=content, media_type="application/xml")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    content = """User-agent: *
+Allow: /
+Allow: /register
+Allow: /login
+Allow: /pricing
+Disallow: /dashboard
+Disallow: /patients
+Disallow: /appointments
+Disallow: /reports
+Disallow: /settings
+Disallow: /expenses
+Disallow: /income
+Disallow: /billing
+Disallow: /queue
+Disallow: /admin
+
+Sitemap: https://www.clinicos.store/sitemap.xml"""
+    return PlainTextResponse(content=content)
 
 
 @app.exception_handler(401)
