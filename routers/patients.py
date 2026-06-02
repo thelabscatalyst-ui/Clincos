@@ -17,7 +17,7 @@ PER_PAGE = 10
 from datetime import datetime
 
 from database.connection import get_db
-from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill, PatientDocument, DOCUMENT_CATEGORIES, ReferralSource
+from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill, PatientDocument, DOCUMENT_CATEGORIES, ReferralSource, Prescription
 from services.auth_service import get_paying_doctor, require_pin
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -377,6 +377,11 @@ def patient_detail(
         PatientDocument.doctor_id  == doctor.id,
     ).scalar() or 0
 
+    rx_count = db.query(func.count(Prescription.id)).filter(
+        Prescription.patient_id == patient.id,
+        Prescription.doctor_id  == doctor.id,
+    ).scalar() or 0
+
     return templates.TemplateResponse(request, "patient_detail.html", {
         "doctor":       doctor,
         "patient":      patient,
@@ -386,6 +391,7 @@ def patient_detail(
         "upcoming":     upcoming,
         "bills":        bills,
         "doc_count":    doc_count,
+        "rx_count":     rx_count,
         "active":       "patients",
         "pin_required": getattr(request.state, "pin_required", False),
     })
@@ -688,6 +694,7 @@ def edit_patient(
     allergies: Optional[str] = Form(None),
     preferred_contact: Optional[str] = Form(None),
     language_pref: Optional[str] = Form(None),
+    wa_consent: Optional[str] = Form(None),   # checkbox: "on" if checked, None if unchecked
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -707,7 +714,44 @@ def edit_patient(
         patient.allergies         = allergies.strip() if allergies and allergies.strip() else None
         patient.preferred_contact = preferred_contact if preferred_contact else "phone"
         patient.language_pref     = language_pref if language_pref else "english"
+        # WhatsApp consent: record timestamp only when consent is first given
+        new_consent = wa_consent == "on"
+        if new_consent and not patient.wa_consent:
+            patient.wa_consent    = True
+            patient.wa_consent_at = datetime.now()
+        elif not new_consent:
+            patient.wa_consent    = False
+            # Keep wa_consent_at as an audit trail — do not erase it
         db.commit()
+    return RedirectResponse(url=f"/patients/{patient_id}", status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+#  WhatsApp Consent Toggle (AJAX-friendly quick toggle from patient card)      #
+# --------------------------------------------------------------------------- #
+
+@router.post("/{patient_id}/wa-consent")
+def toggle_wa_consent(
+    patient_id: int,
+    consent: str = Form(...),   # "1" to grant, "0" to revoke
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    """Quick consent toggle — called from patient detail page."""
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.doctor_id == doctor.id,
+    ).first()
+    if not patient:
+        return RedirectResponse(url="/patients", status_code=303)
+
+    granted = consent.strip() == "1"
+    if granted and not patient.wa_consent:
+        patient.wa_consent    = True
+        patient.wa_consent_at = datetime.now()
+    elif not granted:
+        patient.wa_consent = False
+    db.commit()
     return RedirectResponse(url=f"/patients/{patient_id}", status_code=303)
 
 

@@ -9,6 +9,7 @@ from database.connection import get_db
 from database.models import (
     Doctor, Patient, Appointment, AppointmentStatus, AppointmentType, BookedBy,
     ClinicDoctor, Clinic, Visit, VisitStatus, Bill, PriceCatalog, DoctorSchedule,
+    Prescription,
 )
 from services.auth_service import get_paying_doctor, get_appt_doctor
 from services.appointment_service import (
@@ -627,6 +628,19 @@ def appointment_card(
         .all()
     )
 
+    # Prescriptions for this visit (shown in card + "Write Prescription" button)
+    visit_prescriptions = []
+    if visit:
+        visit_prescriptions = (
+            db.query(Prescription)
+            .filter(
+                Prescription.visit_id == visit.id,
+                Prescription.doctor_id == doctor.id,
+            )
+            .order_by(Prescription.created_at.desc())
+            .all()
+        )
+
     # Payment status
     if bill and float(bill.total or 0) > 0 and float(bill.paid_amount or 0) == 0:
         payment_status = "dues"
@@ -642,15 +656,16 @@ def appointment_card(
     initials = (words[0][0] + (words[-1][0] if len(words) > 1 else "")).upper()
 
     return templates.TemplateResponse(request, "appointment_card.html", {
-        "appt":           appt,
-        "patient":        appt.patient,
-        "visit":          visit,
-        "bill":           bill,
-        "price_catalog":  price_catalog,
-        "payment_status": payment_status,
-        "initials":       initials,
-        "AppointmentStatus": AppointmentStatus,
-        "today":          date.today(),
+        "appt":                appt,
+        "patient":             appt.patient,
+        "visit":               visit,
+        "bill":                bill,
+        "price_catalog":       price_catalog,
+        "visit_prescriptions": visit_prescriptions,
+        "payment_status":      payment_status,
+        "initials":            initials,
+        "AppointmentStatus":   AppointmentStatus,
+        "today":               date.today(),
     })
 
 

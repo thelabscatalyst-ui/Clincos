@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prescription — {{ patient.name }} — {{ prescription.created_at.strftime('%d %b %Y') }}</title>
+  <link rel="stylesheet" href="/static/css/main.css?v=160">
+  <style>
+    /* ── Print page reset ─────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background: #ffffff !important;
+      color: #111111 !important;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 32px 20px;
+    }
+
+    /* ── Print wrapper ─────────────────────────────── */
+    .rx-print-wrap {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #ffffff;
+    }
+
+    /* ── Print button ──────────────────────────────── */
+    .rx-print-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 24px;
+      padding: 9px 18px;
+      border-radius: 10px;
+      border: 1px solid #d0ccc8;
+      background: #f5f2ef;
+      color: #2a1f16;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .rx-print-btn:hover { background: #ece8e2; }
+
+    /* ── Clinic header ──────────────────────────────── */
+    .rx-ph-header {
+      border-bottom: 2px solid #2a1f16;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+    }
+    .rx-ph-clinic {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a1410;
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+    .rx-ph-doctor {
+      font-size: 14px;
+      color: #3a3430;
+      font-weight: 500;
+    }
+    .rx-ph-reg {
+      font-size: 12px;
+      color: #7a6f65;
+      margin-top: 2px;
+    }
+    .rx-ph-address {
+      font-size: 12px;
+      color: #7a6f65;
+      margin-top: 2px;
+      line-height: 1.5;
+    }
+
+    /* ── Patient info row ──────────────────────────── */
+    .rx-ph-patient-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #d4cec8;
+      margin-bottom: 14px;
+    }
+    .rx-ph-patient-left { }
+    .rx-ph-patient-name { font-size: 15px; font-weight: 600; color: #1a1410; }
+    .rx-ph-patient-meta { font-size: 12px; color: #7a6f65; margin-top: 2px; }
+    .rx-ph-date { font-size: 13px; color: #3a3430; font-weight: 500; text-align: right; }
+    .rx-ph-date-label { font-size: 11px; color: #9a8f85; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+
+    /* ── Diagnosis block ────────────────────────────── */
+    .rx-ph-dx {
+      background: #f7f4f0;
+      border: 1px solid #ddd6ce;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+    .rx-ph-dx-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #9a8f85;
+      margin-bottom: 4px;
+    }
+    .rx-ph-dx-text {
+      font-size: 13px;
+      color: #2a2420;
+      line-height: 1.6;
+    }
+
+    /* ── Rx symbol + drug list ──────────────────────── */
+    .rx-ph-symbol {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1410;
+      margin-bottom: 10px;
+    }
+    .rx-ph-drug-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px 0;
+    }
+    .rx-ph-drug-item {
+      padding: 8px 0;
+      border-bottom: 1px solid #e8e2dc;
+      counter-increment: drug-counter;
+    }
+    .rx-ph-drug-item:last-child { border-bottom: none; }
+    .rx-ph-drug-main {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .rx-ph-drug-num {
+      font-size: 12px;
+      font-weight: 700;
+      color: #9a8f85;
+      min-width: 18px;
+    }
+    .rx-ph-drug-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1410;
+    }
+    .rx-ph-drug-dose {
+      font-size: 13px;
+      color: #3a3430;
+    }
+    .rx-ph-drug-freq {
+      font-size: 13px;
+      color: #3a3430;
+    }
+    .rx-ph-drug-dur {
+      font-size: 13px;
+      color: #3a3430;
+    }
+    .rx-ph-drug-sep { color: #bbb; font-size: 12px; }
+    .rx-ph-drug-instructions {
+      font-size: 12px;
+      color: #7a6f65;
+      font-style: italic;
+      margin-top: 2px;
+      padding-left: 22px;
+    }
+
+    /* ── Advice + follow-up ─────────────────────────── */
+    .rx-ph-advice {
+      background: #f7f4f0;
+      border: 1px solid #ddd6ce;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+    .rx-ph-advice-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #9a8f85;
+      margin-bottom: 4px;
+    }
+    .rx-ph-advice-text {
+      font-size: 13px;
+      color: #2a2420;
+      line-height: 1.7;
+    }
+    .rx-ph-followup {
+      font-size: 13px;
+      color: #3a3430;
+      margin-bottom: 24px;
+    }
+    .rx-ph-followup strong { color: #1a1410; }
+
+    /* ── Signature ──────────────────────────────────── */
+    .rx-ph-signature {
+      margin-top: 28px;
+      padding-top: 16px;
+      border-top: 1px solid #d4cec8;
+      text-align: right;
+    }
+    .rx-ph-sig-line {
+      font-size: 13px;
+      color: #9a8f85;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+    .rx-ph-sig-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1410;
+    }
+    .rx-ph-sig-spec {
+      font-size: 12px;
+      color: #7a6f65;
+      margin-top: 2px;
+    }
+
+    /* ── Print media ────────────────────────────────── */
+    @media print {
+      .no-print { display: none !important; }
+      body { margin: 0; padding: 16px; }
+      .rx-print-wrap { max-width: 100%; }
+      @page { size: A5; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="rx-print-wrap">
+
+  <!-- Print button (hidden on print) -->
+  <div class="no-print" style="margin-bottom:20px;">
+    <button type="button" class="rx-print-btn" onclick="window.print()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print Prescription
+    </button>
+    <a href="/prescriptions/{{ prescription.id }}" style="display:inline-flex;align-items:center;gap:5px;margin-left:10px;font-size:13px;color:#7a6f65;text-decoration:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </a>
+  </div>
+
+  <!-- ── Clinic / Doctor letterhead ──────────────── -->
+  <div class="rx-ph-header">
+    <div class="rx-ph-clinic">
+      {{ doctor.clinic_name or ('Dr. ' + doctor.name) }}
+    </div>
+    <div class="rx-ph-doctor">
+      Dr. {{ doctor.name }}{% if doctor.specialization %} · {{ doctor.specialization }}{% endif %}
+    </div>
+    {% if doctor.medical_reg_number %}
+    <div class="rx-ph-reg">Reg. No. {{ doctor.medical_reg_number }}</div>
+    {% endif %}
+    {% if doctor.clinic_address or doctor.city or doctor.phone %}
+    <div class="rx-ph-address">
+      {% if doctor.clinic_address %}{{ doctor.clinic_address }}{% endif %}
+      {% if doctor.city %}{% if doctor.clinic_address %}, {% endif %}{{ doctor.city }}{% endif %}
+      {% if doctor.phone %} &nbsp;·&nbsp; {{ doctor.phone }}{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Patient + Date ───────────────────────────── -->
+  <div class="rx-ph-patient-row">
+    <div class="rx-ph-patient-left">
+      <div class="rx-ph-patient-name">{{ patient.name }}</div>
+      <div class="rx-ph-patient-meta">
+        {% if patient.age %}{{ patient.age }} yrs{% endif %}
+        {% if patient.age and patient.gender %} &nbsp;·&nbsp; {% endif %}
+        {% if patient.gender %}{{ patient.gender | title }}{% endif %}
+        {% if patient.phone %} &nbsp;·&nbsp; {{ patient.phone }}{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="rx-ph-date-label">Date</div>
+      <div class="rx-ph-date">{{ prescription.created_at.strftime('%d %b %Y') }}</div>
+    </div>
+  </div>
+
+  <!-- ── Diagnosis ────────────────────────────────── -->
+  {% if prescription.diagnosis %}
+  <div class="rx-ph-dx">
+    <div class="rx-ph-dx-label">Diagnosis / Chief Complaint</div>
+    <div class="rx-ph-dx-text">{{ prescription.diagnosis }}</div>
+  </div>
+  {% endif %}
+
+  <!-- ── ℞ Drug list ──────────────────────────────── -->
+  {% if prescription.items %}
+  <div class="rx-ph-symbol">℞</div>
+  <ol class="rx-ph-drug-list">
+    {% for item in prescription.items %}
+    <li class="rx-ph-drug-item">
+      <div class="rx-ph-drug-main">
+        <span class="rx-ph-drug-num">{{ loop.index }}.</span>
+        <span class="rx-ph-drug-name">{{ item.drug_name }}</span>
+        {% if item.dosage %}<span class="rx-ph-drug-sep">—</span><span class="rx-ph-drug-dose">{{ item.dosage }}</span>{% endif %}
+        {% if item.frequency %}<span class="rx-ph-drug-sep">·</span><span class="rx-ph-drug-freq">{{ item.frequency }}</span>{% endif %}
+        {% if item.duration %}<span class="rx-ph-drug-sep">·</span><span class="rx-ph-drug-dur">{{ item.duration }}</span>{% endif %}
+      </div>
+      {% if item.instructions %}
+      <div class="rx-ph-drug-instructions">{{ item.instructions }}</div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+
+  <!-- ── Advice ───────────────────────────────────── -->
+  {% if prescription.advice %}
+  <div class="rx-ph-advice">
+    <div class="rx-ph-advice-label">Advice</div>
+    <div class="rx-ph-advice-text">{{ prescription.advice }}</div>
+  </div>
+  {% endif %}
+
+  <!-- ── Follow-up ────────────────────────────────── -->
+  {% if prescription.follow_up %}
+  <div class="rx-ph-followup">
+    <strong>Follow-up in:</strong> {{ prescription.follow_up }}
+  </div>
+  {% endif %}
+
+  <!-- ── Signature ────────────────────────────────── -->
+  <div class="rx-ph-signature">
+    <div class="rx-ph-sig-line">___________________________</div>
+    <div class="rx-ph-sig-name">Dr. {{ doctor.name }}</div>
+    {% if doctor.specialization %}<div class="rx-ph-sig-spec">{{ doctor.specialization }}</div>{% endif %}
+    {% if doctor.medical_reg_number %}<div class="rx-ph-sig-spec" style="margin-top:1px;">Reg. No. {{ doctor.medical_reg_number }}</div>{% endif %}
+  </div>
+
+</div><!-- /rx-print-wrap -->
+
+</body>
+</html>

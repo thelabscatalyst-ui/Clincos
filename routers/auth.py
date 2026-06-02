@@ -75,6 +75,7 @@ def register(
     clinic_name: str = Form(""),
     city: str = Form(""),
     clinic_invite: str = Form(""),
+    medical_reg_number: str = Form(""),
     db: Session = Depends(get_db),
 ):
     invite_token = clinic_invite.strip()
@@ -120,6 +121,7 @@ def register(
             plan_type=PlanType.trial,
             trial_ends_at=None,  # no trial — access gated by clinic plan
             plan_expires_at=None,
+            medical_reg_number=medical_reg_number.strip() or None,
         )
         db.add(doctor)
         db.commit()
@@ -147,6 +149,7 @@ def register(
             slug=slug,
             plan_type=PlanType.trial,
             trial_ends_at=datetime.utcnow() + timedelta(days=14),
+            medical_reg_number=medical_reg_number.strip() or None,
         )
         db.add(doctor)
         db.commit()

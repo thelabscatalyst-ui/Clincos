@@ -20,7 +20,7 @@ from urllib.parse import quote
 import collections
 
 from database.connection import create_tables
-from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income
+from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income, prescriptions
 from services.scheduler_service import start_scheduler, stop_scheduler
 from services.auth_service import PlanExpired, PinRequired, decode_token
 
@@ -137,6 +137,7 @@ app.include_router(clinic.router)
 app.include_router(visits.router)
 app.include_router(billing_ops.router)
 app.include_router(income.router)
+app.include_router(prescriptions.router)
 
 
 @app.get("/sitemap.xml", include_in_schema=False)

@@ -376,3 +376,38 @@ def _run_migrations():
             ))
             conn.execute(text("DROP TABLE notifications_log_old"))
             conn.commit()
+
+        # ── v3: Doctor medical registration number + platform verification ────
+        _add_column(conn, "ALTER TABLE doctors ADD COLUMN medical_reg_number VARCHAR(50)")
+        _add_column(conn, "ALTER TABLE doctors ADD COLUMN is_verified BOOLEAN DEFAULT 0")
+
+        # ── v3: Patient WhatsApp consent ──────────────────────────────────────
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN wa_consent BOOLEAN DEFAULT 0")
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN wa_consent_at TIMESTAMP")
+
+        # ── v3: e-Prescription tables ─────────────────────────────────────────
+        _safe_ddl(conn,
+            "CREATE TABLE IF NOT EXISTS prescriptions ("
+            "  id         INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  doctor_id  INTEGER NOT NULL REFERENCES doctors(id), "
+            "  patient_id INTEGER NOT NULL REFERENCES patients(id), "
+            "  visit_id   INTEGER REFERENCES visits(id), "
+            "  diagnosis  TEXT, "
+            "  advice     TEXT, "
+            "  follow_up  VARCHAR(100), "
+            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+            "  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        )
+        _safe_ddl(conn,
+            "CREATE TABLE IF NOT EXISTS prescription_items ("
+            "  id              INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  prescription_id INTEGER NOT NULL REFERENCES prescriptions(id), "
+            "  drug_name       VARCHAR(150) NOT NULL, "
+            "  dosage          VARCHAR(80), "
+            "  frequency       VARCHAR(80), "
+            "  duration        VARCHAR(60), "
+            "  instructions    VARCHAR(200)"
+            ")"
+        )
+        conn.commit()

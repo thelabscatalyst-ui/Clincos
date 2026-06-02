@@ -1,4 +1,4 @@
-<!-- Appointment Card Partial · injected into #apptCardOverlay -->
+<!-- Appointment Card Partial — injected into #apptCardOverlay -->
 <div class="ac-wrap" id="acMainView">
 
   <!-- ── Header ──────────────────────────────────────────────────────── -->
@@ -138,7 +138,7 @@
           <button type="button" class="ac-inline-edit" style="margin-left:0;" onclick="toggleFollowUp({{ appt.id }})">Reschedule</button>
         </div>
         {% endif %}
-        <!-- Follow-up inline form · hidden by default -->
+        <!-- Follow-up inline form — hidden by default -->
         <div id="followUpForm{{ appt.id }}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0 4px 0;margin-top:4px;">
           <input type="date" id="followUpInput{{ appt.id }}"
                  value="{{ appt.follow_up_date.isoformat() if appt.follow_up_date else '' }}"
@@ -259,6 +259,32 @@
     </div>
   </div>
 
+  <!-- ── Prescriptions ────────────────────────────────────────────── -->
+  {% if visit_prescriptions %}
+  <div class="ac-section" style="padding:0 0 4px 0;margin-top:4px;">
+    <div class="ac-section-title" style="padding:14px 20px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);display:flex;align-items:center;gap:5px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Prescriptions
+    </div>
+    {% for rx in visit_prescriptions %}
+    <a href="/prescriptions/{{ rx.id }}" class="ac-row" style="text-decoration:none;display:flex;align-items:center;justify-content:space-between;padding:9px 20px;gap:12px;transition:background 0.12s;">
+      <span style="font-size:13px;color:var(--text);">{{ rx.created_at.strftime('%d %b') }} · {{ rx.items|length }} drug{{ 's' if rx.items|length != 1 }}</span>
+      {% if rx.diagnosis %}<span style="color:var(--muted);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;">{{ rx.diagnosis[:50] }}</span>{% endif %}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:0.4;" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if visit %}
+  <div style="padding:0 20px 16px;">
+    <a href="/prescriptions/new?visit_id={{ visit.id }}&patient_id={{ visit.patient_id }}"
+       class="btn btn-secondary btn-sm">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;vertical-align:-1px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Write Prescription
+    </a>
+  </div>
+  {% endif %}
+
   <!-- ── Delete Confirm ───────────────────────────────────────────── -->
   <div id="acDeleteConfirm" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.82);border-radius:20px;z-index:20;align-items:center;justify-content:center;flex-direction:column;">
     <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:36px;max-width:360px;width:calc(100% - 40px);text-align:center;">
@@ -279,7 +305,7 @@
 
 
 <!-- ══════════════════════════════════════════════════════════════════
-     EDIT PANEL · slides in over the card when Edit is clicked
+     EDIT PANEL — slides in over the card when Edit is clicked
 ══════════════════════════════════════════════════════════════════ -->
 <div id="acEditPanel" style="display:none;">
   <div class="ac-edit-header">
@@ -314,7 +340,7 @@
         <div class="ac-edit-field">
           <label>Gender</label>
           <select name="gender">
-            <option value="">Not specified</option>
+            <option value="">— Not specified —</option>
             <option value="male"   {% if patient.gender and patient.gender.lower()=='male'   %}selected{% endif %}>Male</option>
             <option value="female" {% if patient.gender and patient.gender.lower()=='female' %}selected{% endif %}>Female</option>
             <option value="other"  {% if patient.gender and patient.gender.lower()=='other'  %}selected{% endif %}>Other</option>
@@ -323,7 +349,7 @@
         <div class="ac-edit-field">
           <label>Blood Group</label>
           <select name="blood_group">
-            <option value="">Not recorded</option>
+            <option value="">— Not recorded —</option>
             {% for bg in ["A+","A-","B+","B-","AB+","AB-","O+","O-"] %}
             <option value="{{ bg }}" {% if patient.blood_group == bg %}selected{% endif %}>{{ bg }}</option>
             {% endfor %}
@@ -339,7 +365,7 @@
         </div>
         <div class="ac-edit-field" style="grid-column:span 2;">
           <label>Known Allergies</label>
-          <input type="text" name="allergies" value="{{ patient.allergies or '' }}" placeholder="e.g. Penicillin, Aspirin · or leave blank">
+          <input type="text" name="allergies" value="{{ patient.allergies or '' }}" placeholder="e.g. Penicillin, Aspirin — or leave blank">
         </div>
       </div>
     </div>
@@ -595,7 +621,7 @@ function saveFollowUp(apptId) {
         );
       } else {
         _showFuToast(
-          'Follow-up date saved. No free slot found · book manually if needed.',
+          'Follow-up date saved. No free slot found — book manually if needed.',
           'var(--muted)'
         );
       }

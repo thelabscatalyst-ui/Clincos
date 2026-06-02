@@ -188,6 +188,9 @@ class Doctor(Base):
     walkin_policy    = Column(String(20), default="booked_jumps")      # booked_jumps|fcfs|ask
     avg_consult_mins = Column(Integer, default=10)                     # used for walk-in wait estimates
     plan_seats       = Column(Integer, nullable=True)                   # max doctors allowed under this plan (None = unlimited)
+    # v3: medical registration
+    medical_reg_number = Column(String(50), nullable=True)             # NMC/State council registration number
+    is_verified        = Column(Boolean, default=False)                # set True after manual platform verification
     created_at = Column(DateTime, default=datetime.utcnow)
 
     appointments       = relationship("Appointment", back_populates="doctor", cascade="all, delete-orphan")
@@ -229,6 +232,9 @@ class Patient(Base):
     visit_count = Column(Integer, default=0)
     first_visit = Column(Date, nullable=True)
     last_visit = Column(Date, nullable=True)
+    # v3: WhatsApp consent
+    wa_consent    = Column(Boolean, default=False)      # patient has consented to WhatsApp messages
+    wa_consent_at = Column(DateTime, nullable=True)     # timestamp when consent was given
     created_at = Column(DateTime, default=datetime.utcnow)
 
     doctor       = relationship("Doctor", back_populates="patients")
@@ -585,3 +591,50 @@ class RecurringExpense(Base):
     created_at   = Column(DateTime, default=datetime.utcnow)
 
     expense_rows = relationship("Expense", back_populates="recurring")
+
+
+# --------------------------------------------------------------------------- #
+#  Prescription + PrescriptionItem  (e-prescription module)                    #
+# --------------------------------------------------------------------------- #
+
+class Prescription(Base):
+    __tablename__ = "prescriptions"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    doctor_id  = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
+    visit_id   = Column(Integer, ForeignKey("visits.id"), nullable=True, index=True)
+
+    # Clinical content
+    diagnosis  = Column(Text, nullable=True)
+    advice     = Column(Text, nullable=True)     # general patient instructions
+    follow_up  = Column(String(100), nullable=True)  # e.g. "After 7 days"
+
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # Relationships
+    doctor  = relationship("Doctor")
+    patient = relationship("Patient")
+    visit   = relationship("Visit")
+    items   = relationship(
+        "PrescriptionItem",
+        back_populates="prescription",
+        cascade="all, delete-orphan",
+        order_by="PrescriptionItem.id",
+    )
+
+
+class PrescriptionItem(Base):
+    __tablename__ = "prescription_items"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    prescription_id = Column(Integer, ForeignKey("prescriptions.id"), nullable=False, index=True)
+
+    drug_name    = Column(String(150), nullable=False)
+    dosage       = Column(String(80), nullable=True)    # "500mg", "10mg"
+    frequency    = Column(String(80), nullable=True)    # "Twice daily", "SOS", "At bedtime"
+    duration     = Column(String(60), nullable=True)    # "5 days", "2 weeks"
+    instructions = Column(String(200), nullable=True)   # "After food", "With milk"
+
+    prescription = relationship("Prescription", back_populates="items")

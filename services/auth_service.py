@@ -152,9 +152,15 @@ def _pin_parent_path(path: str) -> str:
         return "/income"
     if path.startswith("/patients/"):
         # e.g. /patients/42/delete → /patients/42
+        # e.g. /patients/42/prescriptions is a GET — no mapping needed
         parts = path.split("/")
         if len(parts) >= 3 and parts[2].isdigit():
             return f"/patients/{parts[2]}"
+    if path.startswith("/prescriptions/"):
+        # e.g. /prescriptions/7/delete → /prescriptions/7
+        parts = path.split("/")
+        if len(parts) >= 3 and parts[2].isdigit():
+            return f"/prescriptions/{parts[2]}"
     return "/dashboard"
 
 
