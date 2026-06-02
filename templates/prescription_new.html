@@ -54,18 +54,18 @@
         {% for item in prescription.items %}
         <div class="rx-drug-row">
           <div class="rx-drug-field rx-drug-field--name" style="position:relative;">
-            <input type="text" name="drug_name[]" value="{{ item.drug_name }}"
+            <input type="text" name="drug_name" value="{{ item.drug_name }}"
                    placeholder="Drug name" autocomplete="off"
                    class="rx-input" oninput="drugAutocomplete(this)">
             <div class="rx-autocomplete-dropdown" style="display:none;"></div>
           </div>
           <div class="rx-drug-field">
-            <input type="text" name="dosage[]" value="{{ item.dosage }}"
+            <input type="text" name="dosage" value="{{ item.dosage }}"
                    placeholder="e.g. 500mg" class="rx-input">
           </div>
           <div class="rx-drug-field">
             <div style="position:relative;">
-              <select name="frequency[]" class="rx-input rx-select">
+              <select name="frequency" class="rx-input rx-select">
                 <option value="">— Select —</option>
                 {% set freq_options = ["Once daily","Twice daily","Three times daily","Four times daily","At bedtime","Every 8 hours","Every 6 hours","SOS / As needed","Before food","After food"] %}
                 {% for opt in freq_options %}
@@ -80,11 +80,11 @@
             </div>
           </div>
           <div class="rx-drug-field">
-            <input type="text" name="duration[]" value="{{ item.duration }}"
+            <input type="text" name="duration" value="{{ item.duration }}"
                    placeholder="e.g. 5 days" class="rx-input">
           </div>
           <div class="rx-drug-field">
-            <input type="text" name="instructions[]" value="{{ item.instructions }}"
+            <input type="text" name="instructions" value="{{ item.instructions }}"
                    placeholder="e.g. with food" class="rx-input">
           </div>
           <div class="rx-drug-field rx-drug-field--remove">
@@ -98,18 +98,18 @@
         <!-- Default empty row for create mode -->
         <div class="rx-drug-row">
           <div class="rx-drug-field rx-drug-field--name" style="position:relative;">
-            <input type="text" name="drug_name[]" value=""
+            <input type="text" name="drug_name" value=""
                    placeholder="Drug name" autocomplete="off"
                    class="rx-input" oninput="drugAutocomplete(this)">
             <div class="rx-autocomplete-dropdown" style="display:none;"></div>
           </div>
           <div class="rx-drug-field">
-            <input type="text" name="dosage[]" value=""
+            <input type="text" name="dosage" value=""
                    placeholder="e.g. 500mg" class="rx-input">
           </div>
           <div class="rx-drug-field">
             <div style="position:relative;">
-              <select name="frequency[]" class="rx-input rx-select">
+              <select name="frequency" class="rx-input rx-select">
                 <option value="">— Select —</option>
                 <option>Once daily</option>
                 <option>Twice daily</option>
@@ -126,11 +126,11 @@
             </div>
           </div>
           <div class="rx-drug-field">
-            <input type="text" name="duration[]" value=""
+            <input type="text" name="duration" value=""
                    placeholder="e.g. 5 days" class="rx-input">
           </div>
           <div class="rx-drug-field">
-            <input type="text" name="instructions[]" value=""
+            <input type="text" name="instructions" value=""
                    placeholder="e.g. with food" class="rx-input">
           </div>
           <div class="rx-drug-field rx-drug-field--remove">
@@ -316,7 +316,7 @@ function drugAutocomplete(input) {
 function selectDrug(event, item, drugName, inputId) {
   event.preventDefault();
   const row = item.closest('.rx-drug-row') || item.closest('.rx-drug-field--name').parentElement;
-  const input = row.querySelector('input[name="drug_name[]"]');
+  const input = row.querySelector('input[name="drug_name"]');
   if (input) input.value = drugName;
   const dropdown = item.closest('.rx-autocomplete-dropdown');
   if (dropdown) dropdown.style.display = 'none';
@@ -344,24 +344,24 @@ function buildDrugRow() {
   div.className = 'rx-drug-row';
   div.innerHTML = `
     <div class="rx-drug-field rx-drug-field--name" style="position:relative;">
-      <input type="text" name="drug_name[]" value="" placeholder="Drug name"
+      <input type="text" name="drug_name" value="" placeholder="Drug name"
              autocomplete="off" class="rx-input" oninput="drugAutocomplete(this)">
       <div class="rx-autocomplete-dropdown" style="display:none;"></div>
     </div>
     <div class="rx-drug-field">
-      <input type="text" name="dosage[]" value="" placeholder="e.g. 500mg" class="rx-input">
+      <input type="text" name="dosage" value="" placeholder="e.g. 500mg" class="rx-input">
     </div>
     <div class="rx-drug-field">
       <div style="position:relative;">
-        <select name="frequency[]" class="rx-input rx-select">${opts}</select>
+        <select name="frequency" class="rx-input rx-select">${opts}</select>
         <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.5;" width="12" height="7" viewBox="0 0 12 7" fill="none" stroke="#555555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l5 5 5-5"/></svg>
       </div>
     </div>
     <div class="rx-drug-field">
-      <input type="text" name="duration[]" value="" placeholder="e.g. 5 days" class="rx-input">
+      <input type="text" name="duration" value="" placeholder="e.g. 5 days" class="rx-input">
     </div>
     <div class="rx-drug-field">
-      <input type="text" name="instructions[]" value="" placeholder="e.g. with food" class="rx-input">
+      <input type="text" name="instructions" value="" placeholder="e.g. with food" class="rx-input">
     </div>
     <div class="rx-drug-field rx-drug-field--remove">
       <button type="button" class="rx-remove-btn" onclick="removeDrugRow(this)" title="Remove drug">
@@ -375,7 +375,7 @@ function addDrugRow() {
   const container = document.getElementById('drugRowsContainer');
   const row = buildDrugRow();
   container.appendChild(row);
-  row.querySelector('input[name="drug_name[]"]').focus();
+  row.querySelector('input[name="drug_name"]').focus();
 }
 
 function removeDrugRow(btn) {

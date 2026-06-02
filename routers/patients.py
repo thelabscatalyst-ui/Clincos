@@ -382,17 +382,29 @@ def patient_detail(
         Prescription.doctor_id  == doctor.id,
     ).scalar() or 0
 
+    recent_prescriptions = (
+        db.query(Prescription)
+        .filter(
+            Prescription.patient_id == patient.id,
+            Prescription.doctor_id  == doctor.id,
+        )
+        .order_by(Prescription.created_at.desc())
+        .limit(3)
+        .all()
+    )
+
     return templates.TemplateResponse(request, "patient_detail.html", {
-        "doctor":       doctor,
-        "patient":      patient,
-        "appointments": appointments,
-        "notes_data":   _notes_data(raw_notes),
-        "completed":    completed,
-        "upcoming":     upcoming,
-        "bills":        bills,
-        "doc_count":    doc_count,
-        "rx_count":     rx_count,
-        "active":       "patients",
+        "doctor":               doctor,
+        "patient":              patient,
+        "appointments":         appointments,
+        "notes_data":           _notes_data(raw_notes),
+        "completed":            completed,
+        "upcoming":             upcoming,
+        "bills":                bills,
+        "doc_count":            doc_count,
+        "rx_count":             rx_count,
+        "recent_prescriptions": recent_prescriptions,
+        "active":               "patients",
         "pin_required": getattr(request.state, "pin_required", False),
     })
 
