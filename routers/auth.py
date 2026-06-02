@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database.models import Doctor, PlanType, Clinic, ClinicDoctor, ClinicDoctorInvite
+from config import settings
 from services.auth_service import hash_password, verify_password, create_access_token, decode_token
 
 router = APIRouter(tags=["auth"])
@@ -237,7 +238,7 @@ def login(
         response = RedirectResponse(url=redirect_url, status_code=303)
         response.set_cookie(
             key="access_token", value=token,
-            httponly=True, max_age=60 * 60 * 24, samesite="lax",
+            httponly=True, secure=settings.is_production, max_age=60 * 60 * 24, samesite="lax",
         )
         return response
 

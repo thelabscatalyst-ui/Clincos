@@ -22,6 +22,15 @@ class Settings(BaseSettings):
 
     ADMIN_EMAIL: str = ""  # platform owner email — set in .env
 
+    # Set ENVIRONMENT=development in local .env to allow http:// cookies.
+    # In production (Railway) leave unset — defaults to "production" so
+    # cookies get the Secure flag and only travel over HTTPS.
+    ENVIRONMENT: str = "production"
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() == "production"
+
     class Config:
         env_file = ".env"
 

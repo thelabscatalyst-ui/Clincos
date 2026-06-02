@@ -2,6 +2,20 @@
 {% block title %}Prescription — {{ patient.name }} — ClinicOS{% endblock %}
 
 {% block content %}
+{% set _rx_missing = [] %}
+{% if not doctor.specialization %}{% set _rx_missing = _rx_missing + ['Specialization'] %}{% endif %}
+{% if not doctor.clinic_name %}{% set _rx_missing = _rx_missing + ['Clinic name'] %}{% endif %}
+{% if not doctor.medical_reg_number %}{% set _rx_missing = _rx_missing + ['Reg. No.'] %}{% endif %}
+{% if _rx_missing %}
+<div style="display:flex;align-items:flex-start;gap:12px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.3);border-radius:10px;padding:12px 16px;margin-bottom:20px;">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  <div style="flex:1;font-size:13px;line-height:1.5;">
+    <strong style="color:var(--text);">Prescription letterhead is incomplete</strong> ·
+    <span style="color:var(--muted);">{{ _rx_missing | join(', ') }} missing.</span>
+    <a href="/doctors/settings" style="color:#ca8a04;text-decoration:none;font-weight:600;margin-left:6px;">Complete your profile →</a>
+  </div>
+</div>
+{% endif %}
 <div class="page-header">
   <div>
     <a href="/patients/{{ patient.id }}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:6px;transition:color 0.15s;">

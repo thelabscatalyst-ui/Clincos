@@ -212,6 +212,14 @@ class Doctor(Base):
 class Patient(Base):
     __tablename__ = "patients"
 
+    # ── PHI NOTE (DPDP Act compliance) ──────────────────────────────────────
+    # The fields below (name, phone, age, gender, blood_group, allergies, notes)
+    # constitute Protected Health Information (PHI) stored in plaintext.
+    # Transport is encrypted via Railway TLS (HTTPS + Postgres TLS).
+    # Field-level encryption (AES-256 via SQLAlchemy TypeDecorator + KMS) is
+    # earmarked for a future release once a key-management strategy is in place.
+    # ────────────────────────────────────────────────────────────────────────
+
     id = Column(Integer, primary_key=True, index=True)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
     clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)   # Phase 2

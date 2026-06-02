@@ -574,7 +574,10 @@ function submitCardEdit(apptId) {
       errEl.style.display = 'block';
     }
   })
-  .catch(() => { errEl.textContent = 'Network error.'; errEl.style.display = 'block'; });
+  .catch(() => {
+    errEl.textContent = 'Network error.'; errEl.style.display = 'block';
+    if (window.showRetryToast) showRetryToast("Couldn't save appointment · retry?", function() { saveApptCard(apptId); });
+  });
 }
 
 /* ── Reception notes ── */
@@ -592,6 +595,8 @@ function saveReceptionNotes(apptId) {
     const s = document.getElementById('noteSaved');
     s.style.display = 'block';
     setTimeout(() => { s.style.display = 'none'; }, 2000);
+  }).catch(() => {
+    if (window.showRetryToast) showRetryToast("Couldn't save note · retry?", function() { saveReceptionNotes(apptId); });
   });
 }
 
@@ -630,6 +635,7 @@ function saveFollowUp(apptId) {
   })
   .catch(() => {
     if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+    if (window.showRetryToast) showRetryToast("Couldn't save follow-up · retry?", function() { saveFollowUp(apptId); });
   });
 }
 function _showFuToast(msg, color) {

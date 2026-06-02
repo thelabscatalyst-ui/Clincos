@@ -132,7 +132,8 @@ def patients_list(
     oldest_pin_name = None
     if len(pinned_ids) >= 3:
         oldest_pin_patient = db.query(Patient).filter(
-            Patient.id == pinned_ids[0]
+            Patient.id == pinned_ids[0],
+            Patient.doctor_id == doctor.id,
         ).first()
         oldest_pin_name = oldest_pin_patient.name if oldest_pin_patient else None
 

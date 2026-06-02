@@ -14,6 +14,7 @@ from database.models import (
     Bill, Expense, ExpenseCategory, PaymentMode,
     Visit, VisitStatus, ReferralSource,
 )
+from config import settings
 from services.auth_service import (
     get_current_doctor, get_paying_doctor,
     require_pin, require_pin_auth,
@@ -477,13 +478,15 @@ def save_account(
     email: str = Form(""),
     phone: str = Form(""),
     specialization: str = Form(""),
+    medical_reg_number: str = Form(""),
     doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
-    name           = name.strip()
-    email          = email.strip().lower()
-    phone          = phone.strip()
-    specialization = specialization.strip()
+    name               = name.strip()
+    email              = email.strip().lower()
+    phone              = phone.strip()
+    specialization     = specialization.strip()
+    medical_reg_number = medical_reg_number.strip()
 
     if not name or not email:
         return RedirectResponse(url="/doctors/settings?saved=0", status_code=303)
@@ -494,10 +497,11 @@ def save_account(
         if existing:
             return RedirectResponse(url="/doctors/settings?account_error=email_taken", status_code=303)
 
-    doctor.name           = name
-    doctor.email          = email
-    doctor.phone          = phone or None
-    doctor.specialization = specialization or None
+    doctor.name               = name
+    doctor.email              = email
+    doctor.phone              = phone or None
+    doctor.specialization     = specialization or None
+    doctor.medical_reg_number = medical_reg_number or None
     db.commit()
     return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
 
@@ -1281,7 +1285,7 @@ async def verify_pin_post(
 
     resp = RedirectResponse(url=next, status_code=303)
     token = create_pin_token(doctor.id)
-    resp.set_cookie("pin_session", token, httponly=True, samesite="lax", max_age=1800)
+    resp.set_cookie("pin_session", token, httponly=True, secure=settings.is_production, samesite="lax", max_age=1800)
     return resp
 
 
@@ -1326,5 +1330,5 @@ async def update_pin(
     # Issue pin_session so the doctor stays verified after setting PIN
     resp = RedirectResponse("/doctors/settings?saved=1", 303)
     token = create_pin_token(doctor.id)
-    resp.set_cookie("pin_session", token, httponly=True, samesite="lax", max_age=1800)
+    resp.set_cookie("pin_session", token, httponly=True, secure=settings.is_production, samesite="lax", max_age=1800)
     return resp

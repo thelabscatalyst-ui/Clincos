@@ -702,8 +702,12 @@ async function saveNote() {
     renderQueueChips();
 
   } catch (err) {
-    errEl.textContent    = err.message || 'Failed to save note. Please try again.';
-    errEl.style.display  = 'inline';
+    const isNetwork = (err instanceof TypeError);
+    errEl.textContent   = isNetwork ? 'No connection.' : (err.message || 'Failed to save note. Please try again.');
+    errEl.style.display = 'inline';
+    if (isNetwork && window.showRetryToast) {
+      showRetryToast("Couldn't save note · retry?", function() { saveNote(); });
+    }
   } finally {
     btn.disabled    = false;
     btn.textContent = 'Save Note';
@@ -901,10 +905,14 @@ async function saveEdit(noteId) {
     delete noteEditState[noteId];
 
   } catch (err) {
-    errEl.textContent   = err.message || 'Failed to save. Please try again.';
+    const isNetwork = (err instanceof TypeError);
+    errEl.textContent   = isNetwork ? 'No connection.' : (err.message || 'Failed to save. Please try again.');
     errEl.style.display = 'inline';
     btn.disabled    = false;
     btn.textContent = 'Save Changes';
+    if (isNetwork && window.showRetryToast) {
+      showRetryToast("Couldn't save edit · retry?", function() { saveEdit(noteId); });
+    }
   }
 }
 

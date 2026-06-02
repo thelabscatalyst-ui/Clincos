@@ -405,7 +405,10 @@ async def download_bill_pdf(
 
     try:
         from services.bill_pdf_service import _build_pdf
-        patient = db.query(Patient).filter(Patient.id == bill.patient_id).first()
+        patient = db.query(Patient).filter(
+            Patient.id == bill.patient_id,
+            Patient.doctor_id == doctor.id,
+        ).first()
         visit   = bill.visit
         appt    = None
         if visit and visit.appointment_id:

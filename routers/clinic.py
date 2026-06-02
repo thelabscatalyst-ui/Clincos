@@ -20,6 +20,7 @@ from database.models import (
     Clinic, ClinicDoctor, ClinicDoctorInvite,
     Doctor, Appointment, AppointmentStatus,
 )
+from config import settings
 from services.auth_service import (
     get_clinic_owner, hash_password, verify_password,
 )
@@ -93,7 +94,7 @@ def clinic_admin_auth(
     }
     token = _jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     response = RedirectResponse(url="/clinic/admin", status_code=303)
-    response.set_cookie(ADMIN_AUTH_COOKIE, token, httponly=True, samesite="lax", max_age=600)
+    response.set_cookie(ADMIN_AUTH_COOKIE, token, httponly=True, secure=settings.is_production, samesite="lax", max_age=600)
     return response
 
 

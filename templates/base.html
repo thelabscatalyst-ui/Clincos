@@ -549,5 +549,101 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeApptCard();
 });
 </script>
+
+<!-- ── Offline banner (full-width bottom strip) ───────────────────────────── -->
+<div id="offlineBanner" style="
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;
+  background:#7c3d00;color:#fff;text-align:center;
+  padding:10px 16px;font-size:13px;font-weight:500;letter-spacing:.01em;
+">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+  You are offline · showing last known queue data
+</div>
+
+<!-- ── Retry toast (floats above offline banner) ─────────────────────────── -->
+<div id="retryToast" style="
+  display:none;position:fixed;bottom:56px;left:50%;transform:translateX(-50%);
+  z-index:9998;background:#1c1210;color:#e8ddd6;
+  border:1px solid #4a3020;border-radius:12px;
+  padding:12px 14px 12px 16px;align-items:center;gap:10px;
+  box-shadow:0 4px 24px rgba(0,0,0,.45);
+  width:min(360px,92vw);font-size:13px;
+">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="retryToastMsg" style="flex:1;line-height:1.4">Couldn't save · check your connection</span>
+  <button onclick="window._retryAction()" style="
+    background:#c2410c;color:#fff;border:none;border-radius:7px;
+    padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+  ">Retry</button>
+  <button onclick="window._dismissRetry()" style="
+    background:none;border:none;color:#9a8f85;font-size:16px;cursor:pointer;
+    padding:2px 4px;line-height:1;
+  ">&#x2715;</button>
+</div>
+
+<!-- ── Service Worker · Offline banner · Retry toast logic ───────────────── -->
+<script>
+(function () {
+  /* ── Service Worker ── */
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/js/sw.js', { scope: '/' })
+      .catch(function (err) { console.warn('SW registration failed:', err); });
+  }
+
+  /* ── Offline banner ── */
+  var banner = document.getElementById('offlineBanner');
+  function showBanner()  { if (banner) banner.style.display = 'block';  }
+  function hideBanner()  { if (banner) banner.style.display = 'none';   }
+  window.addEventListener('offline', showBanner);
+  window.addEventListener('online',  hideBanner);
+  if (!navigator.onLine) showBanner();
+
+  /* ── Retry toast ── */
+  var toast     = document.getElementById('retryToast');
+  var toastMsg  = document.getElementById('retryToastMsg');
+  var _pendingRetry = null;
+
+  window.showRetryToast = function (msg, retryFn) {
+    _pendingRetry = retryFn || null;
+    if (toastMsg) toastMsg.textContent = msg || "Couldn't save · check your connection";
+    if (toast)    toast.style.display  = 'flex';
+  };
+  window.hideRetryToast = function () {
+    if (toast) toast.style.display = 'none';
+    _pendingRetry = null;
+  };
+  window._retryAction = function () {
+    var fn = _pendingRetry;
+    window.hideRetryToast();
+    if (fn) fn();
+  };
+  window._dismissRetry = function () {
+    window.hideRetryToast();
+  };
+
+  /* When connection restores, nudge the user to retry */
+  window.addEventListener('online', function () {
+    if (toast && toast.style.display === 'flex') {
+      if (toastMsg) toastMsg.textContent = "Connection restored · ready to retry";
+    }
+  });
+
+  /* ── Global form-submit guard (offline check) ──
+     If the user hits Save while offline, prevent the form from navigating to
+     a browser error page. Instead show the retry toast; clicking Retry submits
+     the form the normal way once the function is called. */
+  document.addEventListener('submit', function (e) {
+    if (navigator.onLine) return;          // online — let browser handle it normally
+    if (e.target.dataset.noRetry) return;  // opt-out via data-no-retry attribute
+    e.preventDefault();
+    var form = e.target;
+    window.showRetryToast(
+      "No connection · your data is ready to send",
+      function () { form.submit(); }       // form.submit() bypasses this listener
+    );
+  }, true /* capture phase — runs before any existing submit handlers */);
+
+})();
+</script>
 </body>
 </html>

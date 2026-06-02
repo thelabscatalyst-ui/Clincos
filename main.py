@@ -23,6 +23,7 @@ from database.connection import create_tables
 from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income, prescriptions
 from services.scheduler_service import start_scheduler, stop_scheduler
 from services.auth_service import PlanExpired, PinRequired, decode_token
+from config import settings
 
 # ── Login rate limiter — max 10 attempts per IP per 15 minutes ──────────────
 _LOGIN_WINDOW  = 15 * 60   # 15 minutes in seconds
@@ -59,6 +60,18 @@ async def security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"]         = "1; mode=block"
     response.headers["Referrer-Policy"]           = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"]        = "geolocation=(), microphone=(), camera=()"
+    if settings.is_production:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"]   = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com; "
+        "worker-src 'self'; "
+        "frame-ancestors 'none';"
+    )
 
     path = request.url.path
     is_public = path == "/" or any(path.startswith(p) for p in _PUBLIC_PREFIXES)
@@ -71,8 +84,8 @@ async def security_headers(request: Request, call_next):
 
 @app.middleware("http")
 async def login_rate_limit(request: Request, call_next):
-    """Block brute-force login attempts — max 10 per IP per 15 minutes."""
-    if request.method == "POST" and request.url.path == "/login":
+    """Block brute-force login/PIN attempts — max 10 per IP per 15 minutes."""
+    if request.method == "POST" and request.url.path in ("/login", "/pin-prompt"):
         ip  = request.client.host if request.client else "unknown"
         now = time.time()
         # Purge old timestamps outside the window

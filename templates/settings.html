@@ -335,7 +335,7 @@
     <div class="settings-card-header">
       <div>
         <div class="settings-card-title">Clinic Profile</div>
-        <div class="settings-card-sub">This information appears on your public booking page</div>
+        <div class="settings-card-sub">Appears on your public booking page and printed prescriptions</div>
       </div>
       <button type="submit" class="btn btn-primary btn-sm">Save Profile</button>
     </div>
@@ -398,6 +398,13 @@
         <label for="account_specialization">Specialization / Designation</label>
         <input type="text" id="account_specialization" name="specialization"
           value="{{ doctor.specialization or '' }}" placeholder="General Physician" />
+      </div>
+      <div class="form-group">
+        <label for="account_reg_number">Medical Registration No.
+          <span class="form-hint" style="margin:0;display:inline;font-size:11px;"> · printed on prescriptions</span>
+        </label>
+        <input type="text" id="account_reg_number" name="medical_reg_number"
+          value="{{ doctor.medical_reg_number or '' }}" placeholder="MH/12345/2019 or NMC-XXXXX" />
       </div>
     </div>
   </div>
