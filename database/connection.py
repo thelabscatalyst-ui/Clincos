@@ -141,7 +141,7 @@ def _run_migrations():
 
         # ── Phase 4: Walk-in buffer + emergency flag ─────────────────────────
         _add_column(conn, "ALTER TABLE doctor_schedules ADD COLUMN walk_in_buffer INTEGER DEFAULT 0")
-        _add_column(conn, "ALTER TABLE appointments ADD COLUMN is_emergency BOOLEAN DEFAULT 0")
+        _add_column(conn, "ALTER TABLE appointments ADD COLUMN is_emergency BOOLEAN DEFAULT FALSE")
 
         # ── Phase 3: Patient notes & file attachments ────────────────────────
         _safe_ddl(conn,
@@ -315,7 +315,7 @@ def _run_migrations():
         _add_column(conn, "ALTER TABLE clinics ADD COLUMN plan_grace_until DATETIME")
         _add_column(conn, "ALTER TABLE clinics ADD COLUMN max_doctors INTEGER DEFAULT 1")
         _add_column(conn, "ALTER TABLE clinics ADD COLUMN max_staff INTEGER DEFAULT 2")
-        _add_column(conn, "ALTER TABLE clinics ADD COLUMN billing_access_staff BOOLEAN DEFAULT 0")
+        _add_column(conn, "ALTER TABLE clinics ADD COLUMN billing_access_staff BOOLEAN DEFAULT FALSE")
         # Backfill: solo-plan clinics keep max_doctors=1; set Clinic plan ones to 5
         conn.execute(text(
             "UPDATE clinics SET max_doctors = 5, max_staff = 999 "
@@ -379,10 +379,10 @@ def _run_migrations():
 
         # ── v3: Doctor medical registration number + platform verification ────
         _add_column(conn, "ALTER TABLE doctors ADD COLUMN medical_reg_number VARCHAR(50)")
-        _add_column(conn, "ALTER TABLE doctors ADD COLUMN is_verified BOOLEAN DEFAULT 0")
+        _add_column(conn, "ALTER TABLE doctors ADD COLUMN is_verified BOOLEAN DEFAULT FALSE")
 
         # ── v3: Patient WhatsApp consent ──────────────────────────────────────
-        _add_column(conn, "ALTER TABLE patients ADD COLUMN wa_consent BOOLEAN DEFAULT 0")
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN wa_consent BOOLEAN DEFAULT FALSE")
         _add_column(conn, "ALTER TABLE patients ADD COLUMN wa_consent_at TIMESTAMP")
 
         # ── v3: e-Prescription tables ─────────────────────────────────────────
