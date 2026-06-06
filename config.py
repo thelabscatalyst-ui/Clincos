@@ -27,10 +27,6 @@ class Settings(BaseSettings):
     # cookies get the Secure flag and only travel over HTTPS.
     ENVIRONMENT: str = "production"
 
-    @property
-    def is_production(self) -> bool:
-        return self.ENVIRONMENT.lower() == "production"
-
     class Config:
         env_file = ".env"
 

@@ -1285,7 +1285,7 @@ async def verify_pin_post(
 
     resp = RedirectResponse(url=next, status_code=303)
     token = create_pin_token(doctor.id)
-    resp.set_cookie("pin_session", token, httponly=True, secure=settings.is_production, samesite="lax", max_age=1800)
+    resp.set_cookie("pin_session", token, httponly=True, secure=settings.ENVIRONMENT.lower() == "production", samesite="lax", max_age=1800)
     return resp
 
 
@@ -1330,5 +1330,5 @@ async def update_pin(
     # Issue pin_session so the doctor stays verified after setting PIN
     resp = RedirectResponse("/doctors/settings?saved=1", 303)
     token = create_pin_token(doctor.id)
-    resp.set_cookie("pin_session", token, httponly=True, secure=settings.is_production, samesite="lax", max_age=1800)
+    resp.set_cookie("pin_session", token, httponly=True, secure=settings.ENVIRONMENT.lower() == "production", samesite="lax", max_age=1800)
     return resp
