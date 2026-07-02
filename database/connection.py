@@ -411,3 +411,15 @@ def _run_migrations():
             ")"
         )
         conn.commit()
+
+        # ── Test account: keep arjunmehta@clinic.com on a rolling 30-day trial ─
+        try:
+            from datetime import datetime, timedelta
+            _new_expiry = datetime.utcnow() + timedelta(days=30)
+            conn.execute(text(
+                "UPDATE doctors SET trial_ends_at = :exp, plan_type = 'trial' "
+                "WHERE email = 'arjunmehta@clinic.com'"
+            ), {"exp": _new_expiry})
+            conn.commit()
+        except Exception:
+            conn.rollback()
