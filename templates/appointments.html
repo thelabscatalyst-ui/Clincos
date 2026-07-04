@@ -198,6 +198,10 @@
         {% endif %}
       </div>
       <div class="visit-actions">
+        <button type="button" class="btn btn-sm btn-collect"
+                onclick="openBillModal({{ serving.id }}, '{{ serving.patient.name|e }}')">
+          Bill
+        </button>
         {% if serving.status.value == 'serving' %}
         <form method="POST" action="/visits/{{ serving.id }}/done" style="display:inline;">
           <button type="submit" class="btn btn-primary btn-sm">Done →</button>
@@ -233,6 +237,10 @@
           </div>
         </div>
         <div class="visit-actions">
+          <button type="button" class="btn btn-sm btn-collect"
+                  onclick="openBillModal({{ visit.id }}, '{{ visit.patient.name|e }}')">
+            Bill
+          </button>
           <form method="POST" action="/visits/{{ visit.id }}/call" style="display:inline;">
             <button type="submit" class="btn btn-secondary btn-sm">Call</button>
           </form>
@@ -555,9 +563,12 @@
   <div class="modal-box">
 
     <div class="modal-header">
-      <div>
-        <div class="modal-title">Collect Payment</div>
-        <div class="modal-sub" id="billPatientName"></div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;">
+        <div>
+          <div class="modal-title" style="display:inline;">Collect Payment</div>
+          <span id="billStatusChip" class="badge" style="display:none; margin-left:.6rem; vertical-align:middle;"></span>
+        </div>
+        <div class="modal-sub" id="billPatientName" style="width:100%;"></div>
       </div>
       <button type="button" class="modal-close" onclick="closeBillModal()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -592,33 +603,38 @@
         <div id="billItemsList"></div>
       </div>
 
-      <!-- ── Optional: Discount / GST toggles ── -->
-      <div style="display:flex;gap:8px;">
-        <button type="button" id="discountToggle" onclick="toggleBillDiscount()"
-          style="background:none;border:1px dashed var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;">
-          + Discount
-        </button>
-        <button type="button" id="gstToggle" onclick="toggleBillGst()"
-          style="background:none;border:1px dashed var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;">
-          + GST %
-        </button>
-      </div>
+      <!-- ── Optional: Discount / GST — side-by-side on desktop, stacked on mobile ── -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
 
-      <!-- Discount row (hidden) -->
-      <div id="discountSection" style="display:none;">
-        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;">Discount (₹)</label>
-        <input type="number" id="billDiscountInput" class="form-input" min="0" step="1" value="0"
-               oninput="updateTotal()" style="max-width:160px;">
-      </div>
-
-      <!-- GST row (hidden) -->
-      <div id="gstSection" style="display:none;">
-        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;">GST (%)</label>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <input type="number" id="billGstInput" class="form-input" min="0" max="100" step="0.5"
-                 value="18" oninput="updateTotal()" style="max-width:100px;">
-          <span id="billGstCalc" style="font-size:13px;color:var(--muted);"></span>
+        <!-- Discount block -->
+        <div style="flex:0 0 auto;display:flex;flex-direction:column;gap:8px;min-width:180px;">
+          <button type="button" id="discountToggle" onclick="toggleBillDiscount()"
+            style="align-self:flex-start;background:none;border:1px dashed var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;">
+            + Discount
+          </button>
+          <div id="discountSection" style="display:none;">
+            <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;">Discount (₹)</label>
+            <input type="number" id="billDiscountInput" class="form-input" min="0" step="1" value="0"
+                   oninput="updateTotal()" style="max-width:160px;">
+          </div>
         </div>
+
+        <!-- GST block -->
+        <div style="flex:0 0 auto;display:flex;flex-direction:column;gap:8px;min-width:180px;">
+          <button type="button" id="gstToggle" onclick="toggleBillGst()"
+            style="align-self:flex-start;background:none;border:1px dashed var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;">
+            + GST %
+          </button>
+          <div id="gstSection" style="display:none;">
+            <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;">GST (%)</label>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="number" id="billGstInput" class="form-input" min="0" max="100" step="0.5"
+                     value="18" oninput="updateTotal()" style="max-width:100px;">
+              <span id="billGstCalc" style="font-size:13px;color:var(--muted);"></span>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ── Payment mode ── -->
@@ -654,13 +670,29 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;">
           <span style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Total</span>
-          <span id="billTotal" style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--text);">₹0</span>
+          <span id="billTotalAmount" style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--text);">₹0</span>
+        </div>
+      </div>
+
+      <!-- ── Amount Collected ── -->
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;" for="billCollectedInput">Amount Collected</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="number" id="billCollectedInput" name="paid_amount"
+                 class="form-input" step="1" min="0" value="0"
+                 style="max-width:160px;text-align:right;"
+                 oninput="updateTotal()">
+          <div id="billPendingRow" style="display:none;font-size:13px;color:var(--warning);font-weight:500;">
+            Pending: ₹<span id="billPendingAmt">0</span>
+          </div>
         </div>
       </div>
 
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeBillModal()">Cancel</button>
-        <button type="submit" class="btn btn-primary btn-sm">Save &amp; Close Visit</button>
+        <input type="hidden" name="action" id="billAction" value="close">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="submitBill('save')">Save</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="submitBill('close')">Close Visit</button>
       </div>
 
     </form>
@@ -812,7 +844,7 @@ function _mkItemRow(name, qty, price) {
   return `<div class="bill-item-row">
     <input type="text"   name="item_name"  class="form-input" placeholder="e.g. Consultation" value="${name}"  style="flex:1;">
     <input type="number" name="item_qty"   class="form-input bill-item-qty"   min="1" step="1"    value="${qty}"  style="width:68px;text-align:center;" oninput="updateTotal()">
-    <input type="number" name="item_price" class="form-input bill-item-price" min="0" step="0.01" value="${price}" placeholder="₹" style="width:90px;" oninput="updateTotal()">
+    <input type="number" name="item_price" class="form-input bill-item-price" min="0" step="1" value="${price}" placeholder="₹" style="width:90px;" oninput="updateTotal()">
     <span class="bill-item-linetotal">₹0</span>
     <button type="button" class="bill-item-remove" onclick="removeBillItem(this)">${REMOVE_SVG}</button>
   </div>`;
@@ -848,13 +880,14 @@ function openBillModal(visitId, patientName) {
   });
   document.getElementById('billMode').value = 'cash';
 
-  // Seed first item row
+  // Seed first item row (may be cleared below if existing_bill is present)
   document.getElementById('billItemsList').innerHTML = _mkItemRow('Consultation', 1, '');
   _refreshRemoveButtons();
+  document.getElementById('billCollectedInput').value = '0';
   document.getElementById('billModal').classList.add('open');
   updateTotal();
 
-  // Fetch pinned catalog + default fee
+  // Fetch pinned catalog + default fee + existing bill
   fetch('/visits/' + visitId + '/bill-prefill')
     .then(r => r.json())
     .then(data => {
@@ -866,9 +899,58 @@ function openBillModal(visitId, patientName) {
         btn.onclick = () => addBillItem(item.name, 1, item.price);
         pinned.appendChild(btn);
       });
-      if (data.default_fee > 0) {
-        const fp = document.querySelector('#billItemsList .bill-item-price');
-        if (fp) { fp.value = data.default_fee; updateTotal(); }
+
+      if (data.existing_bill) {
+        // Hydrate from saved bill — clear seed row first
+        const eb = data.existing_bill;
+        document.getElementById('billItemsList').innerHTML = '';
+        eb.items.forEach(item => addBillItem(item.description, item.quantity, Math.round(item.unit_price || 0)));
+        _refreshRemoveButtons();
+
+        // Discount
+        if (eb.discount > 0) {
+          if (!_billDiscOn) toggleBillDiscount();
+          document.getElementById('billDiscountInput').value = Math.round(eb.discount);
+        }
+
+        // GST — store the gst_amount directly in the hidden field and show section
+        if (eb.gst_amount > 0) {
+          if (!_billGstOn) toggleBillGst();
+          // Back-compute the GST % from subtotal and discount to populate the % input
+          const taxBase = (eb.subtotal || 0) - (eb.discount || 0);
+          if (taxBase > 0) {
+            const pct = Math.round((eb.gst_amount / taxBase) * 100 * 10) / 10;
+            document.getElementById('billGstInput').value = pct;
+          }
+        }
+
+        // Amount collected
+        document.getElementById('billCollectedInput').value = Math.round(eb.paid_amount || 0);
+
+        // Payment mode
+        if (eb.payment_mode) {
+          const modeBtn = document.querySelector('.bm-btn[data-mode="' + eb.payment_mode + '"]');
+          if (modeBtn) selectPayMode(modeBtn);
+        }
+
+        // Notes
+        document.getElementById('billNotes').value = eb.notes || '';
+
+        updateTotal();
+      } else {
+        // Fresh modal — set default_fee and initialize collected to total
+        if (data.default_fee > 0) {
+          const fp = document.querySelector('#billItemsList .bill-item-price');
+          if (fp) { fp.value = data.default_fee; updateTotal(); }
+        }
+        // Initialize collected = total (legacy full-pay behavior)
+        const totalEl = document.getElementById('billTotalAmount');
+        const totalTxt = totalEl ? (totalEl.textContent || '0') : '0';
+        const totalVal = parseFloat(totalTxt.replace(/[^\d.]/g, '')) || 0;
+        if (totalVal > 0) {
+          document.getElementById('billCollectedInput').value = totalVal;
+          updateTotal();
+        }
       }
     }).catch(() => {});
 
@@ -931,45 +1013,114 @@ function closeBillModal() {
 }
 
 function updateTotal() {
+  // Round every monetary value to whole rupees at each step so display, hidden
+  // fields, and server-side storage all agree. Avoids float drift like 599.98
+  // showing as "₹600" but posting 599.98.
+  const _r = v => Math.round(v);
+  const _fmt = v => '₹' + _r(v).toLocaleString('en-IN');
+
   let subtotal = 0;
   document.querySelectorAll('#billItemsList .bill-item-row').forEach(row => {
-    const qty   = Math.max(1, parseFloat(row.querySelector('.bill-item-qty')?.value)   || 1);
-    const price = parseFloat(row.querySelector('.bill-item-price')?.value) || 0;
+    const qty   = Math.max(1, parseInt(row.querySelector('.bill-item-qty')?.value)   || 1);
+    const price = _r(parseFloat(row.querySelector('.bill-item-price')?.value) || 0);
     const line  = qty * price;
     subtotal += line;
     const lt = row.querySelector('.bill-item-linetotal');
-    if (lt) lt.textContent = '₹' + line.toLocaleString('en-IN', {maximumFractionDigits: 0});
+    if (lt) lt.textContent = _fmt(line);
   });
 
-  const disc    = _billDiscOn ? Math.min(parseFloat(document.getElementById('billDiscountInput').value) || 0, subtotal) : 0;
+  const disc    = _billDiscOn ? Math.min(_r(parseFloat(document.getElementById('billDiscountInput').value) || 0), subtotal) : 0;
   const gstPct  = _billGstOn  ? (parseFloat(document.getElementById('billGstInput').value) || 0) : 0;
-  const gstAmt  = Math.round((subtotal - disc) * gstPct / 100 * 100) / 100;
+  const gstAmt  = _r((subtotal - disc) * gstPct / 100);
   const total   = Math.max(0, subtotal - disc + gstAmt);
 
-  // Update hidden fields
-  document.getElementById('billDiscountHidden').value   = disc.toFixed(2);
-  document.getElementById('billGstAmountHidden').value  = gstAmt.toFixed(2);
+  // Hidden fields — integer rupees, matches display exactly
+  document.getElementById('billDiscountHidden').value   = String(disc);
+  document.getElementById('billGstAmountHidden').value  = String(gstAmt);
 
   // Summary rows (use display:flex so justify-content works)
   const hasExtra = disc > 0 || gstAmt > 0;
   document.getElementById('bsSubtotalRow').style.display = hasExtra ? 'flex' : 'none';
-  document.getElementById('bsSubtotal').textContent = '₹' + subtotal.toLocaleString('en-IN', {maximumFractionDigits: 0});
+  document.getElementById('bsSubtotal').textContent = _fmt(subtotal);
   document.getElementById('bsDiscRow').style.display = disc > 0 ? 'flex' : 'none';
-  document.getElementById('bsDisc').textContent = '−₹' + disc.toLocaleString('en-IN', {maximumFractionDigits: 0});
+  document.getElementById('bsDisc').textContent = '−' + _fmt(disc);
   document.getElementById('bsGstRow').style.display = gstAmt > 0 ? 'flex' : 'none';
   document.getElementById('bsGstLabel').textContent = `GST (${gstPct}%)`;
-  document.getElementById('bsGst').textContent = '₹' + gstAmt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-  document.getElementById('billGstCalc').textContent = gstAmt > 0 ? `= ₹${gstAmt.toLocaleString('en-IN', {maximumFractionDigits: 2})}` : '';
-  document.getElementById('billTotal').textContent = '₹' + total.toLocaleString('en-IN', {maximumFractionDigits: 0});
+  document.getElementById('bsGst').textContent = _fmt(gstAmt);
+  document.getElementById('billGstCalc').textContent = gstAmt > 0 ? `= ${_fmt(gstAmt)}` : '';
+  document.getElementById('billTotalAmount').textContent = _fmt(total);
+
+  // Pending + status chip — clamp collected to [0, total], integer rupees
+  const collectedInput = document.getElementById('billCollectedInput');
+  collectedInput.max  = total;
+  collectedInput.step = 1;
+  let collected = _r(parseFloat(collectedInput.value) || 0);
+  if (collected > total) {
+    collected = total;
+    collectedInput.value = total;
+  }
+  const pending = Math.max(0, total - collected);
+  const chip       = document.getElementById('billStatusChip');
+  const pendingRow = document.getElementById('billPendingRow');
+  const pendingAmt = document.getElementById('billPendingAmt');
+
+  if (pending > 0) {
+    pendingRow.style.display = '';
+    pendingAmt.textContent = pending.toLocaleString('en-IN');
+    chip.style.display = 'inline-block';
+    chip.textContent = 'Partial · ₹' + pending.toLocaleString('en-IN') + ' pending';
+    chip.style.background = 'rgba(217,119,6,0.15)';
+    chip.style.color = '#d97706';
+    chip.style.borderColor = 'rgba(217,119,6,0.3)';
+    // Auto-select Partial pill if it exists
+    const partialBtn = document.querySelector('.bm-btn[data-mode="partial"]');
+    if (partialBtn) selectPayMode(partialBtn);
+  } else if (collected > 0) {
+    pendingRow.style.display = 'none';
+    chip.style.display = 'inline-block';
+    chip.textContent = 'Paid';
+    chip.style.background = 'rgba(34,197,94,0.15)';
+    chip.style.color = '#22c55e';
+    chip.style.borderColor = 'rgba(34,197,94,0.3)';
+  } else {
+    pendingRow.style.display = 'none';
+    chip.style.display = 'inline-block';
+    chip.textContent = 'Not billed';
+    chip.style.background = 'rgba(154,143,133,0.15)';
+    chip.style.color = 'var(--text-muted)';
+    chip.style.borderColor = 'rgba(154,143,133,0.22)';
+  }
+}
+
+function submitBill(action) {
+  const visitId = document.getElementById('billVisitId').value;
+  if (!visitId) return;
+
+  if (action === 'close') {
+    // Read the same integer rupees the total row is showing — no float drift.
+    const totalTxt = (document.getElementById('billTotalAmount')?.textContent || '0').replace(/[^\d]/g, '');
+    const total    = parseInt(totalTxt, 10) || 0;
+    const collected = Math.round(parseFloat(document.getElementById('billCollectedInput').value) || 0);
+    const pending   = Math.max(0, total - collected);
+    if (pending > 0) {
+      if (!confirm('₹' + pending.toLocaleString('en-IN') + ' will remain uncollected. Close the visit anyway?')) {
+        return;
+      }
+    }
+  }
+
+  document.getElementById('billAction').value = action;
+  const form = document.getElementById('billForm');
+  form.action = '/visits/' + visitId + '/bill';
+  form.submit();
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBillModal(); });
 
+// Fallback: keyboard Enter on the form still submits as close
 document.getElementById('billForm').addEventListener('submit', function(e) {
   e.preventDefault();
-  const visitId = document.getElementById('billVisitId').value;
-  this.action = '/visits/' + visitId + '/bill';
-  this.submit();
+  submitBill('close');
 });
 </script>
 {% endblock %}

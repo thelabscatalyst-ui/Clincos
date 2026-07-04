@@ -102,12 +102,40 @@ async def bill_prefill(
             if match:
                 default_fee = float(match.default_price)
 
+    # Return existing bill data if one already exists for this visit
+    existing_bill = None
+    if visit.bill_id:
+        bill_obj = db.query(Bill).filter(
+            Bill.id == visit.bill_id,
+            Bill.doctor_id == doctor.id,
+        ).first()
+        if bill_obj:
+            existing_bill = {
+                "id":           bill_obj.id,
+                "items": [
+                    {
+                        "description": it.description,
+                        "quantity":    it.quantity,
+                        "unit_price":  float(it.unit_price),
+                    }
+                    for it in bill_obj.items
+                ],
+                "subtotal":     float(bill_obj.subtotal),
+                "discount":     float(bill_obj.discount),
+                "gst_amount":   float(bill_obj.gst_amount),
+                "total":        float(bill_obj.total),
+                "paid_amount":  float(bill_obj.paid_amount),
+                "payment_mode": bill_obj.payment_mode.value if bill_obj.payment_mode else None,
+                "notes":        bill_obj.notes,
+            }
+
     return JSONResponse({
-        "visit_id":    visit.id,
+        "visit_id":     visit.id,
         "patient_name": visit.patient.name,
-        "default_fee": default_fee,
-        "pinned": [{"id": i.id, "name": i.name, "price": float(i.default_price)} for i in pinned],
+        "default_fee":  default_fee,
+        "pinned":  [{"id": i.id, "name": i.name, "price": float(i.default_price)} for i in pinned],
         "catalog": [{"id": i.id, "name": i.name, "price": float(i.default_price)} for i in all_items],
+        "existing_bill": existing_bill,
     })
 
 
@@ -123,28 +151,40 @@ async def create_bill(
     form = await request.form()
 
     visit = _get_visit(visit_id, doctor.id, db)
-    if not visit or visit.status != VisitStatus.billing_pending:
+    if not visit:
         return RedirectResponse("/appointments", status_code=303)
+
+    # Refuse edits on already-terminal visits — those go through /bills/{id}/edit
+    _terminal = {VisitStatus.done, VisitStatus.cancelled, VisitStatus.no_show}
+    if visit.status in _terminal:
+        return RedirectResponse("/appointments", status_code=303)
+
+    # Determine action: "save" (persist only) or "close" (finalize visit). Default to "close"
+    # so that the existing one-button modal path continues to work unchanged.
+    action = (form.get("action") or "close").strip().lower()
+    if action not in ("save", "close"):
+        action = "close"
 
     primary_clinic = _get_primary_clinic(doctor, db)
 
+    # ── Parse numeric fields ──────────────────────────────────────────────── #
     try:
         fee = float(form.get("fee") or 0)
-    except ValueError:
+    except (ValueError, TypeError):
         fee = 0.0
     try:
         discount = float(form.get("discount") or 0)
-    except ValueError:
+    except (ValueError, TypeError):
         discount = 0.0
     try:
         gst_amount = float(form.get("gst_amount") or 0)
-    except ValueError:
+    except (ValueError, TypeError):
         gst_amount = 0.0
 
     payment_mode_str = form.get("payment_mode", "cash")
     notes = (form.get("notes") or "").strip()
 
-    # Collect line items — item_name[], item_price[], item_qty[]
+    # ── Parse line items — item_name[], item_price[], item_qty[] ────────────── #
     item_names      = form.getlist("item_name")
     item_prices_raw = form.getlist("item_price")
     item_qtys_raw   = form.getlist("item_qty")
@@ -171,29 +211,86 @@ async def create_bill(
     disc     = min(discount, subtotal)
     total    = max(0.0, subtotal - disc + gst_amount)
 
+    # ── Parse paid_amount (new field; defaults to total for legacy full-pay) ── #
+    paid_amount_raw = form.get("paid_amount")
+    if paid_amount_raw is not None and str(paid_amount_raw).strip() != "":
+        try:
+            paid_amount = float(paid_amount_raw)
+        except (ValueError, TypeError):
+            paid_amount = total
+    else:
+        paid_amount = total  # legacy default: full payment
+    # Clamp to [0, total]
+    paid_amount = max(0.0, min(paid_amount, total))
+
+    # ── Derive payment mode and paid_at from paid_amount ──────────────────── #
     try:
         mode = PaymentMode(payment_mode_str)
     except ValueError:
         mode = PaymentMode.cash
 
-    bill = Bill(
-        visit_id     = visit.id,
-        doctor_id    = doctor.id,
-        clinic_id    = primary_clinic.id if primary_clinic else None,
-        patient_id   = visit.patient_id,
-        subtotal     = subtotal,
-        discount     = disc,
-        gst_amount   = gst_amount,
-        total        = total,
-        paid_amount  = total,
-        payment_mode = mode,
-        paid_at      = datetime.now(),
-        notes        = notes or None,
-        created_by   = doctor.id,
-    )
-    db.add(bill)
-    db.flush()
+    if paid_amount == 0.0:
+        # Nothing collected yet — preserve selected mode, no paid_at timestamp
+        paid_at = None
+    elif paid_amount < total:
+        # Partial payment — force mode to partial regardless of selection
+        mode    = PaymentMode.partial
+        paid_at = datetime.now()
+    else:
+        # Full payment (paid_amount == total after clamping)
+        paid_at = datetime.now()
 
+    # ── Upsert bill ───────────────────────────────────────────────────────── #
+    if visit.bill_id:
+        # Update existing bill in-place
+        bill = db.query(Bill).filter(
+            Bill.id == visit.bill_id,
+            Bill.doctor_id == doctor.id,
+        ).first()
+        if not bill:
+            # Defensive: bill_id set but row missing — treat as new bill
+            bill = None
+
+        if bill:
+            # Delete existing items and replace
+            for old_item in list(bill.items):
+                db.delete(old_item)
+            db.flush()
+
+            bill.subtotal     = subtotal
+            bill.discount     = disc
+            bill.gst_amount   = gst_amount
+            bill.total        = total
+            bill.paid_amount  = paid_amount
+            bill.payment_mode = mode
+            bill.paid_at      = paid_at
+            bill.notes        = notes or None
+        else:
+            visit.bill_id = None  # reset so the create path runs below
+
+    if not visit.bill_id:
+        # Create new bill
+        bill = Bill(
+            visit_id     = visit.id,
+            doctor_id    = doctor.id,
+            clinic_id    = primary_clinic.id if primary_clinic else None,
+            patient_id   = visit.patient_id,
+            subtotal     = subtotal,
+            discount     = disc,
+            gst_amount   = gst_amount,
+            total        = total,
+            paid_amount  = paid_amount,
+            payment_mode = mode,
+            paid_at      = paid_at,
+            notes        = notes or None,
+            created_by   = doctor.id,
+        )
+        db.add(bill)
+        db.flush()
+        # Link the new bill back to the visit immediately so it survives a save
+        visit.bill_id = bill.id
+
+    # Add (or re-add) line items
     for name, qty, unit_price, line_total in items:
         db.add(BillItem(
             bill_id     = bill.id,
@@ -203,6 +300,13 @@ async def create_bill(
             total       = line_total,
         ))
 
+    # ── Branch on action ─────────────────────────────────────────────────── #
+    if action == "save":
+        # Persist bill; leave visit.status untouched; no WhatsApp
+        db.commit()
+        return RedirectResponse("/appointments", status_code=303)
+
+    # action == "close"
     _auto_complete_appointment(db, visit)
     vs.close_visit(db, visit, bill.id)
 

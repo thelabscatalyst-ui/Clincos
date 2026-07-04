@@ -5344,6 +5344,13 @@ html.light .dock-item--active {
 /* ══════════════════════════════════════════════════════════════════
    BILL MODAL specific
 ══════════════════════════════════════════════════════════════════ */
+
+/* Wider landscape card for the bill/payment modal only — do NOT touch generic .modal-box */
+#billModal .modal-box {
+  max-width: 640px;
+  width: min(96vw, 640px);
+}
+
 .bill-pinned-row {
   display: flex;
   flex-wrap: wrap;
@@ -8356,6 +8363,11 @@ html.light .skeleton::after {
     width: calc(100vw - 32px);
     max-width: 100%;
     padding: 20px 16px;
+  }
+  /* Bill modal inherits the same full-width collapse on mobile */
+  #billModal .modal-box {
+    width: calc(100vw - 32px);
+    max-width: 100%;
   }
 }
 
