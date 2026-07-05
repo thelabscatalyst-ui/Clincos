@@ -223,6 +223,34 @@ async def done_visit(
     return RedirectResponse("/appointments", status_code=303)
 
 
+@router.post("/visits/{visit_id}/hold")
+async def hold_visit(
+    visit_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    """Put the serving patient on hold (x-ray/lab) and call the next patient."""
+    visit = _get_visit(visit_id, doctor.id, db)
+    if visit and visit.status == VisitStatus.serving:
+        vs.hold_visit(db, visit)
+    return RedirectResponse("/appointments", status_code=303)
+
+
+@router.post("/visits/{visit_id}/resume")
+async def resume_visit(
+    visit_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    """Bring an on-hold patient back — serve now if free, else next in queue."""
+    visit = _get_visit(visit_id, doctor.id, db)
+    if visit and visit.status == VisitStatus.on_hold:
+        vs.resume_visit(db, visit)
+    return RedirectResponse("/appointments", status_code=303)
+
+
 @router.post("/visits/{visit_id}/close-free")
 async def close_free(
     visit_id: int,

@@ -4874,6 +4874,16 @@ html.light .data-table tbody tr:hover td {
   color: #c4b09a;
   border: 1px solid rgba(200, 175, 145, 0.22);
 }
+.badge--on_hold {
+  background: rgba(175, 145, 105, 0.18);
+  color: #d0a86e;
+  border: 1px solid rgba(175, 145, 105, 0.35);
+}
+html.light .badge--on_hold {
+  background: rgba(155, 120, 70, 0.16);
+  color: #7a5320;
+  border: 1px solid rgba(155, 120, 70, 0.3);
+}
 
 /* ------------------------------------------------------------------ */
 /*  Merged Appointments + Queue page                                    */

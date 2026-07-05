@@ -423,3 +423,15 @@ def _run_migrations():
             conn.commit()
         except Exception:
             conn.rollback()
+
+        # ── Hold feature: add 'on_hold' to the visitstatus enum ──────────────
+        # PostgreSQL uses a native enum type; a new Python enum member must be
+        # added to the DB type or inserting it raises. No-op on SQLite (VARCHAR).
+        if not _is_sqlite:
+            try:
+                conn.execute(text(
+                    "ALTER TYPE visitstatus ADD VALUE IF NOT EXISTS 'on_hold'"
+                ))
+                conn.commit()
+            except Exception:
+                conn.rollback()

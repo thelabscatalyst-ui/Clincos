@@ -240,6 +240,46 @@ def close_visit(db: Session, visit: Visit, bill_id: int):
     db.commit()
 
 
+def hold_visit(db: Session, visit: Visit) -> Optional[Visit]:
+    """
+    Put the currently-serving patient ON HOLD (e.g. sent for x-ray / lab work)
+    and auto-call the next waiting patient so the doctor keeps moving.
+    The held patient can be brought back later with resume_visit().
+    Returns the newly-serving Visit or None.
+    """
+    visit.status = VisitStatus.on_hold
+    db.commit()
+    return call_next(db, visit.doctor_id, visit.visit_date)
+
+
+def resume_visit(db: Session, visit: Visit) -> Visit:
+    """
+    Bring an ON HOLD patient back.
+      • If the doctor is free (no one serving) → serve them immediately.
+      • If someone is currently serving → put them at the FRONT of the queue
+        (next up) so they are seen right after the current patient.
+    """
+    serving = (
+        db.query(Visit)
+        .filter(
+            Visit.doctor_id  == visit.doctor_id,
+            Visit.visit_date == visit.visit_date,
+            Visit.status     == VisitStatus.serving,
+        )
+        .first()
+    )
+    if serving:
+        _shift_queue_down(db, visit.doctor_id, visit.visit_date, from_position=0)
+        visit.queue_position = 0
+        visit.status         = VisitStatus.waiting
+    else:
+        visit.status    = VisitStatus.serving
+        visit.call_time = datetime.now()
+    db.commit()
+    db.refresh(visit)
+    return visit
+
+
 def skip_visit(db: Session, visit: Visit) -> Visit:
     """Skip a waiting visit — move it to the end of the queue."""
     today = visit.visit_date

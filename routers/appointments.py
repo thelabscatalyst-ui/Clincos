@@ -125,6 +125,7 @@ def appointments_list(
     serving = None
     waiting = []
     billing_pending = []
+    held = []           # ON HOLD patients (sent for x-ray/lab, resumable)
     flow_stats = None   # Today's Flow widget data
 
     if view_date == today:
@@ -142,6 +143,8 @@ def appointments_list(
                 serving = v
             elif v.status == VisitStatus.waiting:
                 waiting.append(v)
+            elif v.status == VisitStatus.on_hold:
+                held.append(v)
             elif v.status == VisitStatus.billing_pending:
                 billing_pending.append(v)
 
@@ -214,6 +217,7 @@ def appointments_list(
         "visit_map":        visit_map,
         "serving":          serving,
         "waiting":          waiting,
+        "held":             held,
         "billing_pending":  billing_pending,
         "is_today":         view_date == today,
         "walkin_available": walkin_available,

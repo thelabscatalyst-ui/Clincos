@@ -64,6 +64,7 @@ class BookedBy(str, enum.Enum):
 class VisitStatus(str, enum.Enum):
     waiting         = "waiting"
     serving         = "serving"
+    on_hold         = "on_hold"          # paused mid-consult (e.g. sent for x-ray); resumable
     billing_pending = "billing_pending"
     done            = "done"
     cancelled       = "cancelled"

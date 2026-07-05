@@ -203,6 +203,10 @@
           Bill
         </button>
         {% if serving.status.value == 'serving' %}
+        <form method="POST" action="/visits/{{ serving.id }}/hold" style="display:inline;"
+              title="Pause this patient (e.g. sent for x-ray) and call the next one">
+          <button type="submit" class="btn btn-secondary btn-sm">Hold</button>
+        </form>
         <form method="POST" action="/visits/{{ serving.id }}/done" style="display:inline;">
           <button type="submit" class="btn btn-primary btn-sm">Done →</button>
         </form>
@@ -217,6 +221,41 @@
           </form>
         </div>
       </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- On Hold -->
+  {% if held %}
+  <div class="queue-block">
+    <div class="queue-block-label">On Hold <span class="section-count">({{ held|length }})</span></div>
+    <div class="visit-list">
+      {% for visit in held %}
+      <div class="visit-row" style="border-color:rgba(175,145,105,.35);">
+        <div class="visit-token-sm">#{{ visit.token_number }}</div>
+        <div class="visit-info">
+          <div class="visit-name">{{ visit.patient.name }}</div>
+          <div class="visit-meta">On hold · sent for tests / other work</div>
+        </div>
+        <div class="visit-status-badge">
+          <span class="badge badge--on_hold">On Hold</span>
+        </div>
+        <div class="visit-actions">
+          <form method="POST" action="/visits/{{ visit.id }}/resume" style="display:inline;"
+                title="Bring this patient back — served now if free, else next in queue">
+            <button type="submit" class="btn btn-primary btn-sm">Resume</button>
+          </form>
+          <div class="visit-more-btn" onclick="toggleMenu('menu-h{{ visit.id }}')">⋮</div>
+          <div class="visit-menu" id="menu-h{{ visit.id }}">
+            <button type="button" class="visit-menu-item"
+                    onclick="openBillModal({{ visit.id }}, '{{ visit.patient.name|e }}')">Bill &amp; Close</button>
+            <form method="POST" action="/visits/{{ visit.id }}/cancel">
+              <button type="submit" class="visit-menu-item danger">Cancel Visit</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
   {% endif %}
@@ -296,7 +335,7 @@
   {% endif %}
 
   <!-- Empty queue state -->
-  {% if not serving and not waiting and not billing_pending %}
+  {% if not serving and not waiting and not billing_pending and not held %}
   <div class="queue-empty">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
       <!-- Text left -->
@@ -431,6 +470,7 @@
   {% if visit %}
     {% if visit.status.value == 'serving' %}{% set eff_status = 'serving' %}
     {% elif visit.status.value == 'waiting' %}{% set eff_status = 'in_queue' %}
+    {% elif visit.status.value == 'on_hold' %}{% set eff_status = 'on_hold' %}
     {% elif visit.status.value == 'billing_pending' %}{% set eff_status = 'billing_pending' %}
     {% elif visit.status.value == 'done' %}{% set eff_status = 'completed' %}
     {% elif visit.status.value == 'cancelled' %}{% set eff_status = 'cancelled' %}
