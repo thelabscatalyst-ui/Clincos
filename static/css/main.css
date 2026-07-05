@@ -3192,10 +3192,14 @@ html.light .pt-btn--active {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(to top, #b8893f 0%, #d4a866 100%);
+  background: linear-gradient(to top, #5b3d22 0%, #8a6540 100%);
   border-radius: 4px 4px 0 0;
   transition: height .25s cubic-bezier(.22,1,.36,1);
   min-height: 2px;
+}
+/* Beige bars in light theme */
+html.light .reports-hourbar-fill {
+  background: linear-gradient(to top, #b39a76 0%, #d8c5a4 100%);
 }
 .reports-hourbar-label {
   text-align: center;
