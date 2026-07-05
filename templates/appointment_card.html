@@ -138,20 +138,6 @@
           <button type="button" class="ac-inline-edit" style="margin-left:0;" onclick="toggleFollowUp({{ appt.id }})">Reschedule</button>
         </div>
         {% endif %}
-        <!-- Follow-up inline form — hidden by default -->
-        <div id="followUpForm{{ appt.id }}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0 4px 0;margin-top:4px;">
-          <input type="date" id="followUpInput{{ appt.id }}"
-                 value="{{ appt.follow_up_date.isoformat() if appt.follow_up_date else '' }}"
-                 min="{{ today.isoformat() }}"
-                 style="font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);">
-          <button type="button" class="btn btn-primary btn-sm fu-save-btn"
-                  onclick="saveFollowUp({{ appt.id }})">Book Follow-up</button>
-          <button type="button" class="btn btn-secondary btn-sm"
-                  onclick="toggleFollowUp({{ appt.id }})">Cancel</button>
-          <div style="font-size:11px;color:var(--dim);width:100%;line-height:1.4;">
-            First available slot on the selected date will be auto-booked.
-          </div>
-        </div>
       </div>
     </div>
 
@@ -297,6 +283,34 @@
         <form method="post" action="/appointments/{{ appt.id }}/delete" style="margin:0;">
           <button type="submit" class="btn btn-danger btn-sm">Yes, Delete</button>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Follow-up Modal — small blurred overlay ──────────────────── -->
+  <div class="ac-bill-modal-wrap" id="followUpModal{{ appt.id }}"
+       onclick="if(event.target===this)toggleFollowUp({{ appt.id }})">
+    <div class="ac-bill-modal-box" style="max-width:400px;">
+      <div class="acm-header">
+        <div class="acm-header-left">
+          <div class="acm-title">Schedule Follow-up</div>
+          <div class="acm-sub">{{ patient.name }}</div>
+        </div>
+        <button type="button" class="acm-close" onclick="toggleFollowUp({{ appt.id }})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <label class="acm-label" style="display:block;margin-bottom:6px;">Follow-up Date</label>
+      <input type="date" id="followUpInput{{ appt.id }}"
+             value="{{ appt.follow_up_date.isoformat() if appt.follow_up_date else '' }}"
+             min="{{ today.isoformat() }}"
+             style="width:100%;box-sizing:border-box;font-size:14px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);">
+      <div style="font-size:12px;color:var(--dim);margin-top:8px;line-height:1.4;">
+        The first available slot on the selected date will be auto-booked.
+      </div>
+      <div class="acm-actions" style="margin-top:20px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleFollowUp({{ appt.id }})">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm fu-save-btn" onclick="saveFollowUp({{ appt.id }})">Book Follow-up</button>
       </div>
     </div>
   </div>
@@ -602,14 +616,15 @@ function saveReceptionNotes(apptId) {
 
 /* ── Follow-up ── */
 function toggleFollowUp(id) {
-  const f = document.getElementById('followUpForm' + id);
-  const isVisible = f.style.display === 'flex';
-  f.style.display = isVisible ? 'none' : 'flex';
+  const m = document.getElementById('followUpModal' + id);
+  if (!m) return;
+  const isOpen = m.style.display === 'flex';
+  m.style.display = isOpen ? 'none' : 'flex';
 }
 function saveFollowUp(apptId) {
   const val = document.getElementById('followUpInput' + apptId).value;
   if (!val) { toggleFollowUp(apptId); return; }
-  const btn = document.querySelector('#followUpForm' + apptId + ' .fu-save-btn');
+  const btn = document.querySelector('#followUpModal' + apptId + ' .fu-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   fetch('/appointments/' + apptId + '/follow-up', {
     method: 'POST',

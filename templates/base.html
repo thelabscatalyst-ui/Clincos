@@ -250,9 +250,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('themeIconMoon').style.display = isLight ? 'none'  : 'block';
 });
 
-/* ── Phone input · strip non-digits, enforce exactly 10, live counter ── */
-function initPhoneInput(inputEl) {
+/* ── Phone input · strip non-digits, enforce exactly 10, live counter ──
+   Pass showCounter=false to keep the 10-digit enforcement but hide the
+   "n/10 digits" marker (used on the appointments booking page).          */
+function initPhoneInput(inputEl, showCounter) {
   if (!inputEl) return;
+  if (showCounter === undefined) showCounter = true;
 
   // Wrap in .phone-wrap and insert counter below
   const wrap    = document.createElement('div');
@@ -260,9 +263,12 @@ function initPhoneInput(inputEl) {
   inputEl.parentNode.insertBefore(wrap, inputEl);
   wrap.appendChild(inputEl);
 
-  const counter = document.createElement('span');
-  counter.className = 'phone-counter';
-  wrap.appendChild(counter);
+  let counter = null;
+  if (showCounter) {
+    counter = document.createElement('span');
+    counter.className = 'phone-counter';
+    wrap.appendChild(counter);
+  }
 
   function update() {
     // Strip everything that isn't a digit
@@ -270,15 +276,17 @@ function initPhoneInput(inputEl) {
     if (inputEl.value !== digits) inputEl.value = digits;
 
     const n = digits.length;
-    if (n === 0) {
-      counter.textContent = '';
-      counter.className   = 'phone-counter';
-    } else if (n < 10) {
-      counter.textContent = `${n}/10 digits · need ${10 - n} more`;
-      counter.className   = 'phone-counter bad';
-    } else {
-      counter.textContent = '✓ 10 digits';
-      counter.className   = 'phone-counter ok';
+    if (counter) {
+      if (n === 0) {
+        counter.textContent = '';
+        counter.className   = 'phone-counter';
+      } else if (n < 10) {
+        counter.textContent = `${n}/10 digits · need ${10 - n} more`;
+        counter.className   = 'phone-counter bad';
+      } else {
+        counter.textContent = '✓ 10 digits';
+        counter.className   = 'phone-counter ok';
+      }
     }
 
     // Block form submission when invalid

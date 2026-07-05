@@ -447,7 +447,7 @@ dateInput.addEventListener('change', () => {
 window.addEventListener('DOMContentLoaded', () => {
   if (dateInput.value) loadSlots(dateInput.value);
   var phoneEl = document.getElementById('patient_phone');
-  initPhoneInput(phoneEl);
+  initPhoneInput(phoneEl, false);  // strict 10-digit, but no "n/10" counter on this page
   // After initPhoneInput wraps the input, fix the badge position
   var badge    = document.getElementById('apptReturningBadge');
   var phoneWrap = phoneEl ? (phoneEl.closest('.phone-wrap') || phoneEl.parentNode) : null;

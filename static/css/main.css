@@ -1132,7 +1132,12 @@ html.light .tub-btn { color: #fff; }
   border-color: var(--border-light);
 }
 
-.appt-row--done   { opacity: 0.5; }
+.appt-row--done   {
+  opacity: 0.6;
+  filter: grayscale(0.85);
+  background: var(--bg);
+}
+.appt-row--done:hover { opacity: 0.85; }
 .appt-row--noshow {
   opacity: 0.45;
   filter: grayscale(0.4);
