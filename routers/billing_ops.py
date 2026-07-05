@@ -14,7 +14,7 @@ Routes:
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Request, Depends, Form
+from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -145,6 +145,7 @@ async def bill_prefill(
 async def create_bill(
     visit_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session    = Depends(get_db),
     doctor: Doctor = Depends(get_paying_doctor),
 ):
@@ -311,11 +312,9 @@ async def create_bill(
     vs.close_visit(db, visit, bill.id)
 
     # PDF is generated on-demand at download time — no vault storage needed
-    try:
-        from services.notification_service import notify_bill_receipt
-        notify_bill_receipt(bill, doctor, db)
-    except Exception:
-        pass
+    # WhatsApp receipt runs after the response so it never blocks the click.
+    from services.notification_service import send_bill_receipt_bg
+    background_tasks.add_task(send_bill_receipt_bg, bill.id, doctor.id)
 
     return RedirectResponse("/appointments", status_code=303)
 
@@ -355,6 +354,7 @@ async def edit_bill_page(
 async def edit_bill(
     bill_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session    = Depends(get_db),
     doctor: Doctor = Depends(get_paying_doctor),
 ):
@@ -434,11 +434,9 @@ async def edit_bill(
     db.commit()
 
     # PDF is generated on-demand at download time — no vault storage needed
-    try:
-        from services.notification_service import notify_bill_receipt
-        notify_bill_receipt(bill, doctor, db)
-    except Exception:
-        pass
+    # WhatsApp receipt runs after the response so it never blocks the click.
+    from services.notification_service import send_bill_receipt_bg
+    background_tasks.add_task(send_bill_receipt_bg, bill.id, doctor.id)
 
     return RedirectResponse(f"/patients/{bill.patient_id}", status_code=303)
 
@@ -449,6 +447,7 @@ async def edit_bill(
 async def mark_bill_paid(
     bill_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session    = Depends(get_db),
     doctor: Doctor = Depends(get_paying_doctor),
 ):
@@ -461,11 +460,8 @@ async def mark_bill_paid(
         bill.payment_mode = bill.payment_mode or PaymentMode.cash
         bill.paid_at      = datetime.now()
         db.commit()
-        try:
-            from services.notification_service import notify_bill_receipt
-            notify_bill_receipt(bill, doctor, db)
-        except Exception:
-            pass
+        from services.notification_service import send_bill_receipt_bg
+        background_tasks.add_task(send_bill_receipt_bg, bill.id, doctor.id)
     return RedirectResponse("/income", status_code=303)
 
 

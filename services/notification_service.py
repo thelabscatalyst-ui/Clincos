@@ -348,3 +348,72 @@ def _create_feedback_link(bill, doctor, patient, db: Session) -> str:
         except Exception:
             pass
         return ""
+
+
+# ------------------------------------------------------------------ #
+#  Background-task wrappers                                            #
+#                                                                      #
+#  These run AFTER the HTTP response is sent (via FastAPI              #
+#  BackgroundTasks) so the WhatsApp API round-trip never blocks the   #
+#  user's click. Each opens its OWN session — the request-scoped       #
+#  session is already closed by the time these run. Never raise.       #
+# ------------------------------------------------------------------ #
+
+def send_appointment_confirmed_bg(appt_id: int, doctor_id: int):
+    from database.connection import SessionLocal
+    from database.models import Doctor
+    db = SessionLocal()
+    try:
+        appt   = db.get(Appointment, appt_id)
+        doctor = db.get(Doctor, doctor_id)
+        if appt and doctor:
+            notify_appointment_confirmed(appt, doctor, db)
+    except Exception as e:
+        logger.warning(f"bg confirmation failed (appt #{appt_id}): {e}")
+    finally:
+        db.close()
+
+
+def send_followup_confirmed_bg(appt_id: int, doctor_id: int):
+    from database.connection import SessionLocal
+    from database.models import Doctor
+    db = SessionLocal()
+    try:
+        appt   = db.get(Appointment, appt_id)
+        doctor = db.get(Doctor, doctor_id)
+        if appt and doctor:
+            notify_followup_confirmed(appt, doctor, db)
+    except Exception as e:
+        logger.warning(f"bg follow-up failed (appt #{appt_id}): {e}")
+    finally:
+        db.close()
+
+
+def send_walkin_queued_bg(visit_id: int, doctor_id: int):
+    from database.connection import SessionLocal
+    from database.models import Doctor, Visit
+    db = SessionLocal()
+    try:
+        visit  = db.get(Visit, visit_id)
+        doctor = db.get(Doctor, doctor_id)
+        if visit and doctor:
+            notify_walkin_queued(visit, doctor, db)
+    except Exception as e:
+        logger.warning(f"bg walk-in queue failed (visit #{visit_id}): {e}")
+    finally:
+        db.close()
+
+
+def send_bill_receipt_bg(bill_id: int, doctor_id: int):
+    from database.connection import SessionLocal
+    from database.models import Doctor, Bill
+    db = SessionLocal()
+    try:
+        bill   = db.get(Bill, bill_id)
+        doctor = db.get(Doctor, doctor_id)
+        if bill and doctor:
+            notify_bill_receipt(bill, doctor, db)
+    except Exception as e:
+        logger.warning(f"bg bill receipt failed (bill #{bill_id}): {e}")
+    finally:
+        db.close()

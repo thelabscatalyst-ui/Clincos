@@ -1,5 +1,5 @@
 from datetime import date, time, datetime, timedelta
-from fastapi import APIRouter, Request, Depends, Form, Query
+from fastapi import APIRouter, Request, Depends, Form, Query, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -105,6 +105,7 @@ def clinic_booking_page(
 async def clinic_book_appointment(
     slug: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     doctor_id: int = Form(...),
     patient_name: str = Form(...),
     patient_phone: str = Form(...),
@@ -208,10 +209,8 @@ async def clinic_book_appointment(
     db.commit()
     db.refresh(appt)
 
-    try:
-        notify_appointment_confirmed(appt, selected, db)
-    except Exception:
-        pass
+    from services.notification_service import send_appointment_confirmed_bg
+    background_tasks.add_task(send_appointment_confirmed_bg, appt.id, selected.id)
 
     return RedirectResponse(url=f"/book/clinic/{slug}/confirm/{appt.id}", status_code=303)
 
@@ -322,6 +321,7 @@ def booking_page(
 async def book_appointment(
     slug: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     patient_name: str = Form(...),
     patient_phone: str = Form(...),
     appt_date: str = Form(...),
@@ -433,11 +433,9 @@ async def book_appointment(
     db.commit()
     db.refresh(appt)
 
-    # Send WhatsApp confirmation to patient (non-blocking)
-    try:
-        notify_appointment_confirmed(appt, doctor, db)
-    except Exception:
-        pass
+    # Send WhatsApp confirmation to patient AFTER the response (non-blocking)
+    from services.notification_service import send_appointment_confirmed_bg
+    background_tasks.add_task(send_appointment_confirmed_bg, appt.id, doctor.id)
 
     return RedirectResponse(url=f"/book/{slug}/confirm/{appt.id}", status_code=303)
 

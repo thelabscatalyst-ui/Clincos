@@ -1,9 +1,9 @@
 from datetime import date, time, timedelta, datetime
-from fastapi import APIRouter, Request, Depends, Form, Query
+from fastapi import APIRouter, Request, Depends, Form, Query, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import case as sa_case
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database.connection import get_db
 from database.models import (
@@ -91,6 +91,7 @@ def appointments_list(
     appt_query = (
         db.query(Appointment)
         .join(Appointment.patient)
+        .options(joinedload(Appointment.patient))   # eager-load — avoids N+1
         .filter(
             Appointment.doctor_id == viewing_doctor.id,
             Appointment.appointment_date == view_date,
@@ -106,8 +107,6 @@ def appointments_list(
         .order_by(done_last, Appointment.appointment_time.asc(), Appointment.created_at.desc())
         .all()
     )
-    for a in appointments:
-        a.patient  # ensure lazy-load
 
     # ── Walk-in availability — any time today (walk-ins are ad-hoc, not slot-bound) ───
     walkin_available = False
@@ -131,12 +130,12 @@ def appointments_list(
     if view_date == today:
         day_visits = (
             db.query(Visit)
+            .options(joinedload(Visit.patient))   # eager-load — avoids N+1
             .filter(Visit.doctor_id == viewing_doctor.id, Visit.visit_date == today)
             .order_by(Visit.is_emergency.desc(), Visit.queue_position.asc())
             .all()
         )
         for v in day_visits:
-            _ = v.patient   # eager-load
             if v.appointment_id:
                 visit_map[v.appointment_id] = v
             if v.status == VisitStatus.serving:
@@ -310,6 +309,7 @@ def new_appointment_page(
 @router.post("", response_class=HTMLResponse)
 async def create_appointment(
     request: Request,
+    background_tasks: BackgroundTasks,
     patient_name: str = Form(...),
     patient_phone: str = Form(...),
     patient_age: str = Form(""),
@@ -432,16 +432,13 @@ async def create_appointment(
     db.commit()
     db.refresh(appt)
 
-    # Send WhatsApp confirmation (non-blocking — failure won't break booking)
-    try:
-        from services.notification_service import notify_appointment_confirmed, notify_followup_confirmed
-        from database.models import AppointmentType as _AppointmentType
-        if appt.appointment_type == _AppointmentType.follow_up:
-            notify_followup_confirmed(appt, doctor, db)
-        else:
-            notify_appointment_confirmed(appt, doctor, db)
-    except Exception:
-        pass
+    # Send WhatsApp confirmation AFTER the response (never blocks the booking)
+    from services.notification_service import send_appointment_confirmed_bg, send_followup_confirmed_bg
+    from database.models import AppointmentType as _AppointmentType
+    if appt.appointment_type == _AppointmentType.follow_up:
+        background_tasks.add_task(send_followup_confirmed_bg, appt.id, doctor.id)
+    else:
+        background_tasks.add_task(send_appointment_confirmed_bg, appt.id, doctor.id)
 
     return RedirectResponse(url=f"/appointments?filter_date={appt.appointment_date.isoformat()}", status_code=303)
 
@@ -482,6 +479,7 @@ def patient_phone_lookup(
 @router.post("/walkin", response_class=HTMLResponse)
 async def create_walkin(
     request: Request,
+    background_tasks: BackgroundTasks,
     patient_name: str = Form(...),
     patient_phone: str = Form(...),
     patient_age: str = Form(""),
@@ -561,19 +559,16 @@ async def create_walkin(
         created_by     = doctor.id,
     )
 
-    # Notify walk-in patient of queue position (non-blocking)
-    try:
-        from services.notification_service import notify_walkin_queued
-        from database.models import Visit as VisitModel
-        today_visit = db.query(VisitModel).filter(
-            VisitModel.doctor_id == target.id,
-            VisitModel.patient_id == patient.id,
-            VisitModel.visit_date == datetime.now().date(),
-        ).order_by(VisitModel.id.desc()).first()
-        if today_visit and patient.phone:
-            notify_walkin_queued(today_visit, target, db)
-    except Exception:
-        pass
+    # Notify walk-in patient of queue position AFTER the response (non-blocking)
+    from database.models import Visit as VisitModel
+    today_visit = db.query(VisitModel).filter(
+        VisitModel.doctor_id == target.id,
+        VisitModel.patient_id == patient.id,
+        VisitModel.visit_date == datetime.now().date(),
+    ).order_by(VisitModel.id.desc()).first()
+    if today_visit and patient.phone:
+        from services.notification_service import send_walkin_queued_bg
+        background_tasks.add_task(send_walkin_queued_bg, today_visit.id, target.id)
 
     return RedirectResponse(url=f"/appointments?filter_date={appt_date.isoformat()}", status_code=303)
 

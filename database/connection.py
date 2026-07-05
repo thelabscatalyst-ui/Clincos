@@ -435,3 +435,14 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+        # ── Performance: composite indexes on the hottest filter columns ─────
+        # (doctor_id + date) covers the appointment-list and queue queries.
+        # CREATE INDEX IF NOT EXISTS works on both SQLite and PostgreSQL.
+        for _ix_sql in (
+            "CREATE INDEX IF NOT EXISTS ix_appointments_doctor_date "
+            "ON appointments (doctor_id, appointment_date)",
+            "CREATE INDEX IF NOT EXISTS ix_visits_doctor_date "
+            "ON visits (doctor_id, visit_date)",
+        ):
+            _add_column(conn, _ix_sql)

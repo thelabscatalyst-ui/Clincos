@@ -3,7 +3,7 @@ from datetime import date, datetime, time as dtime
 from fastapi import APIRouter, Request, Depends, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, case
 from typing import Optional, List
 
@@ -57,6 +57,7 @@ def dashboard(
 
     all_today = (
         db.query(Appointment)
+        .options(joinedload(Appointment.patient))   # eager-load — avoids N+1
         .filter(
             Appointment.doctor_id   == doctor.id,
             Appointment.appointment_date == today,
@@ -64,9 +65,6 @@ def dashboard(
         .order_by(Appointment.appointment_time)
         .all()
     )
-
-    for appt in all_today:
-        appt.patient  # lazy-load
 
     _done_statuses = {
         AppointmentStatus.completed,
@@ -180,19 +178,17 @@ def dashboard(
             Bill.paid_at   >= _today_start,
             Bill.paid_at   <= _today_end,
         )
+        .options(joinedload(Bill.visit).joinedload(Visit.patient))  # eager-load
         .order_by(Bill.paid_at.desc())
         .limit(5)
         .all()
     )
-    # eager-load patient names
-    for b in recent_bills_dash:
-        if b.visit:
-            _ = b.visit.patient
 
     # ── Pending dues ───────────────────────────────────────────────── #
     # 1) Visits that are BILLING_PENDING — seen but no bill collected yet
     _pending_visits = (
         db.query(Visit)
+        .options(joinedload(Visit.patient))   # eager-load — avoids N+1
         .filter(
             Visit.doctor_id == doctor.id,
             Visit.visit_date == today,
@@ -200,9 +196,6 @@ def dashboard(
         )
         .all()
     )
-    # Eager-load patient names
-    for v in _pending_visits:
-        _ = v.patient
 
     # 2) Bills saved but payment not yet recorded (paid_at is None)
     _unpaid_bills = (
@@ -768,24 +761,21 @@ def reports_page(
         Appointment.status != AppointmentStatus.cancelled,
     ).scalar() or 0
 
-    # ---- Completion & no-show rates ----
-    past_total = db.query(func.count(Appointment.id)).filter(
+    # ---- Completion & no-show rates (single query, conditional aggregation) ----
+    _rate_counts = db.query(
+        func.count(case((Appointment.status == AppointmentStatus.completed, 1))).label("completed"),
+        func.count(case((Appointment.status == AppointmentStatus.no_show,   1))).label("no_show"),
+    ).filter(
         Appointment.doctor_id == doctor.id,
         Appointment.status.in_([
             AppointmentStatus.completed,
             AppointmentStatus.no_show,
         ]),
-    ).scalar() or 0
+    ).one()
 
-    completed_count = db.query(func.count(Appointment.id)).filter(
-        Appointment.doctor_id == doctor.id,
-        Appointment.status == AppointmentStatus.completed,
-    ).scalar() or 0
-
-    no_show_count = db.query(func.count(Appointment.id)).filter(
-        Appointment.doctor_id == doctor.id,
-        Appointment.status == AppointmentStatus.no_show,
-    ).scalar() or 0
+    completed_count = _rate_counts.completed or 0
+    no_show_count   = _rate_counts.no_show   or 0
+    past_total      = completed_count + no_show_count
 
     completion_rate = round(completed_count / past_total * 100) if past_total else 0
     no_show_rate    = round(no_show_count   / past_total * 100) if past_total else 0

@@ -330,7 +330,7 @@ class Appointment(Base):
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
     clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)   # Phase 2
     staff_id  = Column(Integer, nullable=True)                                          # legacy, unused
-    appointment_date = Column(Date, nullable=False)
+    appointment_date = Column(Date, nullable=False, index=True)
     appointment_time = Column(Time, nullable=False)
     duration_mins = Column(Integer, default=15)
     appointment_type = Column(SAEnum(AppointmentType), default=AppointmentType.follow_up)
