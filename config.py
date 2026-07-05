@@ -22,6 +22,10 @@ class Settings(BaseSettings):
 
     ADMIN_EMAIL: str = ""  # platform owner email — set in .env
 
+    # Public base URL used to build patient-facing links (e.g. the feedback
+    # link in the WhatsApp bill receipt). Override in .env for staging/local.
+    PUBLIC_BASE_URL: str = "https://www.clinicos.store"
+
     # Set ENVIRONMENT=development in local .env to allow http:// cookies.
     # In production (Railway) leave unset — defaults to "production" so
     # cookies get the Secure flag and only travel over HTTPS.

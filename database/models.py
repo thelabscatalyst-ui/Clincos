@@ -647,3 +647,25 @@ class PrescriptionItem(Base):
     instructions = Column(String(200), nullable=True)   # "After food", "With milk"
 
     prescription = relationship("Prescription", back_populates="items")
+
+
+class Feedback(Base):
+    """Patient feedback / rating collected via a tokenized public link that is
+    sent inside the WhatsApp bill receipt. One row is created per bill receipt;
+    `rating` stays NULL until the patient actually submits the form."""
+    __tablename__ = "feedback"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    doctor_id  = Column(Integer, ForeignKey("doctors.id"),  nullable=False, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
+    bill_id    = Column(Integer, ForeignKey("bills.id"),    nullable=True)
+
+    token = Column(String(64), unique=True, nullable=False, index=True)  # public link id
+
+    rating       = Column(Integer, nullable=True)   # 1–5 stars, NULL until submitted
+    review       = Column(Text,    nullable=True)   # optional free-text review
+    created_at   = Column(DateTime, default=datetime.utcnow)
+    submitted_at = Column(DateTime, nullable=True)
+
+    doctor  = relationship("Doctor")
+    patient = relationship("Patient")

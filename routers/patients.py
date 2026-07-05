@@ -178,11 +178,29 @@ def patients_list(
     page_start = offset + 1 if total_other > 0 else 0
     page_end   = min(offset + PER_PAGE, total_other)
 
+    # ── Feedback ratings for the patients shown (patient_id → best rating) ──
+    shown_ids = [p.id for p in pinned_list] + [p.id for p in other_list]
+    rated_map = {}
+    if shown_ids:
+        from database.models import Feedback
+        rows = (
+            db.query(Feedback.patient_id, func.max(Feedback.rating))
+            .filter(
+                Feedback.doctor_id == doctor.id,
+                Feedback.patient_id.in_(shown_ids),
+                Feedback.rating.isnot(None),
+            )
+            .group_by(Feedback.patient_id)
+            .all()
+        )
+        rated_map = {pid: rating for pid, rating in rows}
+
     return templates.TemplateResponse(request, "patients.html", {
         "doctor":           doctor,
         "pinned_patients":  pinned_list,
         "other_patients":   other_list,
         "pinned_ids":       pinned_set,
+        "rated_map":        rated_map,
         "oldest_pin_name":  oldest_pin_name,
         "pin_count":        len(pinned_ids),
         "total":            total,

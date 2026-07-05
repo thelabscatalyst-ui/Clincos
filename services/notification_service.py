@@ -292,6 +292,10 @@ def notify_bill_receipt(bill, doctor, db: Session):
     if totals_block:
         full_bullets.append(totals_block)
 
+    # Create a feedback link (separate from the billing content, not merged with
+    # any prescription message) so the patient can rate the clinic.
+    feedback_url = _create_feedback_link(bill, doctor, patient, db)
+
     message_parts = [
         f"*Bill Receipt — {clinic_name}*",
         f"Date: {visit_date}",
@@ -304,7 +308,43 @@ def notify_bill_receipt(bill, doctor, db: Session):
         "",
         f"Thank you for visiting {clinic_name}.",
     ]
+    if feedback_url:
+        message_parts += [
+            "",
+            "We would love your feedback — rate your visit here:",
+            feedback_url,
+        ]
     message = "\n".join(message_parts)
     appt_id = bill.visit.appointment_id if bill.visit else None
     ok, channel, sid = _send_with_fallback(patient.phone, message)
     _log(appt_id, NotificationType.bill_receipt, channel, message, "sent" if ok else "failed", db)
+
+
+def _create_feedback_link(bill, doctor, patient, db: Session) -> str:
+    """Create (or reuse) a Feedback row for this bill and return its public URL.
+    Never raises — a link failure must not break the receipt send."""
+    import secrets
+    from database.models import Feedback
+    try:
+        existing = db.query(Feedback).filter(Feedback.bill_id == bill.id).first()
+        if existing:
+            fb = existing
+        else:
+            fb = Feedback(
+                doctor_id  = doctor.id,
+                patient_id = patient.id,
+                bill_id    = bill.id,
+                token      = secrets.token_urlsafe(16),
+            )
+            db.add(fb)
+            db.commit()
+            db.refresh(fb)
+        base = settings.PUBLIC_BASE_URL.rstrip("/")
+        return f"{base}/feedback/{fb.token}"
+    except Exception as e:
+        logger.warning(f"Feedback link creation failed for bill #{bill.id}: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return ""

@@ -20,7 +20,7 @@ from urllib.parse import quote
 import collections
 
 from database.connection import create_tables
-from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income, prescriptions
+from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income, prescriptions, feedback
 from services.scheduler_service import start_scheduler, stop_scheduler
 from services.auth_service import PlanExpired, PinRequired, decode_token
 from config import settings
@@ -48,7 +48,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 _PUBLIC_PREFIXES = (
     "/login", "/register", "/pricing", "/book/", "/queue/",
-    "/static/", "/doctor-invite/", "/plan-lapsed", "/auth/",
+    "/static/", "/doctor-invite/", "/plan-lapsed", "/auth/", "/feedback/",
 )
 
 @app.middleware("http")
@@ -151,6 +151,7 @@ app.include_router(visits.router)
 app.include_router(billing_ops.router)
 app.include_router(income.router)
 app.include_router(prescriptions.router)
+app.include_router(feedback.router)
 
 
 @app.get("/sitemap.xml", include_in_schema=False)

@@ -67,7 +67,7 @@
   {% for p in pinned_patients %}
   <div class="patient-row-wrap patient-row-wrap--pinned">
     <a href="/patients/{{ p.id }}" class="patient-row">
-      <div class="patient-name">{{ p.name }}</div>
+      <div class="patient-name">{{ p.name }}{% if rated_map.get(p.id) %}<span title="Patient rated {{ rated_map.get(p.id) }} of 5" style="display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:#d4a866;vertical-align:1px;white-space:nowrap;">★ {{ rated_map.get(p.id) }}</span>{% endif %}</div>
       <div class="patient-phone">{{ p.phone }}</div>
       <div class="patient-visits">
         <span class="badge badge--scheduled">{{ p.visit_count or 0 }}</span>
@@ -102,7 +102,7 @@
   {% for p in other_patients %}
   <div class="patient-row-wrap">
     <a href="/patients/{{ p.id }}" class="patient-row">
-      <div class="patient-name">{{ p.name }}</div>
+      <div class="patient-name">{{ p.name }}{% if rated_map.get(p.id) %}<span title="Patient rated {{ rated_map.get(p.id) }} of 5" style="display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:#d4a866;vertical-align:1px;white-space:nowrap;">★ {{ rated_map.get(p.id) }}</span>{% endif %}</div>
       <div class="patient-phone">{{ p.phone }}</div>
       <div class="patient-visits">
         <span class="badge badge--scheduled">{{ p.visit_count or 0 }}</span>
