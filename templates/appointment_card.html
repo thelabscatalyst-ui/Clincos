@@ -510,7 +510,7 @@
           <div class="acm-input-wrap">
             <span class="acm-input-prefix">₹</span>
             <input type="text" id="editDiscount" name="discount" class="acm-input acm-input-prefixed"
-                   inputmode="numeric" value="{{ bill.discount|int }}" oninput="updateEditTotal()" placeholder="0">
+                   inputmode="numeric" value="{{ bill.discount|int if bill.discount and bill.discount|float > 0 else '' }}" oninput="updateEditTotal()" placeholder="0">
           </div>
         </div>
         <div class="acm-field">

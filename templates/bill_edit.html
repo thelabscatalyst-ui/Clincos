@@ -91,7 +91,8 @@
         <div class="form-group">
           <label class="form-label">Discount (₹)</label>
           <input type="number" id="discountInput" name="discount" class="form-input"
-                 min="0" step="1" value="{{ bill.discount|int }}" oninput="updateTotal()">
+                 min="0" step="1" placeholder="0"
+                 value="{{ bill.discount|int if bill.discount and bill.discount|float > 0 else '' }}" oninput="updateTotal()">
         </div>
         <div class="form-group">
           <label class="form-label">GST (%)</label>

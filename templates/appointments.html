@@ -614,7 +614,7 @@
           </button>
           <div id="discountSection" style="display:none;">
             <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;">Discount (₹)</label>
-            <input type="number" id="billDiscountInput" class="form-input" min="0" step="1" value="0"
+            <input type="number" id="billDiscountInput" class="form-input" min="0" step="1" placeholder="0"
                    oninput="updateTotal()" style="max-width:160px;">
           </div>
         </div>
@@ -679,7 +679,7 @@
         <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;" for="billCollectedInput">Amount Collected</label>
         <div style="display:flex;align-items:center;gap:10px;">
           <input type="number" id="billCollectedInput" name="paid_amount"
-                 class="form-input" step="1" min="0" value="0"
+                 class="form-input" step="1" min="0" placeholder="0"
                  style="max-width:160px;text-align:right;"
                  oninput="updateTotal()">
           <div id="billPendingRow" style="display:none;font-size:13px;color:var(--warning);font-weight:500;">
@@ -867,7 +867,7 @@ function openBillModal(visitId, patientName) {
   document.getElementById('gstSection').style.display = 'none';
   document.getElementById('discountToggle').classList.remove('active');
   document.getElementById('gstToggle').classList.remove('active');
-  document.getElementById('billDiscountInput').value = '0';
+  document.getElementById('billDiscountInput').value = '';
   document.getElementById('billGstInput').value = '18';
 
   // Reset payment mode
@@ -880,10 +880,11 @@ function openBillModal(visitId, patientName) {
   });
   document.getElementById('billMode').value = 'cash';
 
-  // Seed first item row (may be cleared below if existing_bill is present)
-  document.getElementById('billItemsList').innerHTML = _mkItemRow('Consultation', 1, '');
+  // Seed ONE empty item row — no pre-filled "Consultation" or fee.
+  // Doctor adds items via "+ Add Item" or the pinned price-catalog buttons.
+  document.getElementById('billItemsList').innerHTML = _mkItemRow('', 1, '');
   _refreshRemoveButtons();
-  document.getElementById('billCollectedInput').value = '0';
+  document.getElementById('billCollectedInput').value = '';
   document.getElementById('billModal').classList.add('open');
   updateTotal();
 
@@ -937,21 +938,9 @@ function openBillModal(visitId, patientName) {
         document.getElementById('billNotes').value = eb.notes || '';
 
         updateTotal();
-      } else {
-        // Fresh modal — set default_fee and initialize collected to total
-        if (data.default_fee > 0) {
-          const fp = document.querySelector('#billItemsList .bill-item-price');
-          if (fp) { fp.value = data.default_fee; updateTotal(); }
-        }
-        // Initialize collected = total (legacy full-pay behavior)
-        const totalEl = document.getElementById('billTotalAmount');
-        const totalTxt = totalEl ? (totalEl.textContent || '0') : '0';
-        const totalVal = parseFloat(totalTxt.replace(/[^\d.]/g, '')) || 0;
-        if (totalVal > 0) {
-          document.getElementById('billCollectedInput').value = totalVal;
-          updateTotal();
-        }
       }
+      // Fresh modal: no default item and no pre-filled fee/amount — the
+      // doctor adds items via "+ Add Item" or the pinned catalog buttons.
     }).catch(() => {});
 
   setTimeout(() => document.querySelector('#billItemsList .bill-item-price')?.focus(), 120);
@@ -983,7 +972,7 @@ function toggleBillDiscount() {
   _billDiscOn = !_billDiscOn;
   document.getElementById('discountSection').style.display = _billDiscOn ? '' : 'none';
   _styleToggleBtn(document.getElementById('discountToggle'), _billDiscOn);
-  if (!_billDiscOn) document.getElementById('billDiscountInput').value = '0';
+  if (!_billDiscOn) document.getElementById('billDiscountInput').value = '';
   updateTotal();
 }
 
