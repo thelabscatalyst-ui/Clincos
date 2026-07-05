@@ -7353,7 +7353,7 @@ html.light .stat-value--warn { color: #7a5020; }
 /* ── Patient Detail Split Layout ────────────────────────────────────────── */
 .patient-detail-split {
   display: grid;
-  grid-template-columns: 40% 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
   align-items: stretch;
 }

@@ -102,15 +102,18 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">WhatsApp Consent</label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" name="wa_consent" value="on" {% if patient.wa_consent %}checked{% endif %}>
-          <span style="font-size:13px;color:var(--text);">Patient has consented to receive WhatsApp messages</span>
-        </label>
-        {% if patient.wa_consent and patient.wa_consent_at %}
-        <div style="font-size:11px;color:var(--dim);margin-top:4px;">Consent given on {{ patient.wa_consent_at.strftime('%d %b %Y') }}</div>
-        {% endif %}
+      <div class="form-row" style="grid-template-columns:1fr;">
+        <div class="form-group">
+          <label class="form-label">WhatsApp Consent</label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);box-sizing:border-box;width:100%;">
+            <input type="checkbox" name="wa_consent" value="on" {% if patient.wa_consent %}checked{% endif %}
+                   style="width:16px;height:16px;flex-shrink:0;margin:0;accent-color:#af9169;cursor:pointer;">
+            <span style="font-size:13px;color:var(--text);line-height:1.4;">Patient has consented to receive WhatsApp messages</span>
+          </label>
+          {% if patient.wa_consent and patient.wa_consent_at %}
+          <div style="font-size:11px;color:var(--dim);margin-top:6px;">Consent given on {{ patient.wa_consent_at.strftime('%d %b %Y') }}</div>
+          {% endif %}
+        </div>
       </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
