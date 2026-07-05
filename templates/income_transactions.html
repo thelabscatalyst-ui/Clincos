@@ -111,41 +111,46 @@
 {# ═══════════════════════════════════════════════════════════════════════ #}
 {% else %}
 
-<!-- Year tabs then month chips -->
-<div style="margin-bottom:16px;">
-  <!-- Year selector row -->
-  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-    {% for y in year_list %}
-    <a href="/income/transactions?year={{ y }}&month={% if y == year %}{{ month }}{% else %}12{% endif %}&view=monthly"
-       style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--border);
-              {% if y == year %}background:var(--text);color:var(--bg);border-color:var(--text);{% else %}color:var(--muted);background:var(--bg-3);{% endif %}">
-      {{ y }}
-    </a>
-    {% endfor %}
-  </div>
-
-  <!-- Month chips for selected year only -->
-  <div class="txn-month-bar">
-    {% set mn = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
-    {% if months_by_year[year] is defined %}
-      {% for m in months_by_year[year] | sort(reverse=True) %}
-      <a href="/income/transactions?year={{ year }}&month={{ m }}&view=monthly"
-         class="txn-month-chip {% if m == month and year == year %}txn-month-chip--active{% endif %}">
-        {{ mn[m] }}
+<!-- Year + Month selectors, each in its own labelled box -->
+<div class="txn-selectors">
+  <!-- Year box -->
+  <div class="txn-select-box">
+    <div class="txn-select-label">Year</div>
+    <div class="txn-select-options">
+      {% for y in year_list %}
+      <a href="/income/transactions?year={{ y }}&month={% if y == year %}{{ month }}{% else %}12{% endif %}&view=monthly"
+         class="txn-pill {% if y == year %}txn-pill--active{% endif %}">
+        {{ y }}
       </a>
       {% endfor %}
-    {% else %}
-      <a href="/income/transactions?year={{ year }}&month={{ month }}&view=monthly"
-         class="txn-month-chip txn-month-chip--active">
-        {{ mn[month] }}
-      </a>
-    {% endif %}
+    </div>
+  </div>
+
+  <!-- Month box (months available for the selected year) -->
+  <div class="txn-select-box txn-select-box--month">
+    <div class="txn-select-label">Month</div>
+    <div class="txn-select-options">
+      {% set mn = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
+      {% if months_by_year[year] is defined %}
+        {% for m in months_by_year[year] | sort(reverse=True) %}
+        <a href="/income/transactions?year={{ year }}&month={{ m }}&view=monthly"
+           class="txn-pill {% if m == month %}txn-pill--active{% endif %}">
+          {{ mn[m] }}
+        </a>
+        {% endfor %}
+      {% else %}
+        <a href="/income/transactions?year={{ year }}&month={{ month }}&view=monthly"
+           class="txn-pill txn-pill--active">
+          {{ mn[month] }}
+        </a>
+      {% endif %}
+    </div>
   </div>
 </div>
 
 <!-- Monthly Summary Strip -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-  <div class="income-kpi-card">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:stretch;">
+  <div class="income-kpi-card" style="justify-content:center;">
     <div class="income-kpi-label">Total Collected · {{ month_name }}</div>
     <div class="income-kpi-amount">₹{{ "{:,.0f}".format(month_total) }}</div>
     <div class="income-kpi-sub">{{ total_txns }} transaction{{ "s" if total_txns != 1 }}</div>

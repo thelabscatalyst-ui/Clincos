@@ -206,12 +206,7 @@
     </div>
     <div class="pending-amount">₹{{ "{:,.0f}".format(b.total|float) }}</div>
     <div class="pending-actions">
-      {% if b.visit %}
-      <a href="/appointments/{{ b.visit.appointment_id }}" class="btn btn-secondary btn-xs"
-         {% if not b.visit.appointment_id %}style="display:none"{% endif %}>
-        View
-      </a>
-      {% endif %}
+      <a href="/bills/{{ b.id }}" class="btn btn-secondary btn-xs">View</a>
       <form method="post" action="/bills/{{ b.id }}/mark-paid" style="margin:0;">
         <button type="submit" class="btn btn-primary btn-xs">Mark Paid</button>
       </form>

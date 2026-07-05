@@ -6064,7 +6064,8 @@ html.light .btn-collect:hover {
   min-width: 70px;
   text-align: right;
 }
-.pending-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.pending-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.pending-actions .btn { white-space: nowrap; }
 
 /* Recent transactions */
 .txn-card {
@@ -6084,8 +6085,18 @@ html.light .btn-collect:hover {
   font-size: 13px;
 }
 .txn-row:last-child { border-bottom: none; }
-a.txn-row { color: inherit; border-radius: var(--radius-sm); padding-left: 8px; padding-right: 8px; margin: 0 -8px; transition: background 0.15s; }
-a.txn-row:hover { background: var(--bg-3); }
+/* Payments page: each entry is a separate bordered card with a gap */
+a.txn-row {
+  color: inherit;
+  border: 1px solid rgba(175, 145, 105, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin: 0 0 8px 0;
+  background: var(--bg-2);
+  transition: background 0.15s, border-color 0.15s;
+}
+a.txn-row:last-child { margin-bottom: 0; }
+a.txn-row:hover { background: var(--bg-3); border-color: rgba(200, 175, 145, 0.55); }
 .txn-token {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.85rem;
@@ -6120,6 +6131,58 @@ a.txn-row:hover { background: var(--bg-3); }
   transition: color 0.15s, border-color 0.15s;
 }
 .txn-view-all:hover { color: var(--text); border-color: rgba(200,175,145,0.35); }
+
+/* Year + Month selector boxes on transactions page */
+.txn-selectors {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.txn-select-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  padding: 12px 14px;
+  flex: 1 1 240px;
+  min-width: 220px;
+  box-sizing: border-box;
+}
+.txn-select-box--month { flex: 2 1 320px; }
+.txn-select-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--dim);
+  margin-bottom: 10px;
+}
+.txn-select-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.txn-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--bg-3);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.txn-pill:hover {
+  background: var(--bg-3);
+  color: var(--text);
+  border-color: rgba(200, 175, 145, 0.35);
+}
+.txn-pill--active {
+  background: #6b4a28;
+  color: #e8d5bc;
+  border-color: #6b4a28;
+}
 
 /* Month chips on transactions page */
 .txn-month-bar {
