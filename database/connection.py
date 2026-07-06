@@ -446,3 +446,18 @@ def _run_migrations():
             "ON visits (doctor_id, visit_date)",
         ):
             _add_column(conn, _ix_sql)
+
+        # ── Backfill: appointments left stuck on 'scheduled' from before the
+        # cancel_visit fix started syncing Appointment.status. Any appointment
+        # whose linked visit was cancelled should show as cancelled too.
+        try:
+            conn.execute(text(
+                "UPDATE appointments SET status = 'cancelled' "
+                "WHERE status = 'scheduled' AND id IN ("
+                "  SELECT appointment_id FROM visits "
+                "  WHERE appointment_id IS NOT NULL AND status = 'cancelled'"
+                ")"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
