@@ -109,10 +109,10 @@
 </div>
 
 <!-- ── Totals + Payment row ── -->
-<div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:16px;">
+<div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:stretch;margin-bottom:16px;">
 
   <!-- Payment method card -->
-  <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;">
+  <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;flex-direction:column;">
     <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Payment</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:{% if bill.paid_at %}8px{% else %}0{% endif %};">
       <span style="font-size:13px;color:var(--muted);">Paid via</span>
@@ -132,7 +132,7 @@
   </div>
 
   <!-- Totals block -->
-  <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-width:280px;">
+  <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-width:280px;display:flex;flex-direction:column;">
     {% if (bill.discount and bill.discount > 0) or (bill.gst_amount and bill.gst_amount > 0) %}
     <!-- Subtotal row -->
     <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);">
@@ -152,8 +152,9 @@
       <span style="font-size:13px;color:var(--muted);">+ ₹{{ "{:,.2f}".format(bill.gst_amount) }}</span>
     </div>
     {% endif %}
-    <!-- Total paid -->
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px;background:var(--bg-3);">
+    <!-- Total paid — pinned to the bottom so it stays flush with the card's
+         bottom edge even when the row is stretched to match the Payment card -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px;background:var(--bg-3);margin-top:auto;">
       <span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);">Total Paid</span>
       <span style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--text);">₹{{ "{:,.0f}".format(bill.total) }}</span>
     </div>

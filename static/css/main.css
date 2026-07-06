@@ -2662,7 +2662,7 @@ select.input-sm {
 /* List layout */
 .patient-list-header {
   display: grid;
-  grid-template-columns: 1fr 140px 70px 120px 32px 36px;
+  grid-template-columns: 1fr 140px 150px 70px 120px 32px 36px;
   gap: 16px;
   padding: 0 8px 10px 16px;
   font-size: 11px;
@@ -2718,7 +2718,7 @@ html.light .patient-row-wrap::before {
 /* Link grid — fills the row */
 .patient-row {
   display: grid;
-  grid-template-columns: 1fr 140px 70px 120px 32px;
+  grid-template-columns: 1fr 140px 150px 70px 120px 32px;
   align-items: center;
   gap: 16px;
   padding: 14px 16px;
@@ -2788,6 +2788,15 @@ html.light .patient-row-wrap::before {
 
 .patient-name  { font-size: 14px; font-weight: 500; color: var(--text); }
 .patient-phone { font-size: 13px; color: var(--text-muted); }
+.patient-allergies {
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.patient-allergies--none { color: var(--text-dim); }
 .patient-visits { }
 .patient-last  { font-size: 13px; color: var(--text-muted); }
 .patient-arrow { font-size: 14px; color: var(--text-dim); text-align: right; }
@@ -3112,6 +3121,7 @@ html.light .pt-btn--active {
   .patient-list-header { display: none; }
   .patient-row         { grid-template-columns: 1fr auto 32px; }
   .patient-phone       { display: none; }
+  .patient-allergies   { display: none; }
   .patient-last        { display: none; }
   .patient-toolbar     { flex-wrap: wrap; }
   .patient-sort-group  { width: 100%; justify-content: flex-end; }
@@ -8057,6 +8067,7 @@ html.light .skeleton::after {
 
   .patient-visits,
   .patient-phone,
+  .patient-allergies,
   .patient-last {
     display: none;
   }

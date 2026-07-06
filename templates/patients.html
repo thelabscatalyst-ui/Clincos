@@ -47,6 +47,7 @@
 <div class="patient-list-header">
   <span>Name</span>
   <span>Phone</span>
+  <span>Allergies</span>
   <span>Visits</span>
   <span>Last seen</span>
   <span></span>
@@ -69,6 +70,7 @@
     <a href="/patients/{{ p.id }}" class="patient-row">
       <div class="patient-name">{{ p.name }}{% if rated_map.get(p.id) %}<span title="Patient rated {{ rated_map.get(p.id) }} of 5" style="display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:#d4a866;vertical-align:1px;white-space:nowrap;">★ {{ rated_map.get(p.id) }}</span>{% endif %}</div>
       <div class="patient-phone">{{ p.phone }}</div>
+      <div class="patient-allergies {% if not p.allergies %}patient-allergies--none{% endif %}" title="{{ p.allergies or 'None' }}">{{ p.allergies or 'None' }}</div>
       <div class="patient-visits">
         <span class="badge badge--scheduled">{{ p.visit_count or 0 }}</span>
       </div>
@@ -104,6 +106,7 @@
     <a href="/patients/{{ p.id }}" class="patient-row">
       <div class="patient-name">{{ p.name }}{% if rated_map.get(p.id) %}<span title="Patient rated {{ rated_map.get(p.id) }} of 5" style="display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:#d4a866;vertical-align:1px;white-space:nowrap;">★ {{ rated_map.get(p.id) }}</span>{% endif %}</div>
       <div class="patient-phone">{{ p.phone }}</div>
+      <div class="patient-allergies {% if not p.allergies %}patient-allergies--none{% endif %}" title="{{ p.allergies or 'None' }}">{{ p.allergies or 'None' }}</div>
       <div class="patient-visits">
         <span class="badge badge--scheduled">{{ p.visit_count or 0 }}</span>
       </div>
