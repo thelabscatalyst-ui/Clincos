@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Prescriptions · {{ patient.name }} — ClinicOS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="/patients/{{ patient.id }}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:6px;transition:color 0.15s;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Patient
+    </a>
+    <h1 class="page-title">Prescriptions <span style="color:var(--muted);font-weight:400;">· {{ patient.name }}</span></h1>
+    {% if prescriptions %}
+    <div class="page-sub">{{ prescriptions | length }} prescription{{ 's' if prescriptions|length != 1 }}</div>
+    {% endif %}
+  </div>
+  <div>
+    <a href="/prescriptions/new?patient_id={{ patient.id }}" class="btn btn-primary btn-sm">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:5px;vertical-align:-1px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Write Prescription
+    </a>
+  </div>
+</div>
+
+{% if not prescriptions %}
+<!-- Empty state -->
+<div class="settings-card" style="text-align:center;padding:52px 32px;">
+  <div style="font-size:36px;margin-bottom:12px;opacity:0.35;">℞</div>
+  <div style="font-family:'Playfair Display',Georgia,serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">No prescriptions yet</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;">
+    No prescriptions have been written for {{ patient.name }} yet.
+  </div>
+  <a href="/prescriptions/new?patient_id={{ patient.id }}" class="btn btn-primary btn-sm">Write First Prescription</a>
+</div>
+
+{% else %}
+<!-- Prescription list -->
+<div class="rx-list-wrap">
+  {% for rx in prescriptions %}
+  <a href="/prescriptions/{{ rx.id }}" class="rx-list-card" style="text-decoration:none;">
+
+    <div class="rx-list-card-left">
+      <div class="rx-list-date">{{ rx.created_at.strftime('%d %b %Y') }}</div>
+      <div class="rx-list-drug-count">{{ rx.items|length }} drug{{ 's' if rx.items|length != 1 }}</div>
+    </div>
+
+    <div class="rx-list-card-center">
+      {% if rx.diagnosis %}
+      <div class="rx-list-diagnosis">{{ rx.diagnosis[:60] }}{% if rx.diagnosis|length > 60 %}…{% endif %}</div>
+      {% else %}
+      <div class="rx-list-diagnosis rx-list-diagnosis--empty">No diagnosis recorded</div>
+      {% endif %}
+      {% if rx.items %}
+      <div class="rx-list-drugs">
+        {% for item in rx.items[:3] %}
+        <span class="rx-list-drug-chip">{{ item.drug_name }}</span>
+        {% endfor %}
+        {% if rx.items|length > 3 %}
+        <span class="rx-list-drug-chip rx-list-drug-chip--more">+{{ rx.items|length - 3 }} more</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="rx-list-card-right">
+      <span class="rx-list-view-link">View →</span>
+    </div>
+
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<style>
+/* ── Prescription list layout ────────────────── */
+.rx-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rx-list-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  transition: var(--transition-pop);
+  box-shadow: var(--glow);
+}
+.rx-list-card:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: var(--glow-hover);
+  border-color: var(--border-light);
+}
+.rx-list-card-left {
+  flex-shrink: 0;
+  min-width: 90px;
+}
+.rx-list-date {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.rx-list-drug-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.rx-list-card-center {
+  flex: 1;
+  min-width: 0;
+}
+.rx-list-diagnosis {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rx-list-diagnosis--empty {
+  color: var(--dim);
+  font-style: italic;
+}
+.rx-list-drugs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.rx-list-drug-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: rgba(200,175,145,0.12);
+  border: 1px solid rgba(200,175,145,0.20);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rx-list-drug-chip--more {
+  color: var(--dim);
+  font-style: italic;
+}
+.rx-list-card-right {
+  flex-shrink: 0;
+}
+.rx-list-view-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.rx-list-card:hover .rx-list-view-link {
+  color: var(--text);
+}
+
+/* ── Light theme overrides ───────────────────── */
+html.light .rx-list-drug-chip {
+  background: rgba(175,145,105,0.14);
+  border-color: rgba(155,125,85,0.22);
+  color: var(--muted);
+}
+
+@media (max-width: 480px) {
+  .rx-list-card { flex-wrap: wrap; gap: 10px; }
+  .rx-list-card-right { width: 100%; text-align: right; }
+}
+</style>
+
+{% endblock %}

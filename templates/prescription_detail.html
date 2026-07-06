@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Prescription — {{ patient.name }} — ClinicOS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="/patients/{{ patient.id }}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:6px;transition:color 0.15s;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      {{ patient.name }}
+    </a>
+    <h1 class="page-title">Prescription</h1>
+    <div class="page-sub">{{ prescription.created_at.strftime('%d %B %Y') }}</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <a href="/prescriptions/{{ prescription.id }}/print" target="_blank" class="btn btn-secondary btn-sm">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-1px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print
+    </a>
+    <a href="/prescriptions/{{ prescription.id }}/edit?patient_id={{ patient.id }}" class="btn btn-secondary btn-sm">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-1px;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Edit
+    </a>
+    <form method="POST" action="/prescriptions/{{ prescription.id }}/delete" style="margin:0;"
+          onsubmit="return confirm('Delete this prescription? This cannot be undone.')">
+      <button type="submit" class="btn btn-sm" style="background:rgba(220,38,38,0.1);color:#f87171;border:1px solid rgba(248,113,113,0.25);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-1px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Delete
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ── Prescription Card ──────────────────────────────────────────── -->
+<div class="settings-card" style="max-width:860px;">
+
+  <!-- Letterhead: Doctor / Clinic block -->
+  <div class="rx-letterhead">
+    <div class="rx-clinic-name">
+      {{ doctor.clinic_name or ('Dr. ' + doctor.name) }}
+    </div>
+    <div class="rx-doctor-line">
+      Dr. {{ doctor.name }}{% if doctor.specialization %} · {{ doctor.specialization }}{% endif %}
+    </div>
+    {% if doctor.medical_reg_number %}
+    <div class="rx-reg-line">Reg. No. {{ doctor.medical_reg_number }}</div>
+    {% endif %}
+    {% if doctor.clinic_address or doctor.city or doctor.phone %}
+    <div class="rx-address-line">
+      {% if doctor.clinic_address %}{{ doctor.clinic_address }}{% endif %}
+      {% if doctor.city %}{% if doctor.clinic_address %}, {% endif %}{{ doctor.city }}{% endif %}
+      {% if doctor.phone %} · {{ doctor.phone }}{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Patient + Date row -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;padding:16px 0;border-bottom:1px solid var(--border);">
+    <div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:3px;">Patient</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);">{{ patient.name }}</div>
+      <div style="font-size:13px;color:var(--muted);">
+        {% if patient.age %}{{ patient.age }} yrs{% endif %}
+        {% if patient.age and patient.gender %} · {% endif %}
+        {% if patient.gender %}{{ patient.gender | title }}{% endif %}
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:3px;">Date</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);">{{ prescription.created_at.strftime('%d %B %Y') }}</div>
+    </div>
+  </div>
+
+  <!-- Diagnosis block -->
+  {% if prescription.diagnosis %}
+  <div style="padding:16px 0;border-bottom:1px solid var(--border);">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:6px;">Diagnosis / Chief Complaint</div>
+    <div style="font-size:14px;color:var(--text);line-height:1.6;">{{ prescription.diagnosis }}</div>
+  </div>
+  {% endif %}
+
+  <!-- Rx drug table -->
+  {% if prescription.items %}
+  <div style="padding:20px 0 0 0;">
+    <div style="font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:700;color:var(--text);margin-bottom:14px;">℞</div>
+
+    <!-- Table header -->
+    <div class="rx-detail-head">
+      <span>#</span>
+      <span>Drug</span>
+      <span>Dosage</span>
+      <span>Frequency</span>
+      <span>Duration</span>
+      <span>Instructions</span>
+    </div>
+
+    {% for item in prescription.items %}
+    <div class="rx-detail-row {% if loop.index % 2 == 0 %}rx-detail-row--alt{% endif %}">
+      <span class="rx-detail-num">{{ loop.index }}</span>
+      <span class="rx-detail-drug">{{ item.drug_name }}</span>
+      <span class="rx-detail-cell">{{ item.dosage or '—' }}</span>
+      <span class="rx-detail-cell">{{ item.frequency or '—' }}</span>
+      <span class="rx-detail-cell">{{ item.duration or '—' }}</span>
+      <span class="rx-detail-cell rx-detail-cell--instructions">{{ item.instructions or '—' }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Advice + Follow-up footer -->
+  {% if prescription.advice or prescription.follow_up %}
+  <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+    {% if prescription.advice %}
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:6px;">Advice</div>
+      <div style="font-size:14px;color:var(--text);line-height:1.7;">{{ prescription.advice }}</div>
+    </div>
+    {% endif %}
+    {% if prescription.follow_up %}
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:4px;">Follow-up</div>
+      <div style="font-size:14px;color:var(--text);">{{ prescription.follow_up }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Signature line -->
+  <div style="margin-top:32px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+    <div style="text-align:right;">
+      <div style="font-size:13px;color:var(--dim);margin-bottom:4px;letter-spacing:.5px;">___________________________</div>
+      <div style="font-size:13px;color:var(--muted);">Dr. {{ doctor.name }}</div>
+      {% if doctor.specialization %}<div style="font-size:12px;color:var(--dim);">{{ doctor.specialization }}</div>{% endif %}
+    </div>
+  </div>
+
+</div><!-- /settings-card -->
+
+<style>
+/* ── Letterhead ──────────────────────────────── */
+.rx-letterhead {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.rx-clinic-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.rx-doctor-line {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.rx-reg-line {
+  font-size: 12px;
+  color: var(--dim);
+  margin-top: 2px;
+}
+.rx-address-line {
+  font-size: 12px;
+  color: var(--dim);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+/* ── Detail table ────────────────────────────── */
+.rx-detail-head {
+  display: grid;
+  grid-template-columns: 28px 2fr 1fr 1.6fr 1fr 1.4fr;
+  gap: 10px;
+  padding: 0 8px 8px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--dim);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.rx-detail-row {
+  display: grid;
+  grid-template-columns: 28px 2fr 1fr 1.6fr 1fr 1.4fr;
+  gap: 10px;
+  padding: 10px 8px;
+  align-items: center;
+  border-bottom: 1px solid rgba(61,54,48,0.3);
+}
+.rx-detail-row:last-child { border-bottom: none; }
+.rx-detail-row--alt { background: rgba(61,54,48,0.15); border-radius: 6px; }
+.rx-detail-num {
+  font-size: 12px;
+  color: var(--dim);
+  font-weight: 600;
+}
+.rx-detail-drug {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+}
+.rx-detail-cell {
+  font-size: 13px;
+  color: var(--muted);
+}
+.rx-detail-cell--instructions {
+  font-style: italic;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+@media (max-width: 640px) {
+  .rx-detail-head { display: none; }
+  .rx-detail-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 12px 8px;
+  }
+  .rx-detail-num { display: none; }
+  .rx-detail-drug { font-size: 15px; }
+  .rx-detail-cell::before {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--dim);
+    display: block;
+  }
+}
+</style>
+{% endblock %}
