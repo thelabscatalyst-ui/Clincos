@@ -102,6 +102,17 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label class="form-label">WhatsApp Consent</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" name="wa_consent" value="on" {% if patient.wa_consent %}checked{% endif %}>
+          <span style="font-size:13px;color:var(--text);">Patient has consented to receive WhatsApp messages</span>
+        </label>
+        {% if patient.wa_consent and patient.wa_consent_at %}
+        <div style="font-size:11px;color:var(--dim);margin-top:4px;">Consent given on {{ patient.wa_consent_at.strftime('%d %b %Y') }}</div>
+        {% endif %}
+      </div>
+
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditModal()">Cancel</button>
         <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
@@ -260,6 +271,16 @@
         <div class="patient-info-stat">
           <div class="patient-info-stat-label">Upcoming</div>
           <div class="patient-info-stat-value">{{ upcoming }}</div>
+        </div>
+        {% endif %}
+        {% if rx_count is defined %}
+        <div class="patient-info-stat">
+          <div class="patient-info-stat-label">Prescriptions</div>
+          <div class="patient-info-stat-value">
+            <a href="/patients/{{ patient.id }}/prescriptions"
+               style="color:inherit;text-decoration:none;border-bottom:1px solid rgba(200,175,145,0.3);transition:border-color 0.15s;"
+               title="View all prescriptions">{{ rx_count }}</a>
+          </div>
         </div>
         {% endif %}
       </div>
