@@ -10,8 +10,13 @@
       {{ bill.paid_at.strftime("%A, %d %B %Y · %I:%M %p").lstrip("0") if bill.paid_at else bill.created_at.strftime("%A, %d %B %Y") }}
     </div>
   </div>
+  {% set _back = request.query_params.get('back', '') %}
   <div style="display:flex;gap:8px;">
+    {% if _back and _back.startswith('/') and not _back.startswith('//') %}
+    <a href="{{ _back }}" class="btn btn-secondary btn-sm">← Back</a>
+    {% else %}
     <a href="/patients/{{ bill.patient_id }}" class="btn btn-secondary btn-sm">← Patient</a>
+    {% endif %}
     <a href="/bills/{{ bill.id }}/pdf" class="btn btn-secondary btn-sm" style="display:flex;align-items:center;gap:6px;">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 13h8M8 3v7M5 7l3 3 3-3"/>

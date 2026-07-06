@@ -184,8 +184,9 @@
 <!-- Transactions table -->
 <div class="txn-card">
   {% if bills %}
+    {% set _txn_back = "/income/transactions?year=" ~ year ~ "&month=" ~ month ~ "&view=monthly" ~ (("&page=" ~ page) if page and page > 1 else "") %}
     {% for b in bills %}
-    <a href="/bills/{{ b.id }}" class="txn-row" style="text-decoration:none;cursor:pointer;">
+    <a href="/bills/{{ b.id }}?back={{ _txn_back | urlencode }}" class="txn-row" style="text-decoration:none;cursor:pointer;">
       <span class="txn-token">#{{ b.visit.token_number if b.visit else "—" }}</span>
       <span class="txn-name">{{ b.visit.patient.name if b.visit and b.visit.patient else "—" }}</span>
       <span class="txn-type">{% if b.visit and b.visit.appointment_id %}Booked{% else %}Walk-in{% endif %}</span>

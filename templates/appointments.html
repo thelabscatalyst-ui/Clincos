@@ -717,11 +717,12 @@
       <!-- ── Amount Collected ── -->
       <div>
         <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;" for="billCollectedInput">Amount Collected</label>
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <input type="number" id="billCollectedInput" name="paid_amount"
                  class="form-input" step="1" min="0" placeholder="0"
                  style="max-width:160px;text-align:right;"
                  oninput="updateTotal()">
+          <button type="button" class="btn btn-secondary btn-xs" onclick="fillFullPayment()">Full Payment</button>
           <div id="billPendingRow" style="display:none;font-size:13px;color:var(--warning);font-weight:500;">
             Pending: ₹<span id="billPendingAmt">0</span>
           </div>
@@ -1039,6 +1040,13 @@ function selectPayMode(btn) {
 
 function closeBillModal() {
   document.getElementById('billModal').classList.remove('open');
+}
+
+function fillFullPayment() {
+  const totalTxt = document.getElementById('billTotalAmount').textContent || '0';
+  const total    = parseFloat(totalTxt.replace(/[^\d.]/g, '')) || 0;
+  document.getElementById('billCollectedInput').value = total;
+  updateTotal();
 }
 
 function updateTotal() {

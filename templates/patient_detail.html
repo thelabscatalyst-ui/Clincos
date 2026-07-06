@@ -314,12 +314,10 @@
           <span class="patient-info-label">Contact Pref</span>
           <span class="patient-info-value">{{ (patient.preferred_contact or 'Phone').replace('_',' ').title() }}</span>
         </div>
-        {% if patient.allergies %}
         <div class="patient-info-row patient-info-row--full">
           <span class="patient-info-label">Allergies</span>
-          <span class="patient-info-value">{{ patient.allergies }}</span>
+          <span class="patient-info-value" {% if not patient.allergies %}style="color:var(--dim);"{% endif %}>{{ patient.allergies or 'None' }}</span>
         </div>
-        {% endif %}
         {% if patient.notes %}
         <div class="patient-info-row patient-info-row--full">
           <span class="patient-info-label">General Notes</span>

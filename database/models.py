@@ -241,9 +241,10 @@ class Patient(Base):
     visit_count = Column(Integer, default=0)
     first_visit = Column(Date, nullable=True)
     last_visit = Column(Date, nullable=True)
-    # v3: WhatsApp consent
-    wa_consent    = Column(Boolean, default=False)      # patient has consented to WhatsApp messages
-    wa_consent_at = Column(DateTime, nullable=True)     # timestamp when consent was given
+    # v3: WhatsApp consent — opt-out model: assumed granted by default for new
+    # patients; the doctor unchecks it if the patient explicitly declines.
+    wa_consent    = Column(Boolean, default=True)       # patient has consented to WhatsApp messages
+    wa_consent_at = Column(DateTime, nullable=True)     # timestamp when consent was explicitly given
     created_at = Column(DateTime, default=datetime.utcnow)
 
     doctor       = relationship("Doctor", back_populates="patients")
