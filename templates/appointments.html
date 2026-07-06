@@ -213,9 +213,6 @@
         {% endif %}
         <div class="visit-more-btn" onclick="toggleMenu('menu-s{{ serving.id }}')">⋮</div>
         <div class="visit-menu" id="menu-s{{ serving.id }}">
-          <form method="POST" action="/visits/{{ serving.id }}/skip">
-            <button type="submit" class="visit-menu-item">Skip</button>
-          </form>
           <form method="POST" action="/visits/{{ serving.id }}/cancel">
             <button type="submit" class="visit-menu-item danger">Cancel Visit</button>
           </form>
@@ -287,12 +284,9 @@
           <div class="visit-menu" id="menu-w{{ visit.id }}">
             {% if not visit.is_emergency %}
             <form method="POST" action="/visits/{{ visit.id }}/emergency">
-              <button type="submit" class="visit-menu-item">🚨 Mark Emergency</button>
+              <button type="submit" class="visit-menu-item">Mark Emergency</button>
             </form>
             {% endif %}
-            <form method="POST" action="/visits/{{ visit.id }}/skip">
-              <button type="submit" class="visit-menu-item">Skip to End</button>
-            </form>
             <form method="POST" action="/visits/{{ visit.id }}/cancel">
               <button type="submit" class="visit-menu-item danger">Cancel</button>
             </form>
@@ -722,7 +716,7 @@
                  class="form-input" step="1" min="0" placeholder="0"
                  style="max-width:160px;text-align:right;"
                  oninput="updateTotal()">
-          <button type="button" class="btn btn-secondary btn-xs" onclick="fillFullPayment()">Full Payment</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="fillFullPayment()">Full Payment</button>
           <div id="billPendingRow" style="display:none;font-size:13px;color:var(--warning);font-weight:500;">
             Pending: ₹<span id="billPendingAmt">0</span>
           </div>

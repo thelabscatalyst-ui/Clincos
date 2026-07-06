@@ -111,9 +111,6 @@
     {% endif %}
     <div class="visit-more-btn" onclick="toggleMenu('menu-serving')">⋮</div>
     <div class="visit-menu" id="menu-serving">
-      <form method="POST" action="/visits/{{ serving.id }}/skip">
-        <button type="submit" class="visit-menu-item">Skip</button>
-      </form>
       <form method="POST" action="/visits/{{ serving.id }}/cancel">
         <button type="submit" class="visit-menu-item danger">Cancel</button>
       </form>
@@ -158,12 +155,9 @@
       <div class="visit-menu" id="menu-{{ visit.id }}">
         {% if not visit.is_emergency %}
         <form method="POST" action="/visits/{{ visit.id }}/emergency">
-          <button type="submit" class="visit-menu-item">🚨 Mark Emergency</button>
+          <button type="submit" class="visit-menu-item">Mark Emergency</button>
         </form>
         {% endif %}
-        <form method="POST" action="/visits/{{ visit.id }}/skip">
-          <button type="submit" class="visit-menu-item">Skip to End</button>
-        </form>
         <form method="POST" action="/visits/{{ visit.id }}/cancel">
           <button type="submit" class="visit-menu-item danger">Cancel</button>
         </form>
