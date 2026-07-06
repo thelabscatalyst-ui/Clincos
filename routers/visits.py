@@ -322,7 +322,14 @@ async def cancel_visit(
     doctor: Doctor = Depends(get_paying_doctor),
 ):
     visit = _get_visit(visit_id, doctor.id, db)
-    if visit and visit.status in (VisitStatus.waiting, VisitStatus.serving):
+    if visit and visit.status in (VisitStatus.waiting, VisitStatus.serving, VisitStatus.on_hold):
+        # Sync the linked appointment so it shows as Cancelled everywhere
+        # (dashboard, appointment card, badges) instead of staying "scheduled".
+        if visit.appointment_id:
+            appt = db.query(Appointment).filter(Appointment.id == visit.appointment_id).first()
+            if appt and appt.status == AppointmentStatus.scheduled:
+                appt.status = AppointmentStatus.cancelled
+                db.commit()
         vs.cancel_visit(db, visit)
     return RedirectResponse("/appointments", status_code=303)
 
