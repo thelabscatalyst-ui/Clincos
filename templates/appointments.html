@@ -475,6 +475,7 @@
   <div class="appt-row appt-row--striped
     {% if eff_status == 'serving' %}appt-row--serving
     {% elif eff_status == 'completed' %}appt-row--done
+    {% elif eff_status == 'cancelled' %}appt-row--done
     {% elif eff_status == 'no_show' %}appt-row--noshow
     {% elif appt.is_emergency %}appt-row--emergency
     {% endif %}"
