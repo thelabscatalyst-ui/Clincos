@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     # the one being edited ever got bumped. A returning visitor would then see
     # stale CSS on whichever page still pointed at an old version. Bump this
     # once when static assets change.
-    ASSET_VERSION: str = "167"
+    ASSET_VERSION: str = "168"
 
     class Config:
         env_file = ".env"

@@ -275,6 +275,96 @@ class TestQueueTransitions:
             assert r.status_code < 500
 
 
+class TestQueueReordering:
+    """Drag-to-reorder drives POST /visits/{id}/move. The route existed and was
+    already bounds-checked; these cover the JSON contract the drag relies on."""
+
+    AJAX = {"X-Requested-With": "fetch", "Accept": "application/json"}
+
+    def _queue(self, client, doc, n=4):
+        ids = []
+        for i in range(n):
+            p = make_patient(doc["id"], doc["clinic"], name=f"Queue {i}")
+            ids.append(make_visit(doc["id"], p, doc["clinic"],
+                                  position=i + 1, token=i + 1))
+        return ids
+
+    def test_move_answers_json_with_the_new_order(self, client, doc):
+        """The drag is optimistic, so the server returns the authoritative
+        order for the page to reconcile against."""
+        ids = self._queue(client, doc)
+        r = client.post(f"/visits/{ids[0]}/move", data={"new_position": 3},
+                        headers=self.AJAX, follow_redirects=False)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["ok"] is True and body["section"] == "queue"
+        assert body["order"][2] == ids[0], f"expected to land 3rd, got {body['order']}"
+        assert len(body["order"]) == len(ids)
+
+    def test_move_still_redirects_for_a_plain_form_post(self, client, doc):
+        ids = self._queue(client, doc)
+        r = client.post(f"/visits/{ids[0]}/move", data={"new_position": 2},
+                        follow_redirects=False)
+        assert r.status_code == 303
+
+    def test_positions_stay_contiguous_after_a_move(self, client, doc):
+        """The queue is rebuilt as a list and renumbered 1..N, so a drag can
+        never leave a gap or a duplicate for the next patient to inherit."""
+        ids = self._queue(client, doc, n=5)
+        client.post(f"/visits/{ids[4]}/move", data={"new_position": 1},
+                    headers=self.AJAX, follow_redirects=False)
+        positions = sorted(visit_row(i)["position"] for i in ids)
+        assert positions == [1, 2, 3, 4, 5], positions
+
+    def test_tokens_are_not_reshuffled_by_a_move(self, client, doc):
+        """Token numbers are printed on the patient's slip. If a reorder
+        reassigned them, two people in the room would hold the same number."""
+        ids = self._queue(client, doc)
+        before = {i: visit_row(i) for i in ids}
+        client.post(f"/visits/{ids[0]}/move", data={"new_position": 4},
+                    headers=self.AJAX, follow_redirects=False)
+        db = TestSessionLocal()
+        try:
+            for i in ids:
+                v = db.query(Visit).filter(Visit.id == i).first()
+                assert v.token_number == db.query(Visit).filter(
+                    Visit.id == i).first().token_number
+        finally:
+            db.close()
+        # positions changed, the set of tokens did not
+        assert {visit_row(i)["position"] for i in ids} == {1, 2, 3, 4}
+
+    def test_moving_a_patient_who_was_already_called_is_refused(self, client, doc):
+        """The page can be seconds stale — someone calls the patient from
+        another device mid-drag. Saying so beats the row snapping back
+        for no visible reason."""
+        ids = self._queue(client, doc)
+        client.post(f"/visits/{ids[0]}/call", follow_redirects=False)
+        r = client.post(f"/visits/{ids[0]}/move", data={"new_position": 3},
+                        headers=self.AJAX, follow_redirects=False)
+        assert r.status_code == 400
+        assert r.json()["ok"] is False
+        assert "no longer waiting" in r.json()["message"]
+
+    def test_an_out_of_range_position_is_clamped_not_rejected(self, client, doc):
+        ids = self._queue(client, doc)
+        r = client.post(f"/visits/{ids[0]}/move", data={"new_position": 9999},
+                        headers=self.AJAX, follow_redirects=False)
+        assert r.status_code == 200
+        assert r.json()["order"][-1] == ids[0]
+
+    def test_another_doctor_cannot_reorder_your_queue(self, client, doc):
+        ids = self._queue(client, doc)
+        before = [visit_row(i)["position"] for i in ids]
+        register(client, "queue-thief@test.com")
+        verify_email("queue-thief@test.com")
+        login(client, "queue-thief@test.com")
+        client.post(f"/visits/{ids[0]}/move", data={"new_position": 4},
+                    headers=self.AJAX, follow_redirects=False)
+        assert [visit_row(i)["position"] for i in ids] == before, (
+            "another doctor reordered this queue")
+
+
 class TestEmergencyCanBeUndone:
     """Cancelling the patient was the only way out of an emergency flag set
     by mistake."""

@@ -9165,3 +9165,95 @@ form[data-guard].is-dirty .settings-card { border-color: var(--warning); }
   .prompt-modal .modal-actions .btn { border-radius: var(--radius-sm); }
   .prompt-modal .modal-actions .btn:first-child { border-right: 1px solid var(--border-light); }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Queue reordering (static/js/queue-reorder.js)                       */
+/* ------------------------------------------------------------------ */
+
+/* Visually hidden, still read aloud. The drag announces itself through a
+   live region because a screen reader gets nothing from rows moving. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.queue-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 34px;
+  flex-shrink: 0;
+  margin-left: -6px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: grab;
+  padding: 0;
+  /* The row itself is a pointer target; the handle must win the gesture. */
+  touch-action: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.queue-handle svg { fill: currentColor; }
+.queue-handle:hover { color: var(--text-muted); background: var(--bg-3); }
+.queue-handle:focus-visible {
+  outline: 2px solid var(--border-light);
+  outline-offset: 1px;
+  color: var(--text);
+}
+.queue-handle:active { cursor: grabbing; }
+
+/* The lift-on-hover from .visit-row fights a drag — the row under the
+   pointer would bob while being carried. */
+.queue-is-dragging .visit-row:hover { transform: none; box-shadow: none; }
+
+.visit-row.queue-dragging {
+  position: absolute;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  opacity: 0.97;
+  transform: scale(1.01);
+  cursor: grabbing;
+}
+html.light .visit-row.queue-dragging { box-shadow: 0 12px 32px rgba(90, 60, 25, 0.22); }
+
+/* Where the row will land. */
+.queue-placeholder {
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  opacity: 0.5;
+}
+
+/* Keyboard equivalent of "picked up". */
+.visit-row.queue-held {
+  border-color: var(--warning);
+  box-shadow: 0 0 0 1px var(--warning);
+}
+
+/* The list is the positioning context for a dragged row. */
+.visit-list[data-queue-reorder] { position: relative; }
+
+/* In flight to the server. Deliberately subtle — the move already happened
+   on screen and is almost always going to stick. */
+.visit-list.queue-saving { opacity: 0.85; }
+
+/* Stop text selecting under the finger mid-drag. */
+body.queue-drag-active { user-select: none; -webkit-user-select: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .visit-row.queue-dragging { transform: none; }
+  .queue-handle { transition: none; }
+}
+
+@media (max-width: 767px) {
+  /* Bigger target for a thumb. */
+  .queue-handle { width: 34px; min-height: 40px; margin-left: -8px; }
+}
