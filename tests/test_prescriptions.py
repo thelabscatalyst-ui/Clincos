@@ -12,7 +12,7 @@ import pytest
 
 from tests.conftest import TestSessionLocal
 from tests.helpers import (make_doctor, clinic_of, make_patient, make_visit,
-                           give_schedule, login, phone)
+                           give_schedule, login, phone, register, verify_email)
 from database.models import Prescription, PrescriptionItem, VisitStatus
 
 
@@ -224,3 +224,100 @@ class TestEditAndDelete:
         for path in ("/prescriptions/999999", "/prescriptions/999999/print",
                      "/prescriptions/999999/edit"):
             assert client.get(path, follow_redirects=False).status_code < 500
+
+
+# --------------------------------------------------------------------------- #
+#  Blank drafts                                                                 #
+# --------------------------------------------------------------------------- #
+
+class TestBlankDraftsAreNotKept:
+    """/prescriptions/new creates the row the moment the screen opens, so that
+    nothing typed can be lost. The cost was that opening the screen and walking
+    away left a blank prescription on the patient's record."""
+
+    def _open_draft(self, client, doc):
+        r = client.get(f"/prescriptions/new?patient_id={doc['patient']}",
+                       follow_redirects=False)
+        assert r.status_code == 303
+        return int(r.headers["location"].split("/")[2])
+
+    def test_opening_the_editor_creates_a_draft(self, client, doc):
+        """Guards the premise — if this stops being true the rest is moot."""
+        rx = self._open_draft(client, doc)
+        db = TestSessionLocal()
+        try:
+            assert db.query(Prescription).filter(Prescription.id == rx).first() is not None
+        finally:
+            db.close()
+
+    def test_a_blank_draft_is_discarded_on_the_way_out(self, client, doc):
+        rx = self._open_draft(client, doc)
+        r = client.post(f"/prescriptions/{rx}/discard-if-empty", follow_redirects=False)
+        assert r.status_code == 200 and r.json()["discarded"] is True
+        db = TestSessionLocal()
+        try:
+            assert db.query(Prescription).filter(Prescription.id == rx).first() is None
+        finally:
+            db.close()
+
+    def test_a_draft_with_a_diagnosis_is_kept(self, client, doc):
+        rx = self._open_draft(client, doc)
+        client.post(f"/prescriptions/{rx}/autosave",
+                    json={"diagnosis": "Viral fever", "advice": "", "follow_up": "",
+                          "items": []})
+        r = client.post(f"/prescriptions/{rx}/discard-if-empty", follow_redirects=False)
+        assert r.json()["discarded"] is False
+        db = TestSessionLocal()
+        try:
+            assert db.query(Prescription).filter(Prescription.id == rx).first() is not None
+        finally:
+            db.close()
+
+    def test_a_draft_with_only_a_drug_is_kept(self, client, doc):
+        """No diagnosis typed, but a drug line is real clinical content."""
+        rx = self._open_draft(client, doc)
+        client.post(f"/prescriptions/{rx}/autosave",
+                    json={"diagnosis": "", "advice": "", "follow_up": "",
+                          "items": [{"drug_name": "Paracetamol", "dosage": "500mg",
+                                     "frequency": "Twice daily", "duration": "3 days",
+                                     "instructions": "After food", "notes": ""}]})
+        r = client.post(f"/prescriptions/{rx}/discard-if-empty", follow_redirects=False)
+        assert r.json()["discarded"] is False
+
+    def test_a_late_beacon_cannot_delete_work_typed_since(self, client, doc):
+        """The unload beacon can land after the doctor reopened the draft and
+        started typing. The endpoint re-checks server-side for exactly this."""
+        rx = self._open_draft(client, doc)
+        client.post(f"/prescriptions/{rx}/autosave",
+                    json={"diagnosis": "Typed after leaving", "advice": "",
+                          "follow_up": "", "items": []})
+        client.post(f"/prescriptions/{rx}/discard-if-empty")
+        db = TestSessionLocal()
+        try:
+            assert db.query(Prescription).filter(Prescription.id == rx).first() is not None
+        finally:
+            db.close()
+
+    def test_blank_drafts_do_not_show_on_the_patients_list(self, client, doc):
+        """Covers the ones already in the database from before this existed."""
+        blank = self._open_draft(client, doc)
+        real  = self._open_draft(client, doc)
+        client.post(f"/prescriptions/{real}/autosave",
+                    json={"diagnosis": "Migraine", "advice": "", "follow_up": "",
+                          "items": []})
+        body = client.get(f"/patients/{doc['patient']}/prescriptions").text
+        assert "Migraine" in body
+        assert f"/prescriptions/{blank}" not in body
+
+    def test_another_doctor_cannot_discard_your_draft(self, client, doc):
+        rx = self._open_draft(client, doc)
+        register(client, "rx-thief@test.com")
+        verify_email("rx-thief@test.com")
+        login(client, "rx-thief@test.com")
+        client.post(f"/prescriptions/{rx}/discard-if-empty")
+        db = TestSessionLocal()
+        try:
+            assert db.query(Prescription).filter(Prescription.id == rx).first() is not None, (
+                "another doctor discarded this draft")
+        finally:
+            db.close()

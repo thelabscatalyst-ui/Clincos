@@ -495,6 +495,15 @@ function collectRxPayload() {
   };
 }
 
+/* /prescriptions/new creates the row the moment this screen opens, so that
+   nothing typed is ever lost. The cost: open it, change your mind, walk away,
+   and a blank prescription stays on the patient's record. Every exit path
+   below checks this first. */
+function rxIsBlank() {
+  const p = collectRxPayload();
+  return !p.diagnosis.trim() && !p.advice.trim() && !p.follow_up.trim() && !p.items.length;
+}
+
 function setAutosaveStatus(text) {
   const el = document.getElementById('autosaveStatus');
   if (el) el.textContent = text;
@@ -533,6 +542,15 @@ async function doAutosave() {
 
 async function flushAutosave() {
   clearTimeout(autosaveTimer);
+  if (rxIsBlank()) {
+    /* Don't autosave a blank draft on the way out — drop it instead. */
+    try {
+      await fetch(`/prescriptions/${RX_ID}/discard-if-empty`, {
+        method: 'POST', credentials: 'same-origin',
+      });
+    } catch (e) { /* the sweep on the patient's list catches it later */ }
+    return;
+  }
   await doAutosave();
 }
 
@@ -546,6 +564,15 @@ rxForm.addEventListener('change', function(e) {
 });
 
 window.addEventListener('beforeunload', function() {
+  /* Back button, tab close, typed URL. sendBeacon is the only thing that
+     reliably survives unload. The discard endpoint re-checks emptiness
+     server-side, so a beacon arriving after the doctor reopened the draft
+     and started typing cannot delete real work. */
+  if (rxIsBlank()) {
+    clearTimeout(autosaveTimer);
+    navigator.sendBeacon(`/prescriptions/${RX_ID}/discard-if-empty`, new Blob([], { type: 'text/plain' }));
+    return;
+  }
   if (autosaveTimer) {
     clearTimeout(autosaveTimer);
     const payload = JSON.stringify(collectRxPayload());

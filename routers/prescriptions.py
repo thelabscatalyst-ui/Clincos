@@ -381,6 +381,43 @@ async def prescription_autosave(
 #  Delete — POST                                                               #
 # --------------------------------------------------------------------------- #
 
+def _is_blank(rx: Prescription, db: Session) -> bool:
+    """Nothing clinical was ever written on this prescription."""
+    if (rx.diagnosis or "").strip() or (rx.advice or "").strip() or (rx.follow_up or "").strip():
+        return False
+    return db.query(PrescriptionItem).filter(
+        PrescriptionItem.prescription_id == rx.id
+    ).count() == 0
+
+
+@router.post("/prescriptions/{rx_id}/discard-if-empty")
+def prescription_discard_if_empty(
+    rx_id: int,
+    request: Request,
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    """Drop a draft the doctor opened and never wrote anything on.
+
+    /prescriptions/new creates the row the moment the screen opens, so that
+    nothing typed can ever be lost. The cost is that opening the screen and
+    walking away left a blank prescription on the patient's record. The
+    editor calls this on its way out.
+
+    Deliberately conditional and idempotent: it deletes only while the row is
+    still blank, so a beacon that arrives late — after the doctor reopened
+    the draft and started typing — cannot destroy real work.
+    """
+    rx = _get_prescription_or_404(rx_id, doctor.id, db)
+    if not rx:
+        return JSONResponse({"discarded": False, "reason": "not_found"}, status_code=404)
+    if not _is_blank(rx, db):
+        return JSONResponse({"discarded": False, "reason": "not_empty"})
+    db.delete(rx)
+    db.commit()
+    return JSONResponse({"discarded": True})
+
+
 @router.post("/prescriptions/{rx_id}/delete")
 def prescription_delete(
     rx_id: int,
@@ -425,6 +462,11 @@ def patient_prescriptions(
         .order_by(Prescription.created_at.desc())
         .all()
     )
+    # Blank drafts from before discard-if-empty existed, plus any whose beacon
+    # never landed. A prescription with no diagnosis, no advice, no follow-up
+    # and no drugs says nothing about the patient — keeping it on the record
+    # is worse than useless, it is one more row to read past.
+    prescriptions = [rx for rx in prescriptions if not _is_blank(rx, db)]
 
     return templates.TemplateResponse(request, "prescription_list.html", {
         "doctor":        doctor,
