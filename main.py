@@ -26,6 +26,7 @@ from services.auth_service import (
     PlanExpired, PinRequired, OwnerOnly, EmailNotVerified, decode_token, create_access_token, should_renew,
 )
 from routers.clinic import ClinicAdminAuthRequired
+from services.ajax import wants_json, gate_json
 from config import settings
 
 # ── Auth rate limiter — max 10 attempts per client IP per 15 minutes ────────
@@ -462,6 +463,11 @@ async def email_not_verified_handler(request: Request, exc: EmailNotVerified):
 
 @app.exception_handler(PlanExpired)
 async def plan_expired_handler(request: Request, exc: PlanExpired):
+    if wants_json(request):
+        _lapsed = getattr(exc, "reason", "personal") == "clinic"
+        return gate_json("plan_expired",
+                         "Your plan has lapsed \u2014 renew to save changes.",
+                         "/plan-lapsed" if _lapsed else "/billing", 402)
     # Associates and clinic-plan doctors can't renew themselves — show lapsed page
     if getattr(exc, "reason", "personal") == "clinic":
         return RedirectResponse(url="/plan-lapsed", status_code=303)
@@ -539,11 +545,23 @@ async def owner_only_handler(request: Request, exc: OwnerOnly):
     303 for every method: these are whole pages, and a GET that 307'd would
     re-issue the blocked request at the new URL.
     """
+    # A fetch() follows that 303 and hands its caller a 200 HTML document, so
+    # res.json() would throw with nothing useful to show. Say no in JSON.
+    if wants_json(request):
+        return gate_json("owner_only",
+                         "Only the clinic owner can change that.",
+                         f"{exc.return_url}?denied=owner_only", 403)
     return RedirectResponse(url=f"{exc.return_url}?denied=owner_only", status_code=303)
 
 
 @app.exception_handler(PinRequired)
 async def pin_required_handler(request: Request, exc: PinRequired):
+    # pin_session lives for 30 minutes, so this fires for real on a settings
+    # page left open — the most likely way the fetch layer meets a redirect.
+    if wants_json(request):
+        return gate_json("pin_required",
+                         "Your PIN session expired \u2014 unlock to save.",
+                         exc.return_url, 401)
     # Redirect non-GET (form POSTs) directly to the parent GET page.
     # That page will render with pin_required=True and show the blur overlay.
     return RedirectResponse(url=exc.return_url, status_code=303)

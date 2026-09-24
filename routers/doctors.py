@@ -17,6 +17,7 @@ from database.models import (
 )
 from config import settings
 from services.clinic_context import scope_to_active_clinic
+from services.ajax import save_result
 from services.auth_service import (
     get_current_doctor, get_paying_doctor,
     require_pin, require_pin_auth, require_clinic_owner_context,
@@ -276,6 +277,7 @@ def settings_page(
     saved: str = "",
     pin_error: str = "",
     account_error: str = "",
+    error: str = "",
 ):
     # Build a list of 7 day dicts — each day has a primary shift + optional extra shifts
     days_data = []
@@ -416,7 +418,15 @@ def settings_page(
 
     account_error_msg = {
         "email_taken": "That email is already in use by another account.",
+        "required":    "Name and email are both required.",
     }.get(account_error, "")
+
+    # These two were being redirected to and then rendered by nobody, so a
+    # bad blocked-time range failed in total silence.
+    error_msg = {
+        "invalid_time": "That date or time is not valid.",
+        "time_order":   "The end time must be after the start time.",
+    }.get(error, "")
 
     return templates.TemplateResponse(request, "settings.html", {
         "doctor":               doctor,
@@ -430,6 +440,7 @@ def settings_page(
         "razorpay_configured":  bool(cfg.RAZORPAY_KEY_ID),
         "pin_error":            pin_error_msg,
         "account_error":        account_error_msg,
+        "error_msg":            error_msg,
         "pin_required":         getattr(request.state, "pin_required", False),
         "is_clinic_owner":      is_clinic_owner,
         "is_clinic_account":    is_clinic_account,
@@ -447,11 +458,20 @@ def settings_page(
 @router.post("/doctors/settings/schedule", response_class=HTMLResponse)
 async def save_schedule(
     request: Request,
-    avg_consult_mins: int = Form(10),
+    # Was `int = Form(10)` and written unconditionally, so ANY post that left
+    # the field out silently reset a doctor's 25 minutes to 10.
+    avg_consult_mins: Optional[int] = Form(None),
     doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
     form = await request.form()
+
+    def _int(key: str, default: int, lo: int, hi: int) -> int:
+        """Never 500 on a value a user could type. Fall back, then clamp."""
+        try:
+            return max(lo, min(hi, int(str(form.get(key, default)).strip())))
+        except (TypeError, ValueError):
+            return default
 
     # Schedules are per (doctor, clinic). Without the clinic filter the delete
     # below wiped a doctor's hours at EVERY clinic before re-inserting only the
@@ -467,6 +487,11 @@ async def save_schedule(
     # turning it ON writes shifts for the active clinic only.
     from services.clinic_context import active_memberships
     _all_clinic_ids = [m.clinic_id for m in active_memberships(db, doctor.id)]
+
+    # Shifts that don't parse, end before they start, or overlap the previous
+    # one are skipped below. That used to happen invisibly — the doctor saw
+    # "saved" and a row they had just typed was simply gone.
+    _dropped = 0
 
     for i in range(7):
         _day_off = form.get(f"active_{i}") != "on"
@@ -489,9 +514,9 @@ async def save_schedule(
         if _day_off:
             continue   # day is off — leave deleted
 
-        slot_dur    = int(form.get(f"slot_{i}",   15))
-        max_pat     = int(form.get(f"max_{i}",    30))
-        walk_buf    = max(0, int(form.get(f"walkin_buf_{i}", 0)))
+        slot_dur    = _int(f"slot_{i}",       15, 1, 480)
+        max_pat     = _int(f"max_{i}",        30, 1, 999)
+        walk_buf    = _int(f"walkin_buf_{i}",  0, 0, 999)
 
         # Read shifts in order: shift_start_{day}_{k} / shift_end_{day}_{k}
         prev_end = None
@@ -504,10 +529,13 @@ async def save_schedule(
                 st = dtime.fromisoformat(s)
                 et = dtime.fromisoformat(e)
             except ValueError:
+                _dropped += 1
                 continue
             if et <= st:
+                _dropped += 1
                 continue       # invalid range
             if prev_end and st < prev_end:
+                _dropped += 1
                 continue       # overlaps previous shift — skip
             db.add(DoctorSchedule(
                 doctor_id=doctor.id, day_of_week=i,
@@ -519,9 +547,17 @@ async def save_schedule(
             ))
             prev_end = et
 
-    doctor.avg_consult_mins = max(1, min(120, avg_consult_mins))
+    if avg_consult_mins is not None:
+        doctor.avg_consult_mins = max(1, min(120, avg_consult_mins))
     db.commit()
-    return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
+    return save_result(
+        request, ok=True, section="schedule",
+        message="Working hours updated",
+        tone="warning" if _dropped else "success",
+        warnings=([f"{_dropped} shift{'s' if _dropped > 1 else ''} ignored \u2014 "
+                   "overlapping, or ending before it started."] if _dropped else []),
+        redirect="/doctors/settings?saved=1",
+    )
 
 
 # ------------------------------------------------------------------ #
@@ -546,13 +582,19 @@ def save_account(
     medical_reg_number = medical_reg_number.strip()
 
     if not name or not email:
-        return RedirectResponse(url="/doctors/settings?saved=0", status_code=303)
+        # Was `?saved=0`, which the template renders as nothing at all — the
+        # save looked like it worked and quietly did not.
+        return save_result(request, ok=False, section="account",
+                           message="Name and email are both required.",
+                           redirect="/doctors/settings?account_error=required")
 
     # Check email uniqueness (only if changed)
     if email != doctor.email:
         existing = db.query(Doctor).filter(Doctor.email == email, Doctor.id != doctor.id).first()
         if existing:
-            return RedirectResponse(url="/doctors/settings?account_error=email_taken", status_code=303)
+            return save_result(request, ok=False, section="account",
+                               message="That email is already in use by another account.",
+                               redirect="/doctors/settings?account_error=email_taken")
 
     doctor.name               = name
     doctor.email              = email
@@ -560,7 +602,9 @@ def save_account(
     doctor.specialization     = specialization or None
     doctor.medical_reg_number = medical_reg_number or None
     db.commit()
-    return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
+    return save_result(request, ok=True, section="account",
+                       message="Account details updated",
+                       redirect="/doctors/settings?saved=1")
 
 
 # ------------------------------------------------------------------ #
@@ -582,7 +626,9 @@ def save_profile(
     doctor.clinic_address = clinic_address.strip() or None
     doctor.languages = languages.strip() or None
     db.commit()
-    return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
+    return save_result(request, ok=True, section="profile",
+                       message="Clinic profile updated",
+                       redirect="/doctors/settings?saved=1")
 
 
 # ------------------------------------------------------------------ #
@@ -600,18 +646,25 @@ def add_blocked_date(
     try:
         d = date.fromisoformat(blocked_date)
     except ValueError:
-        return RedirectResponse(url="/doctors/settings", status_code=303)
+        return save_result(request, ok=False, section="blocked_dates",
+                           message="That date is not valid.",
+                           redirect="/doctors/settings?error=invalid_time")
 
     exists = db.query(BlockedDate).filter(
         BlockedDate.doctor_id == doctor.id,
         BlockedDate.blocked_date == d,
     ).first()
 
-    if not exists:
-        db.add(BlockedDate(doctor_id=doctor.id, blocked_date=d, reason=reason.strip() or None))
-        db.commit()
+    if exists:
+        return save_result(request, ok=True, section="blocked_dates",
+                           tone="warning", message="That date was already blocked.",
+                           redirect="/doctors/settings?saved=1")
 
-    return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
+    db.add(BlockedDate(doctor_id=doctor.id, blocked_date=d, reason=reason.strip() or None))
+    db.commit()
+    return save_result(request, ok=True, section="blocked_dates",
+                       message="Date blocked",
+                       redirect="/doctors/settings?saved=1")
 
 
 # ------------------------------------------------------------------ #
@@ -620,6 +673,7 @@ def add_blocked_date(
 
 @router.post("/doctors/settings/unblock/{block_id}", response_class=HTMLResponse)
 def remove_blocked_date(
+    request: Request,
     block_id: int,
     doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
@@ -631,7 +685,9 @@ def remove_blocked_date(
     if record:
         db.delete(record)
         db.commit()
-    return RedirectResponse(url="/doctors/settings", status_code=303)
+    return save_result(request, ok=True, section="blocked_dates",
+                       message="Blocked date removed",
+                       redirect="/doctors/settings?saved=1")
 
 
 # ------------------------------------------------------------------ #
@@ -654,10 +710,14 @@ def add_blocked_time(
         st = time_cls.fromisoformat(start_time)
         et = time_cls.fromisoformat(end_time)
     except ValueError:
-        return RedirectResponse(url="/doctors/settings?error=invalid_time", status_code=303)
+        return save_result(request, ok=False, section="blocked_times",
+                           message="That date or time is not valid.",
+                           redirect="/doctors/settings?error=invalid_time")
 
     if st >= et:
-        return RedirectResponse(url="/doctors/settings?error=time_order", status_code=303)
+        return save_result(request, ok=False, section="blocked_times",
+                           message="The end time must be after the start time.",
+                           redirect="/doctors/settings?error=time_order")
 
     db.add(BlockedTime(
         doctor_id    = doctor.id,
@@ -667,7 +727,9 @@ def add_blocked_time(
         reason       = reason.strip() or None,
     ))
     db.commit()
-    return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
+    return save_result(request, ok=True, section="blocked_times",
+                       message="Time blocked",
+                       redirect="/doctors/settings?saved=1")
 
 
 # ------------------------------------------------------------------ #
@@ -676,6 +738,7 @@ def add_blocked_time(
 
 @router.post("/doctors/settings/unblocktime/{bt_id}", response_class=HTMLResponse)
 def remove_blocked_time(
+    request: Request,
     bt_id:  int,
     doctor: Doctor  = Depends(require_pin),
     db: Session     = Depends(get_db),
@@ -687,7 +750,9 @@ def remove_blocked_time(
     if record:
         db.delete(record)
         db.commit()
-    return RedirectResponse(url="/doctors/settings", status_code=303)
+    return save_result(request, ok=True, section="blocked_times",
+                       message="Blocked time removed",
+                       redirect="/doctors/settings?saved=1")
 
 
 # ------------------------------------------------------------------ #
@@ -1467,14 +1532,26 @@ async def update_pin(
     doctor: Doctor = Depends(get_paying_doctor),   # not require_pin — PIN setup is the entry point
     db: Session = Depends(get_db),
 ):
+    # Read before mutating — the success message below depends on whether a
+    # PIN already existed, and doctor.pin_hash is about to change.
+    _had_pin = bool(doctor.pin_hash)
+
     if action == "remove":
-        if not doctor.pin_hash:
-            return RedirectResponse("/doctors/settings?saved=1", 303)
+        if not _had_pin:
+            return save_result(request, ok=True, section="pin", tone="warning",
+                               message="No PIN was set.",
+                               redirect="/doctors/settings?saved=1",
+                               extra={"pin_enabled": False})
         if not verify_password(current_pin.strip(), doctor.pin_hash):
-            return RedirectResponse("/doctors/settings?pin_error=wrong", 303)
+            return save_result(request, ok=False, section="pin",
+                               message="That current PIN is not correct.",
+                               redirect="/doctors/settings?pin_error=wrong")
         doctor.pin_hash = None
         db.commit()
-        resp = RedirectResponse("/doctors/settings?saved=1", 303)
+        resp = save_result(request, ok=True, section="pin",
+                           message="PIN removed",
+                           redirect="/doctors/settings?saved=1",
+                           extra={"pin_enabled": False})
         resp.delete_cookie("pin_session")
         return resp
 
@@ -1482,17 +1559,28 @@ async def update_pin(
     pin = new_pin.strip()
     confirm = confirm_pin.strip()
     if not pin.isdigit() or len(pin) != 6:
-        return RedirectResponse("/doctors/settings?pin_error=invalid", 303)
+        return save_result(request, ok=False, section="pin",
+                           message="A PIN must be exactly 6 digits.",
+                           redirect="/doctors/settings?pin_error=invalid")
     if pin != confirm:
-        return RedirectResponse("/doctors/settings?pin_error=mismatch", 303)
-    if doctor.pin_hash and not verify_password(current_pin.strip(), doctor.pin_hash):
-        return RedirectResponse("/doctors/settings?pin_error=wrong", 303)
+        return save_result(request, ok=False, section="pin",
+                           message="The two PINs do not match.",
+                           redirect="/doctors/settings?pin_error=mismatch")
+    if _had_pin and not verify_password(current_pin.strip(), doctor.pin_hash):
+        return save_result(request, ok=False, section="pin",
+                           message="That current PIN is not correct.",
+                           redirect="/doctors/settings?pin_error=wrong")
 
     doctor.pin_hash = hash_password(pin)
     db.commit()
 
-    # Issue pin_session so the doctor stays verified after setting PIN
-    resp = RedirectResponse("/doctors/settings?saved=1", 303)
+    # Issue pin_session so the doctor stays verified after setting PIN.
+    # set_cookie works identically on a JSONResponse, and the fetch layer
+    # sends credentials: 'same-origin', so the browser stores it either way.
+    resp = save_result(request, ok=True, section="pin",
+                       message="PIN updated" if _had_pin else "PIN set",
+                       redirect="/doctors/settings?saved=1",
+                       extra={"pin_enabled": True})
     token = create_pin_token(doctor.id)
     resp.set_cookie("pin_session", token, httponly=True, secure=settings.ENVIRONMENT.lower() == "production", samesite="lax", max_age=1800)
     return resp

@@ -25,6 +25,7 @@ from database.models import (
     PriceCatalog, PaymentMode, ClinicDoctor, Appointment,
 )
 from services.auth_service import get_paying_doctor, require_clinic_owner_context
+from services.ajax import save_result
 import services.visit_service as vs
 
 router = APIRouter(tags=["billing_ops"])
@@ -576,7 +577,11 @@ async def add_catalog_item(
     )
     db.add(item)
     db.commit()
-    return RedirectResponse("/doctors/settings?tab=catalog", status_code=303)
+    # Was ?tab=catalog — a param the settings page never reads, so adding a
+    # price gave the doctor no confirmation of any kind.
+    return save_result(request, ok=True, section="catalog",
+                       message="Price added",
+                       redirect="/doctors/settings?saved=1")
 
 
 @router.post("/price-catalog/{item_id}/delete")
@@ -593,7 +598,9 @@ async def delete_catalog_item(
     if item:
         item.is_active = False
         db.commit()
-    return RedirectResponse("/doctors/settings?tab=catalog", status_code=303)
+    return save_result(request, ok=True, section="catalog",
+                       message="Price removed",
+                       redirect="/doctors/settings?saved=1")
 
 
 @router.post("/price-catalog/{item_id}/pin")
@@ -607,7 +614,12 @@ async def toggle_pin(
         PriceCatalog.id == item_id,
         PriceCatalog.doctor_id == doctor.id,
     ).first()
+    _pinned = False
     if item:
         item.is_pinned = not item.is_pinned
+        _pinned = item.is_pinned
         db.commit()
-    return RedirectResponse("/doctors/settings?tab=catalog", status_code=303)
+    return save_result(request, ok=True, section="catalog",
+                       message="Pinned as a quick button" if _pinned
+                               else "Quick button removed",
+                       redirect="/doctors/settings?saved=1")
