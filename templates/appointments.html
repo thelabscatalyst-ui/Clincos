@@ -261,25 +261,9 @@
   {% if waiting %}
   <div class="queue-block">
     <div class="queue-block-label">Waiting <span class="section-count">({{ waiting|length }})</span></div>
-    {# data-queue-reorder turns this list into a drag target; see
-       static/js/queue-reorder.js. Only the waiting list is reorderable —
-       the route refuses anything that has already been called. #}
-    <div class="visit-list" data-queue-reorder>
+    <div class="visit-list">
       {% for visit in waiting %}
-      <div class="visit-row {% if visit.is_emergency %}visit-emergency{% endif %}"
-           data-visit-id="{{ visit.id }}">
-        <button type="button" class="queue-handle"
-                aria-label="Reorder {{ visit.patient.name }}, currently position {{ loop.index }}"
-                title="Drag to reorder · or press space and use the arrow keys">
-          <svg width="12" height="16" viewBox="0 0 12 16" aria-hidden="true">
-            <circle cx="3" cy="3"  r="1.4"/><circle cx="9" cy="3"  r="1.4"/>
-            <circle cx="3" cy="8"  r="1.4"/><circle cx="9" cy="8"  r="1.4"/>
-            <circle cx="3" cy="13" r="1.4"/><circle cx="9" cy="13" r="1.4"/>
-          </svg>
-        </button>
-        {# The token stays put. It is monotonic and printed on the patient's
-           slip, so it must not shuffle when the queue is reordered — the
-           order is the row order. #}
+      <div class="visit-row {% if visit.is_emergency %}visit-emergency{% endif %}">
         <div class="visit-token-sm">#{{ visit.token_number }}{% if visit.is_emergency %} 🚨{% endif %}</div>
         <div class="visit-info">
           <div class="visit-name">{{ visit.patient.name }}</div>
@@ -767,8 +751,6 @@
 {% endblock %}
 
 {% block scripts %}
-<div id="queueLive" class="sr-only" role="status" aria-live="polite"></div>
-<script src="/static/js/queue-reorder.js?v={{ request.state.asset_v }}" defer></script>
 <script>
 function toggleWalkin() {
   const panel = document.getElementById('walkinPanel');

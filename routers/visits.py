@@ -32,7 +32,6 @@ from database.models import (
 from services.auth_service import get_paying_doctor
 from services.appointment_service import get_or_create_patient
 import services.visit_service as vs
-from services.ajax import save_result
 
 router = APIRouter(tags=["visits"])
 templates = Jinja2Templates(directory="templates")
@@ -391,45 +390,9 @@ async def move_visit(
     doctor: Doctor = Depends(get_paying_doctor),
 ):
     visit = _get_visit(visit_id, doctor.id, db)
-    if not visit:
-        return save_result(request, ok=False, section="queue",
-                           message="That patient is no longer in the queue.",
-                           redirect="/appointments")
-    if visit.status != VisitStatus.waiting:
-        # Called, held or closed while the drag was in flight. The page the
-        # doctor is looking at is stale, so say so rather than silently
-        # doing nothing and letting the row snap back for no visible reason.
-        return save_result(request, ok=False, section="queue",
-                           message=f"{visit.patient.name} is no longer waiting — "
-                                   "the queue has moved on.",
-                           redirect="/appointments")
-
-    vs.move_visit(db, visit, new_position)
-    return save_result(request, ok=True, section="queue",
-                       message="Queue reordered",
-                       redirect="/appointments",
-                       extra={"order": _waiting_order(db, visit)})
-
-
-def _waiting_order(db: Session, visit: Visit):
-    """The queue as it now stands, so the client can reconcile rather than guess.
-
-    A drag is optimistic — the row moves before the server has agreed. Returning
-    the authoritative order lets the page correct itself if another device
-    reordered the same queue a moment earlier.
-    """
-    rows = (
-        db.query(Visit)
-        .filter(
-            Visit.doctor_id  == visit.doctor_id,
-            Visit.clinic_id  == visit.clinic_id,
-            Visit.visit_date == visit.visit_date,
-            Visit.status     == VisitStatus.waiting,
-        )
-        .order_by(Visit.queue_position.asc())
-        .all()
-    )
-    return [v.id for v in rows]
+    if visit and visit.status == VisitStatus.waiting:
+        vs.move_visit(db, visit, new_position)
+    return RedirectResponse("/appointments", status_code=303)
 
 
 # --------------------------------------------------------------------------- #
