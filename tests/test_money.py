@@ -65,6 +65,27 @@ class TestPriceCatalog:
         finally:
             db.close()
 
+    def test_add_answers_json_for_fetch(self, client, doc):
+        """The settings page saves the catalog in place now, so the route has
+        to answer the fetch layer as well as a plain form post."""
+        r = client.post("/price-catalog",
+                        data={"name": "Dressing", "price": "250"},
+                        headers={"X-Requested-With": "fetch",
+                                 "Accept": "application/json"},
+                        follow_redirects=False)
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+        assert r.json()["message"] == "Price added"
+
+    def test_a_form_post_redirects_somewhere_the_page_actually_reads(self, client, doc):
+        """It used to redirect to ?tab=catalog. Nothing reads `tab`, so adding
+        a price confirmed nothing at all."""
+        r = client.post("/price-catalog",
+                        data={"name": "Suture", "price": "400"},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/doctors/settings?saved=1"
+
     def test_pin_and_delete_item(self, client, doc):
         client.post("/price-catalog", data={"name": "X-Ray", "price": "800"},
                     follow_redirects=False)

@@ -440,3 +440,208 @@ class TestMiscEndpoints:
     def test_logout_clears_the_session(self, client, doc):
         client.get("/logout", follow_redirects=False)
         assert client.get("/dashboard", follow_redirects=False).status_code in (302, 303)
+
+
+# --------------------------------------------------------------------------- #
+#  Settings — the JSON save layer                                               #
+# --------------------------------------------------------------------------- #
+
+# What static/js/settings-save.js sends. Two headers, because wants_json()
+# trusts X-Requested-With first and falls back to Accept for anyone else.
+AJAX = {"X-Requested-With": "fetch", "Accept": "application/json"}
+
+
+class TestSettingsJsonSaves:
+    """Each settings section saves on its own via fetch and reports its own
+    result. The plain form POST must keep working byte-for-byte, because it
+    is still the no-JS path and the offline fallback."""
+
+    def test_profile_save_answers_json_for_fetch(self, client, doc):
+        set_pin(client)
+        r = client.post("/doctors/settings/profile",
+                        data={"clinic_name": "Renamed Clinic", "city": "Pune",
+                              "clinic_address": "", "languages": ""},
+                        headers=AJAX, follow_redirects=False)
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("application/json")
+        assert r.json() == {"ok": True, "section": "profile",
+                            "message": "Clinic profile updated",
+                            "tone": "success", "warnings": []}
+
+    def test_profile_save_still_redirects_for_a_plain_form_post(self, client, doc):
+        """The whole point of branching on the header rather than adding a
+        second set of routes: with JavaScript off, nothing changes."""
+        set_pin(client)
+        r = client.post("/doctors/settings/profile",
+                        data={"clinic_name": "X", "city": "",
+                              "clinic_address": "", "languages": ""},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == "/doctors/settings?saved=1"
+
+    def test_missing_name_is_a_reported_failure_not_a_silent_one(self, client, doc):
+        """Used to redirect to ?saved=0, which the template renders as
+        nothing at all — the save looked like it had worked."""
+        set_pin(client)
+        r = client.post("/doctors/settings/account",
+                        data={"name": "", "email": doc["email"], "phone": "",
+                              "specialization": "", "medical_reg_number": ""},
+                        headers=AJAX, follow_redirects=False)
+        assert r.status_code == 400
+        assert r.json()["ok"] is False
+        assert r.json()["message"]
+
+    def test_reversed_blocked_time_range_reports_the_error(self, client, doc):
+        """Used to redirect to ?error=time_order, which nothing read."""
+        set_pin(client)
+        r = client.post("/doctors/settings/blocktime",
+                        data={"blocked_date": "2030-01-01", "start_time": "18:00",
+                              "end_time": "09:00", "reason": ""},
+                        headers=AJAX, follow_redirects=False)
+        assert r.status_code == 400
+        assert r.json()["ok"] is False
+        assert "end time" in r.json()["message"].lower()
+
+    def test_a_non_numeric_slot_length_does_not_500(self, client, doc):
+        """int(form.get(...)) had no guard, so a value a user could type was
+        a 500 on a settings save."""
+        set_pin(client)
+        r = client.post("/doctors/settings/schedule",
+                        data={"active_0": "on", "shift_start_0_0": "09:00",
+                              "shift_end_0_0": "13:00", "slot_0": "abc",
+                              "max_0": "", "walkin_buf_0": "-4"},
+                        headers=AJAX, follow_redirects=False)
+        assert r.status_code < 500
+        assert r.json()["ok"] is True
+
+    def test_a_schedule_save_does_not_reset_avg_consult_mins(self, client, doc):
+        """It was Form(10) and written unconditionally, so any post that left
+        the field out silently reset a doctor's 25 minutes to 10."""
+        db = TestSessionLocal()
+        try:
+            db.query(Doctor).filter(Doctor.id == doc["id"]).first().avg_consult_mins = 25
+            db.commit()
+        finally:
+            db.close()
+
+        set_pin(client)
+        client.post("/doctors/settings/schedule",
+                    data={"active_0": "on", "shift_start_0_0": "09:00",
+                          "shift_end_0_0": "13:00"},
+                    headers=AJAX, follow_redirects=False)
+
+        db = TestSessionLocal()
+        try:
+            assert db.query(Doctor).filter(Doctor.id == doc["id"]).first() \
+                     .avg_consult_mins == 25
+        finally:
+            db.close()
+
+    def test_dropped_shifts_are_admitted_not_swallowed(self, client, doc):
+        """Overlapping and backwards shifts are skipped. That used to happen
+        invisibly: the doctor saw "saved" and a row they typed was gone."""
+        set_pin(client)
+        r = client.post("/doctors/settings/schedule",
+                        data={"active_0": "on",
+                              "shift_start_0_0": "09:00", "shift_end_0_0": "13:00",
+                              "shift_start_0_1": "10:00", "shift_end_0_1": "14:00",
+                              "shift_start_0_2": "18:00", "shift_end_0_2": "17:00"},
+                        headers=AJAX, follow_redirects=False)
+        body = r.json()
+        assert body["ok"] is True
+        assert body["tone"] == "warning"
+        assert body["warnings"] and "2" in body["warnings"][0]
+
+    def test_setting_a_pin_over_fetch_still_issues_the_session_cookie(self, client, doc):
+        """set_cookie works the same on a JSONResponse, but the save layer has
+        to send credentials for the browser to keep it — worth pinning down."""
+        client.cookies.pop("pin_session", None)
+        r = client.post("/doctors/settings/pin",
+                        data={"action": "set", "current_pin": "",
+                              "new_pin": "424242", "confirm_pin": "424242"},
+                        headers=AJAX, follow_redirects=False)
+        assert r.status_code == 200
+        assert r.json()["message"] == "PIN set"
+        assert r.json()["pin_enabled"] is True
+        assert "pin_session" in r.cookies
+
+    def test_removing_a_pin_over_fetch_takes_the_remove_branch(self, client, doc):
+        """The Remove button carries name="action" value="remove", which
+        new FormData(form) does not include — the save layer has to add the
+        submitter itself or this silently validates three empty fields."""
+        set_pin(client, "424242")
+        r = client.post("/doctors/settings/pin",
+                        data={"action": "remove", "current_pin": "424242",
+                              "new_pin": "", "confirm_pin": ""},
+                        headers=AJAX, follow_redirects=False)
+        assert r.status_code == 200
+        assert r.json()["message"] == "PIN removed"
+        assert r.json()["pin_enabled"] is False
+        db = TestSessionLocal()
+        try:
+            assert db.query(Doctor).filter(Doctor.id == doc["id"]).first().pin_hash is None
+        finally:
+            db.close()
+
+    def test_mismatched_pins_say_so(self, client, doc):
+        r = client.post("/doctors/settings/pin",
+                        data={"action": "set", "current_pin": "",
+                              "new_pin": "111111", "confirm_pin": "222222"},
+                        headers=AJAX, follow_redirects=False)
+        assert r.status_code == 400
+        assert "match" in r.json()["message"].lower()
+
+    def test_an_expired_pin_session_answers_json_not_a_redirect(self, client, doc):
+        """fetch() follows a 303 silently and hands back a 200 HTML document,
+        so res.json() would throw with nothing to show the doctor. pin_session
+        lives 30 minutes, so a settings page left open hits this for real."""
+        set_pin(client)
+        client.cookies.pop("pin_session", None)
+        r = client.post("/doctors/settings/profile",
+                        data={"clinic_name": "X", "city": "",
+                              "clinic_address": "", "languages": ""},
+                        headers=AJAX, follow_redirects=False)
+        assert r.status_code in (401, 403)
+        assert r.headers["content-type"].startswith("application/json")
+        assert r.json()["reason"] in ("pin_required", "owner_only")
+
+    def test_the_same_gate_still_redirects_a_plain_form_post(self, client, doc):
+        set_pin(client)
+        client.cookies.pop("pin_session", None)
+        r = client.post("/doctors/settings/profile",
+                        data={"clinic_name": "X", "city": "",
+                              "clinic_address": "", "languages": ""},
+                        follow_redirects=False)
+        assert r.status_code == 303
+
+    def test_removing_a_blocked_date_now_confirms_itself(self, client, doc):
+        """It redirected with no marker at all, so a deletion gave the doctor
+        no feedback of any kind."""
+        set_pin(client)
+        client.post("/doctors/settings/block",
+                    data={"blocked_date": "2030-03-03", "reason": "test"},
+                    follow_redirects=False)
+        db = TestSessionLocal()
+        try:
+            bid = db.query(BlockedDate).filter(
+                BlockedDate.doctor_id == doc["id"]).first().id
+        finally:
+            db.close()
+        r = client.post(f"/doctors/settings/unblock/{bid}",
+                        headers=AJAX, follow_redirects=False)
+        assert r.json()["message"] == "Blocked date removed"
+
+    def test_blocking_the_same_date_twice_says_so(self, client, doc):
+        set_pin(client)
+        for _ in range(2):
+            r = client.post("/doctors/settings/block",
+                            data={"blocked_date": "2030-04-04", "reason": ""},
+                            headers=AJAX, follow_redirects=False)
+        assert r.json()["tone"] == "warning"
+        assert "already" in r.json()["message"].lower()
+
+    def test_the_settings_page_renders_the_error_params_it_is_sent(self, client, doc):
+        """?error=time_order used to render as nothing."""
+        set_pin(client)
+        body = client.get("/doctors/settings?error=time_order").text
+        assert "end time must be after the start time" in body.lower()

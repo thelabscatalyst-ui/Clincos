@@ -186,6 +186,19 @@ class TestAssetVersionIsSingleSourced:
         assert found == {settings.ASSET_VERSION}, (
             f"{path} pins its own asset version {found}")
 
+    def test_every_local_script_tag_is_cache_busted(self, client, doc):
+        """form-draft.js shipped for months with no ?v= at all, so a fix to it
+        never reached anyone who had already loaded a page once. The test
+        below catches *hardcoded* versions; this catches *missing* ones."""
+        bare = set()
+        for path in ("/doctors/settings", "/dashboard", "/login"):
+            body = client.get(path, follow_redirects=True).text
+            bare |= set(re.findall(r'src="(/static/js/[^"?]+\.js)"', body))
+        assert not bare, f"unversioned script tags: {sorted(bare)}"
+
+    def test_the_settings_save_layer_is_served(self, client, doc):
+        assert client.get("/static/js/settings-save.js").status_code == 200
+
     def test_no_template_hardcodes_a_version(self, client):
         """The root cause: nine <head> blocks, each bumped independently."""
         import pathlib
