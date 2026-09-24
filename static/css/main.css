@@ -9038,14 +9038,21 @@ form[data-guard].is-dirty .settings-card { border-color: var(--warning); }
 .unsaved-modal .modal-sub { line-height: 1.5; }
 .unsaved-modal .modal-sub strong { color: var(--text); font-weight: 600; }
 /* The labels name what each button does rather than saying "OK"/"Cancel",
-   so they are long. Keep them on one line at this width. */
+   so they are long. Keep them on one line and let the pair share the width
+   evenly — btn-sm has already squared up the sizing. */
 .unsaved-modal .modal-actions .btn {
-  font-size: 13px;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 12px;
+  padding-right: 12px;
   white-space: nowrap;
 }
-@media (max-width: 420px) {
-  .unsaved-modal .modal-actions { flex-direction: column; }
+/* .btn lifts and scales on hover. On a standalone button that reads well; on
+   two buttons welded into one segmented control it makes the hovered half
+   climb over its neighbour. */
+.unsaved-modal .modal-actions .btn:hover { transform: none; }
+
+@media (max-width: 460px) {
+  /* Stacked, so the labels get the full width instead of being squeezed. */
+  .unsaved-modal .modal-actions { flex-direction: column-reverse; gap: 8px; }
   .unsaved-modal .modal-actions .btn { border-radius: var(--radius-sm); }
+  .unsaved-modal .modal-actions .btn:first-child { border-right: 1px solid var(--border-light); }
 }

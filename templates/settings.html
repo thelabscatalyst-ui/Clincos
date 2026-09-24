@@ -709,8 +709,13 @@
       </div>
     </div>
     <div class="modal-actions">
-      <button type="button" class="btn btn-secondary" id="unsavedSecondary"></button>
-      <button type="button" class="btn btn-primary" id="unsavedPrimary"></button>
+      {# btn-sm is not decoration here: .btn-primary carries margin-top:8px,
+         width:100% and padding:13px, which inside a joined .modal-actions row
+         drops the primary button 8px out of line with the secondary and makes
+         it a different size. btn-sm zeroes all three. Every other modal in the
+         app pairs these classes for the same reason. #}
+      <button type="button" class="btn btn-secondary btn-sm" id="unsavedSecondary"></button>
+      <button type="button" class="btn btn-primary btn-sm" id="unsavedPrimary"></button>
     </div>
   </div>
 </div>
