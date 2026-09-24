@@ -232,6 +232,39 @@ class TestQueueTransitions:
         finally:
             db.close()
 
+    def test_waiving_a_bill_requires_a_reason(self, client, doc):
+        """A ₹0 total with nothing beside it is indistinguishable from a
+        billing mistake once the day is over."""
+        from database.models import Bill
+        v = make_visit(doc["id"], doc["patient"], doc["clinic"],
+                       status=VisitStatus.billing_pending)
+        r = client.post(f"/visits/{v}/close-free", data={"notes": "   "},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert "free_reason" in r.headers["location"]
+        assert visit_row(v)["status"] == VisitStatus.billing_pending, (
+            "the visit was closed despite the waiver being rejected")
+        db = TestSessionLocal()
+        try:
+            assert db.query(Bill).filter(Bill.visit_id == v).count() == 0
+        finally:
+            db.close()
+
+    def test_the_waiver_reason_is_stored_on_the_bill(self, client, doc):
+        from database.models import Bill
+        v = make_visit(doc["id"], doc["patient"], doc["clinic"],
+                       status=VisitStatus.billing_pending)
+        client.post(f"/visits/{v}/close-free",
+                    data={"notes": "Camp patient — no charge"},
+                    follow_redirects=False)
+        db = TestSessionLocal()
+        try:
+            bill = db.query(Bill).filter(Bill.visit_id == v).first()
+            assert bill.notes == "Camp patient — no charge"
+            assert bill.payment_mode == PaymentMode.free
+        finally:
+            db.close()
+
     def test_marking_free_twice_does_not_500(self, client, doc):
         """A double click, or a second visit to a page showing a stale row."""
         v = make_visit(doc["id"], doc["patient"], doc["clinic"],
@@ -240,6 +273,44 @@ class TestQueueTransitions:
             r = client.post(f"/visits/{v}/close-free", data={"notes": ""},
                             follow_redirects=False)
             assert r.status_code < 500
+
+
+class TestEmergencyCanBeUndone:
+    """Cancelling the patient was the only way out of an emergency flag set
+    by mistake."""
+
+    def test_unmarking_clears_the_flag(self, client, doc):
+        v = make_visit(doc["id"], doc["patient"], doc["clinic"])
+        client.post(f"/visits/{v}/emergency", follow_redirects=False)
+        assert visit_row(v)["emergency"] is True
+        r = client.post(f"/visits/{v}/unemergency", follow_redirects=False)
+        assert r.status_code in (200, 302, 303)
+        assert visit_row(v)["emergency"] is False
+
+    def test_unmarking_leaves_the_queue_alone(self, client, doc):
+        """Promotion shifted everyone down, so the original position is gone.
+        Sending a waiting patient backwards is worse than leaving them put."""
+        v = make_visit(doc["id"], doc["patient"], doc["clinic"])
+        client.post(f"/visits/{v}/emergency", follow_redirects=False)
+        pos_while_emergency = visit_row(v)["position"]
+        client.post(f"/visits/{v}/unemergency", follow_redirects=False)
+        assert visit_row(v)["position"] == pos_while_emergency
+
+    def test_unmarking_a_visit_that_was_never_an_emergency_is_a_no_op(self, client, doc):
+        v = make_visit(doc["id"], doc["patient"], doc["clinic"])
+        r = client.post(f"/visits/{v}/unemergency", follow_redirects=False)
+        assert r.status_code < 500
+        assert visit_row(v)["emergency"] is False
+
+    def test_another_doctor_cannot_unmark_your_emergency(self, client, doc):
+        v = make_visit(doc["id"], doc["patient"], doc["clinic"])
+        client.post(f"/visits/{v}/emergency", follow_redirects=False)
+        register(client, "emg-thief@test.com")
+        verify_email("emg-thief@test.com")
+        login(client, "emg-thief@test.com")
+        client.post(f"/visits/{v}/unemergency", follow_redirects=False)
+        assert visit_row(v)["emergency"] is True, (
+            "another doctor cleared this emergency flag")
 
 
 # --------------------------------------------------------------------------- #

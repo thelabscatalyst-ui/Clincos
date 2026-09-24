@@ -1356,7 +1356,12 @@ class TestBilling:
         db.close()
 
     def test_free_close_via_http_route(self, client):
-        """POST /visits/{id}/close-free creates zero bill and marks visit done."""
+        """POST /visits/{id}/close-free creates zero bill and marks visit done.
+
+        Now sends a reason: waiving a bill requires one, because a zero total
+        with no explanation is indistinguishable from a billing mistake after
+        the fact. The rejection path is covered in test_visits_queue.py.
+        """
         tok = auth_cookie(client, "freecloseweb@test.com")
         make_schedule(client, tok)
         # Create walk-in (auto check-in)
@@ -1382,7 +1387,7 @@ class TestBilling:
         db.close()
         # Close via HTTP
         r = client.post(f"/visits/{visit_id}/close-free",
-                        data={"notes": ""},
+                        data={"notes": "Free follow-up within window"},
                         cookies={"access_token": tok}, follow_redirects=False)
         assert r.status_code in (303, 200)
         db = TestSession()

@@ -351,10 +351,13 @@
   </div>
 
   <!-- ── Payment ──────────────────────────────────────────────────────── -->
+  {% set waived = bill.payment_mode and bill.payment_mode.value == 'free' %}
   {% if bill.payment_mode %}
   <div class="payment-row">
-    <span>Paid via</span>
-    <span class="payment-mode-badge">{{ bill.payment_mode.value }}</span>
+    {# On a printed copy a ₹0 total with no explanation invites the question
+       this line answers. #}
+    <span>{{ 'Bill' if waived else 'Paid via' }}</span>
+    <span class="payment-mode-badge">{{ 'marked free' if waived else bill.payment_mode.value }}</span>
     {% if bill.paid_at %}
     <span class="payment-date">on {{ bill.paid_at.strftime("%d %b %Y, %I:%M %p") }}</span>
     {% endif %}
@@ -363,7 +366,7 @@
 
   {% if bill.notes %}
   <div style="margin-bottom:24px;font-size:12px;color:#6b5f55;">
-    <span style="font-weight:600;color:#1a1410;">Note:</span> {{ bill.notes }}
+    <span style="font-weight:600;color:#1a1410;">{{ 'Reason waived:' if waived else 'Note:' }}</span> {{ bill.notes }}
   </div>
   {% endif %}
 

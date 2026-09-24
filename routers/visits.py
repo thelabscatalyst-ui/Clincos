@@ -278,6 +278,12 @@ async def close_free(
     if not visit:
         return RedirectResponse("/appointments", status_code=303)
 
+    # A ₹0 total with no explanation is indistinguishable from a mistake once
+    # the day is over, so waiving a bill has to say why.
+    reason = notes.strip()
+    if not reason:
+        return RedirectResponse("/appointments?err=free_reason", status_code=303)
+
     # bills.visit_id is UNIQUE, so this used to be a live 500: any visit that
     # already had a bill — one started in the Collect Payment modal, or just a
     # second click on Mark Free — hit an IntegrityError on insert. Reuse the
@@ -307,7 +313,7 @@ async def close_free(
     bill.paid_amount  = 0
     bill.payment_mode = PaymentMode.free
     bill.paid_at      = datetime.now()
-    bill.notes        = notes.strip() or None
+    bill.notes        = reason
 
     db.flush()
     vs.close_visit(db, visit, bill.id)
@@ -338,6 +344,20 @@ async def emergency_visit(
     visit = _get_visit(visit_id, doctor.id, db)
     if visit and visit.status == VisitStatus.waiting:
         vs.promote_emergency(db, visit)
+    return RedirectResponse("/appointments", status_code=303)
+
+
+@router.post("/visits/{visit_id}/unemergency")
+async def unemergency_visit(
+    visit_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    """Clear an emergency flag. Cancelling the patient was the only way out."""
+    visit = _get_visit(visit_id, doctor.id, db)
+    if visit and visit.is_emergency:
+        vs.demote_emergency(db, visit)
     return RedirectResponse("/appointments", status_code=303)
 
 

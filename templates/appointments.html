@@ -282,11 +282,21 @@
           </form>
           <div class="visit-more-btn" onclick="toggleMenu('menu-w{{ visit.id }}')">⋮</div>
           <div class="visit-menu" id="menu-w{{ visit.id }}">
-            {% if not visit.is_emergency %}
+            {% if visit.is_emergency %}
+            {# Cancelling the patient used to be the only way out of an
+               emergency flag set by mistake. #}
+            <form method="POST" action="/visits/{{ visit.id }}/unemergency">
+              <button type="submit" class="visit-menu-item">Remove emergency flag</button>
+            </form>
+            {% else %}
             <form method="POST" action="/visits/{{ visit.id }}/emergency">
               <button type="submit" class="visit-menu-item">Mark Emergency</button>
             </form>
             {% endif %}
+            <button type="button" class="visit-menu-item"
+                    onclick="markFree({{ visit.id }}, '{{ visit.patient.name|e }}')">
+              Mark Free
+            </button>
             <form method="POST" action="/visits/{{ visit.id }}/cancel">
               <button type="submit" class="visit-menu-item danger">Cancel</button>
             </form>
@@ -318,9 +328,10 @@
                   onclick="openBillModal({{ visit.id }}, '{{ visit.patient.name }}')">
             Collect Payment
           </button>
-          <form method="POST" action="/visits/{{ visit.id }}/close-free" style="display:inline;">
-            <button type="submit" class="btn btn-secondary btn-sm">Mark Free</button>
-          </form>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="markFree({{ visit.id }}, '{{ visit.patient.name|e }}')">
+            Mark Free
+          </button>
         </div>
       </div>
       {% endfor %}
@@ -1124,6 +1135,30 @@ function updateTotal() {
     chip.style.color = 'var(--text-muted)';
     chip.style.borderColor = 'rgba(154,143,133,0.22)';
   }
+}
+
+/* Waiving a bill asks why. A ₹0 total with nothing beside it is
+   indistinguishable from a billing mistake once the day is over, so the
+   reason is required and is written onto the bill. */
+async function markFree(visitId, patientName) {
+  const reason = await window.promptDialog({
+    title: 'Mark ' + patientName + ' free?',
+    body: 'The visit closes with a ₹0 bill. The reason is saved on that bill and shows on the printed copy.',
+    label: 'Reason for waiving this bill',
+    placeholder: 'e.g. Follow-up within free window · staff family · camp patient',
+    confirmLabel: 'Mark free',
+    required: true,
+  });
+  if (reason === null) return;
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/visits/' + visitId + '/close-free';
+  const f = document.createElement('input');
+  f.type = 'hidden'; f.name = 'notes'; f.value = reason;
+  form.appendChild(f);
+  document.body.appendChild(form);
+  form.submit();
 }
 
 async function submitBill(action) {

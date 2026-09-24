@@ -316,6 +316,21 @@ def promote_emergency(db: Session, visit: Visit) -> Visit:
     return visit
 
 
+def demote_emergency(db: Session, visit: Visit) -> Visit:
+    """Undo an emergency flag set by mistake.
+
+    The queue position is deliberately left alone. Promotion shifted everyone
+    else down, so the patient's original place no longer exists to restore —
+    and silently sending someone who is already waiting to the back of the
+    line is a worse failure than leaving them where they are. The doctor can
+    see the queue and reorder it.
+    """
+    visit.is_emergency = False
+    db.commit()
+    db.refresh(visit)
+    return visit
+
+
 def cancel_visit(db: Session, visit: Visit) -> Visit:
     visit.status = VisitStatus.cancelled
     db.commit()

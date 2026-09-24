@@ -9119,3 +9119,49 @@ form[data-guard].is-dirty .settings-card { border-color: var(--warning); }
   .catalog-actions { width: 100%; }
   .catalog-actions .btn { flex: 1; }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Prompt dialog (window.promptDialog)                                 */
+/* ------------------------------------------------------------------ */
+
+.prompt-modal { z-index: 10050; }
+.prompt-modal .modal-box { max-width: 440px; gap: 16px; }
+.prompt-modal .modal-sub { line-height: 1.5; }
+.prompt-modal .prompt-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.prompt-modal .prompt-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+.prompt-modal .prompt-input:focus {
+  outline: none;
+  border-color: var(--border-light);
+}
+.prompt-modal .prompt-error {
+  display: none;
+  color: var(--danger);
+  font-size: 12px;
+  margin-top: 6px;
+}
+.prompt-modal .modal-actions .btn:hover { transform: none; }
+.prompt-modal .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (max-width: 460px) {
+  .prompt-modal .modal-actions { flex-direction: column-reverse; gap: 8px; }
+  .prompt-modal .modal-actions .btn { border-radius: var(--radius-sm); }
+  .prompt-modal .modal-actions .btn:first-child { border-right: 1px solid var(--border-light); }
+}

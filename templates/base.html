@@ -510,6 +510,7 @@ window.showToast = function (arg, legacyType) {
   var deniedVal = params.get('denied');
   if (deniedVal && DENIED[deniedVal]) window.showToast(DENIED[deniedVal], 'error');
   var ERRS = {
+    'free_reason': 'A reason is required to waive a bill.',
     'owner':    'The clinic owner cannot be removed.',
     'self':     'You cannot remove yourself.',
     'cap':      'Plan limit reached — upgrade to add more doctors.',
@@ -635,6 +636,115 @@ window.showToast = function (arg, legacyType) {
       else { form._confirmed = false; form.submit(); }
     });
   });
+})();
+
+
+/* ── Prompt dialog ──
+   confirmDialog's sibling, for when the answer is a sentence rather than
+   yes/no. Waiving a bill is the case it exists for: a ₹0 total with no
+   explanation is indistinguishable from a mistake six months later.
+
+   window.promptDialog({...}) -> Promise<string|null>   null = cancelled */
+(function () {
+  var backdrop, titleEl, bodyEl, labelEl, inputEl, okBtn, cancelBtn, errEl;
+
+  function build() {
+    if (backdrop) return;
+    backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop prompt-modal';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.innerHTML =
+      '<div class="modal-box">' +
+        '<div class="modal-header"><div>' +
+          '<div class="modal-title"></div>' +
+          '<div class="modal-sub"></div>' +
+        '</div></div>' +
+        '<div class="form-group">' +
+          '<label class="prompt-label"></label>' +
+          '<textarea class="prompt-input" rows="3"></textarea>' +
+          '<div class="prompt-error" role="alert"></div>' +
+        '</div>' +
+        '<div class="modal-actions">' +
+          '<button type="button" class="btn btn-secondary btn-sm"></button>' +
+          '<button type="button" class="btn btn-primary btn-sm"></button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(backdrop);
+    titleEl   = backdrop.querySelector('.modal-title');
+    bodyEl    = backdrop.querySelector('.modal-sub');
+    labelEl   = backdrop.querySelector('.prompt-label');
+    inputEl   = backdrop.querySelector('.prompt-input');
+    errEl     = backdrop.querySelector('.prompt-error');
+    cancelBtn = backdrop.querySelector('.btn-secondary');
+    okBtn     = backdrop.querySelector('.btn-primary');
+  }
+
+  window.promptDialog = function (opts) {
+    opts = opts || {};
+    build();
+    return new Promise(function (resolve) {
+      var required = opts.required !== false;
+      titleEl.textContent   = opts.title || '';
+      bodyEl.textContent    = opts.body || '';
+      bodyEl.style.display  = opts.body ? '' : 'none';
+      labelEl.textContent   = opts.label || 'Reason';
+      inputEl.placeholder   = opts.placeholder || '';
+      inputEl.value         = '';
+      errEl.textContent     = '';
+      errEl.style.display   = 'none';
+      okBtn.textContent     = opts.confirmLabel || 'Save';
+      cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+      okBtn.disabled        = required;
+
+      var previousFocus = document.activeElement;
+      backdrop.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      inputEl.focus();
+
+      function onInput() {
+        if (required) okBtn.disabled = !inputEl.value.trim();
+        if (errEl.style.display !== 'none') {
+          errEl.textContent = ''; errEl.style.display = 'none';
+        }
+      }
+      function close(result) {
+        backdrop.classList.remove('open');
+        document.body.style.overflow = '';
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        backdrop.removeEventListener('click', onBackdrop);
+        inputEl.removeEventListener('input', onInput);
+        document.removeEventListener('keydown', onKey, true);
+        if (previousFocus && previousFocus.focus) previousFocus.focus();
+        resolve(result);
+      }
+      function onOk() {
+        var v = inputEl.value.trim();
+        if (required && !v) {
+          errEl.textContent = 'Please give a reason.';
+          errEl.style.display = '';
+          inputEl.focus();
+          return;
+        }
+        close(v);
+      }
+      function onCancel()    { close(null); }
+      function onBackdrop(e) { if (e.target === backdrop) close(null); }
+      function onKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); close(null); return; }
+        /* Enter submits from the textarea only with a modifier — a reason can
+           legitimately run to two lines. */
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); onOk(); }
+      }
+
+      inputEl.addEventListener('input', onInput);
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      backdrop.addEventListener('click', onBackdrop);
+      document.addEventListener('keydown', onKey, true);
+    });
+  };
 })();
 
 
