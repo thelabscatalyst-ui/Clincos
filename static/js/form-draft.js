@@ -38,8 +38,54 @@
       }
     });
     try {
-      localStorage.setItem(draftKey(form), JSON.stringify({ t: Date.now(), data: data }));
+      localStorage.setItem(draftKey(form), JSON.stringify({ t: Date.now(), data: data, sent: false }));
     } catch (e) { /* storage full/unavailable — draft just won't persist */ }
+  }
+
+  /* Mark a draft as having been handed to the server. See shouldRestore. */
+  function markSent(form) {
+    var key = draftKey(form);
+    var raw, parsed;
+    try { raw = localStorage.getItem(key); } catch (e) { return; }
+    if (!raw) return;
+    try { parsed = JSON.parse(raw); } catch (e) { return; }
+    if (!parsed) return;
+    parsed.sent = true;
+    try { localStorage.setItem(key, JSON.stringify(parsed)); } catch (e) {}
+  }
+
+  /* A draft is only ever restored when the server did NOT accept the data.
+   *
+   * Restoring unconditionally made the page lie. On the settings page:
+   * type into Working Hours, don't save it, save Account Details instead,
+   * get redirected back here — and the abandoned working-hours edits were
+   * repainted into the form, looking saved. They weren't in the database,
+   * but the next Save Hours click wrote them. Every page with a POST form
+   * had the same trap.
+   *
+   * `sent` marks a draft whose form was actually submitted. After a submit
+   * there are exactly two outcomes, and PerformanceNavigationTiming tells
+   * them apart:
+   *
+   *   POST -> 303 -> GET   server accepted it   redirectCount >= 1  -> drop
+   *   POST -> 200 re-render server rejected it  redirectCount === 0 -> restore
+   *
+   * That second case is load-bearing: routers/auth.py re-renders
+   * register.html on a validation error without echoing name/email/phone
+   * back into the template, so this file is the only thing that puts them
+   * there. "Just clear the draft on submit" would break that form.
+   *
+   * A plain refresh or a Back never sets `sent`, so those always restore.
+   */
+  function shouldRestore(entry) {
+    if (!entry.sent) return true;
+    var navs = (performance.getEntriesByType && performance.getEntriesByType('navigation')) || [];
+    var nav = navs[0];
+    /* No timing data (older Safari): prefer losing a draft to lying about
+       one. Dropping it is recoverable; a phantom "saved" value is not. */
+    if (!nav) return false;
+    if (nav.redirectCount > 0) return false;
+    return nav.type === 'navigate' || nav.type === 'reload';
   }
 
   function readDraft(form) {
@@ -50,7 +96,7 @@
     if (!raw) return null;
     var parsed;
     try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
-    if (!parsed || Date.now() - parsed.t > TTL_MS) {
+    if (!parsed || Date.now() - parsed.t > TTL_MS || !shouldRestore(parsed)) {
       try { localStorage.removeItem(draftKey(form)); } catch (e) {}
       return null;
     }
@@ -68,6 +114,10 @@
         field.value = data[field.name];
       }
       field.dispatchEvent(new Event('input', { bubbles: true }));
+      /* Also 'change': plenty of markup wires onchange= handlers that keep
+         dependent UI in sync (a toggle that greys out its row, say), and an
+         input-only restore left those showing the pre-restore state. */
+      field.dispatchEvent(new Event('change', { bubbles: true }));
     });
     form.dispatchEvent(new CustomEvent('formdraft:restored', { detail: data }));
   }
@@ -80,6 +130,12 @@
     form.addEventListener('input', function () {
       clearTimeout(timer);
       timer = setTimeout(function () { saveDraft(form); }, 300);
+    });
+    /* Inside attach(), so data-no-draft forms are skipped here too. */
+    form.addEventListener('submit', function () {
+      clearTimeout(timer);
+      saveDraft(form);
+      markSent(form);
     });
   }
 
