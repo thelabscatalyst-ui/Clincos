@@ -121,7 +121,8 @@
           <span class="expense-date">{{ exp.expense_date.strftime("%-d %b") }}</span>
           <span class="expense-amount">₹{{ "{:,.0f}".format(exp.amount|float) }}</span>
           <form method="post" action="/expenses/{{ exp.id }}/delete" style="margin:0;"
-                onsubmit="return confirm('Delete this expense?')">
+                data-confirm-title="Delete this expense?"
+                data-confirm="This cannot be undone." data-confirm-label="Delete">
             <button type="submit" class="expense-del-btn" title="Delete">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -234,7 +235,9 @@
               </button>
             </form>
             <form method="post" action="/expenses/recurring/{{ rule.id }}/delete" style="margin:0;"
-                  onsubmit="return confirm('Delete this recurring rule?')">
+                  data-confirm-title="Delete this recurring rule?"
+                  data-confirm="Expenses already recorded from it are kept."
+                  data-confirm-label="Delete">
               <button type="submit" class="btn btn-secondary btn-xs" style="color:var(--danger);">✕</button>
             </form>
           </div>

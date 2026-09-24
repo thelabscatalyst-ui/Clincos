@@ -581,9 +581,14 @@ document.getElementById('editPatientModal').addEventListener('click', function(e
   if (e.target === this) closeEditModal();
 });
 function confirmDelete() {
-  if (confirm('Remove {{ patient.name }}? This will permanently delete the patient and all their appointments.')) {
-    document.getElementById('deletePatientForm').submit();
-  }
+  window.confirmDialog({
+    title: 'Remove {{ patient.name }}?',
+    body: 'This permanently deletes the patient and all their appointments. It cannot be undone.',
+    confirmLabel: 'Remove patient',
+    danger: true,
+  }).then(function (ok) {
+    if (ok) document.getElementById('deletePatientForm').submit();
+  });
 }
 
 /* ── Ordinal date helper (mirrors Python _date_label) ───────────── */
@@ -717,7 +722,11 @@ async function saveNote() {
 
 /* ── Delete note ─────────────────────────────────────────────────── */
 async function deleteNote(noteId, btn) {
-  if (!confirm('Delete this note and all its attachments? This cannot be undone.')) return;
+  if (!await window.confirmDialog({
+        title: 'Delete this note?',
+        body: 'The note and all its attachments go with it. This cannot be undone.',
+        confirmLabel: 'Delete note', danger: true,
+      })) return;
   try {
     const res = await fetch(DEL_NOTE_URL(noteId), { method: 'POST' });
     if (!res.ok) throw new Error();
@@ -809,7 +818,11 @@ function cancelEdit(noteId) {
 
 /* Remove an existing (already-saved) file — immediate AJAX */
 async function removeExistingFile(noteId, fileId, btn) {
-  if (!confirm('Remove this file? This cannot be undone.')) return;
+  if (!await window.confirmDialog({
+        title: 'Remove this file?',
+        body: 'This cannot be undone.',
+        confirmLabel: 'Remove file', danger: true,
+      })) return;
   btn.disabled = true;
   try {
     const res = await fetch(DEL_FILE_URL(fileId), { method: 'POST' });

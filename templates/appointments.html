@@ -491,7 +491,9 @@
       <form method="POST" action="/visits/check-in-appt/{{ appt.id }}" style="display:inline;" onclick="event.stopPropagation();">
         <button type="submit" class="btn btn-sm" style="color:var(--success);border:1px solid rgba(74,222,128,.35);background:rgba(74,222,128,.07);">Check In</button>
       </form>
-      <form method="POST" action="/appointments/{{ appt.id }}/status" style="display:inline;" onclick="event.stopPropagation();" onsubmit="return confirm('Mark {{ appt.patient.name }} as No Show?');">
+      <form method="POST" action="/appointments/{{ appt.id }}/status" style="display:inline;" onclick="event.stopPropagation();" data-confirm-title="Mark {{ appt.patient.name }} as No Show?"
+            data-confirm="You can change this afterwards from the appointment."
+            data-confirm-label="Mark No Show" data-confirm-safe="1">
         <input type="hidden" name="status" value="no_show">
         <button type="submit" class="btn btn-sm" style="color:var(--muted);border:1px solid var(--border);background:transparent;">No Show</button>
       </form>
@@ -1124,7 +1126,7 @@ function updateTotal() {
   }
 }
 
-function submitBill(action) {
+async function submitBill(action) {
   const visitId = document.getElementById('billVisitId').value;
   if (!visitId) return;
 
@@ -1135,9 +1137,12 @@ function submitBill(action) {
     const collected = Math.round(parseFloat(document.getElementById('billCollectedInput').value) || 0);
     const pending   = Math.max(0, total - collected);
     if (pending > 0) {
-      if (!confirm('₹' + pending.toLocaleString('en-IN') + ' will remain uncollected. Close the visit anyway?')) {
-        return;
-      }
+      const go = await window.confirmDialog({
+        title: 'Close with ₹' + pending.toLocaleString('en-IN') + ' uncollected?',
+        body: 'The visit will be marked done and the balance stays outstanding on the bill.',
+        confirmLabel: 'Close anyway',
+      });
+      if (!go) return;
     }
   }
 

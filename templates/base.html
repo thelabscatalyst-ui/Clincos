@@ -530,6 +530,114 @@ window.showToast = function (arg, legacyType) {
 })();
 
 
+/* ── Confirm dialog ──
+   Replaces window.confirm(), which cannot be themed, looks like a browser
+   security warning, and on some platforms is suppressed entirely.
+
+   Two ways in:
+     window.confirmDialog({...})  ->  Promise<boolean>
+     <form data-confirm="Really delete?">  ->  intercepted automatically
+
+   The interceptor is registered BEFORE the button-loading listener below,
+   on purpose: it cancels the submit first, so the button never enters its
+   spinner state for a submit the user is about to call off. That ordering
+   is the whole reason this block sits here rather than at the end. */
+(function () {
+  var backdrop, titleEl, bodyEl, okBtn, cancelBtn;
+
+  function build() {
+    if (backdrop) return;
+    backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop confirm-modal';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+    backdrop.innerHTML =
+      '<div class="modal-box">' +
+        '<div class="modal-header"><div>' +
+          '<div class="modal-title"></div>' +
+          '<div class="modal-sub"></div>' +
+        '</div></div>' +
+        '<div class="modal-actions">' +
+          '<button type="button" class="btn btn-secondary btn-sm"></button>' +
+          '<button type="button" class="btn btn-primary btn-sm"></button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(backdrop);
+    titleEl   = backdrop.querySelector('.modal-title');
+    bodyEl    = backdrop.querySelector('.modal-sub');
+    cancelBtn = backdrop.querySelector('.btn-secondary');
+    okBtn     = backdrop.querySelector('.btn-primary');
+  }
+
+  window.confirmDialog = function (opts) {
+    opts = opts || {};
+    build();
+    return new Promise(function (resolve) {
+      titleEl.textContent   = opts.title || 'Are you sure?';
+      bodyEl.textContent    = opts.body || '';
+      bodyEl.style.display  = opts.body ? '' : 'none';
+      okBtn.textContent     = opts.confirmLabel || 'Confirm';
+      cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+      okBtn.classList.toggle('btn-danger', !!opts.danger);
+
+      var previousFocus = document.activeElement;
+      backdrop.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      okBtn.focus();
+
+      function close(result) {
+        backdrop.classList.remove('open');
+        document.body.style.overflow = '';
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        backdrop.removeEventListener('click', onBackdrop);
+        document.removeEventListener('keydown', onKey, true);
+        if (previousFocus && previousFocus.focus) previousFocus.focus();
+        resolve(result);
+      }
+      function onOk()       { close(true); }
+      function onCancel()   { close(false); }
+      function onBackdrop(e){ if (e.target === backdrop) close(false); }
+      function onKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); close(false); return; }
+        if (e.key !== 'Tab') return;
+        e.preventDefault();
+        (document.activeElement === okBtn ? cancelBtn : okBtn).focus();
+      }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      backdrop.addEventListener('click', onBackdrop);
+      document.addEventListener('keydown', onKey, true);
+    });
+  };
+
+  /* form[data-confirm] — ask, then let the submit through unchanged. */
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form.dataset || !form.dataset.confirm) return;
+    if (form._confirmed) { form._confirmed = false; return; }
+    if (e.defaultPrevented) return;
+    e.preventDefault();
+
+    var submitter = e.submitter;
+    window.confirmDialog({
+      title:        form.dataset.confirmTitle || 'Are you sure?',
+      body:         form.dataset.confirm,
+      confirmLabel: form.dataset.confirmLabel || 'Delete',
+      danger:       form.dataset.confirmSafe === undefined
+    }).then(function (ok) {
+      if (!ok) return;
+      form._confirmed = true;
+      /* requestSubmit re-dispatches a cancellable submit, so whatever else
+         handles this form — the settings fetch layer, the offline guard —
+         still gets its turn. form.submit() would skip all of them. */
+      if (form.requestSubmit) form.requestSubmit(submitter);
+      else { form._confirmed = false; form.submit(); }
+    });
+  });
+})();
+
+
 /* ── Button loading state on any form submit ──
    Bubble phase, not capture, and it yields to anything that cancelled the
    submit. In capture this ran BEFORE an inline onsubmit="return confirm(...)"

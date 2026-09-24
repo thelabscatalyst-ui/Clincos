@@ -247,7 +247,19 @@ if (searchInput) {
 function attachPinConfirm() {
   document.querySelectorAll('.patient-pin-btn[data-confirm]').forEach(btn => {
     btn.addEventListener('click', function(e) {
-      if (!confirm(this.dataset.confirm)) e.preventDefault();
+      /* Second pass, after the dialog said yes — let it through. */
+      if (this._confirmed) { this._confirmed = false; return; }
+      e.preventDefault();
+      const self = this;
+      window.confirmDialog({
+        title: 'Pin this patient?',
+        body: self.dataset.confirm,
+        confirmLabel: 'Pin anyway',
+      }).then(function (ok) {
+        if (!ok) return;
+        self._confirmed = true;
+        self.click();
+      });
     });
   });
 }

@@ -35,7 +35,9 @@
       Edit
     </a>
     <form method="POST" action="/prescriptions/{{ prescription.id }}/delete" style="margin:0;"
-          onsubmit="return confirm('Delete this prescription? This cannot be undone.')">
+          data-confirm-title="Delete this prescription?"
+          data-confirm="This cannot be undone."
+          data-confirm-label="Delete">
       <button type="submit" class="btn btn-sm" style="background:rgba(220,38,38,0.1);color:#f87171;border:1px solid rgba(248,113,113,0.25);">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-1px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         Delete

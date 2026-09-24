@@ -124,7 +124,9 @@
           <button type="button" class="btn btn-secondary btn-sm"
                   onclick="vaultShowEdit({{ doc.id }})">Edit</button>
           <form method="POST" action="/patients/{{ patient.id }}/vault/{{ doc.id }}/delete"
-                style="margin:0;" onsubmit="return confirm('Delete \'{{ doc.original_name }}\'?')">
+                style="margin:0;" data-confirm-title="Delete this file?"
+                data-confirm="{{ doc.original_name }} will be removed permanently."
+                data-confirm-label="Delete">
             <button type="submit" class="btn btn-secondary btn-sm"
                     style="color:var(--danger,#f87171);border-color:rgba(248,113,113,.25);">Delete</button>
           </form>

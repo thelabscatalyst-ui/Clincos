@@ -604,7 +604,9 @@
         </form>
         <form method="POST" action="/price-catalog/{{ item.id }}/delete" style="display:inline;"
               data-section="catalog" data-section-label="Price catalog" data-no-draft="1"
-              onsubmit="return confirm('Remove {{ item.name }}?')">
+              data-confirm-title="Remove {{ item.name }}?"
+              data-confirm="It will stop appearing in the billing modal. Bills already issued keep it."
+              data-confirm-label="Remove">
           <button type="submit" class="btn btn-secondary btn-xs" style="color:var(--danger);border-color:rgba(248,113,113,.3);">Remove</button>
         </form>
       </div>
@@ -686,7 +688,7 @@
       </button>
       {% if doctor.pin_hash %}
       <button type="submit" name="action" value="remove" class="btn btn-secondary btn-sm"
-              onclick="return confirm('Remove PIN? Anyone using your login will be able to see income, billing, and reports.')">
+              onclick="return pinRemoveGuard(this, event)">
         Remove PIN
       </button>
       {% endif %}
@@ -861,6 +863,26 @@ function copyLink() {
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
   });
+}
+
+/* The PIN form has two submit buttons, so the confirmation belongs to this
+   button rather than to the form — data-confirm would ask on Update too.
+   Re-clicking with the flag set lets the real submit through, with this
+   button as the submitter, which is what carries action=remove. */
+function pinRemoveGuard(btn, ev) {
+  if (btn._confirmed) { btn._confirmed = false; return true; }
+  ev.preventDefault();
+  window.confirmDialog({
+    title: 'Remove your PIN?',
+    body: 'Anyone who can open your login will be able to see income, billing and reports without a second check.',
+    confirmLabel: 'Remove PIN',
+    danger: true,
+  }).then(function (ok) {
+    if (!ok) return;
+    btn._confirmed = true;
+    btn.click();
+  });
+  return false;
 }
 
 function updatePinLabel(cb) {

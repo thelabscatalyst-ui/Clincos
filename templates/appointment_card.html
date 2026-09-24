@@ -55,7 +55,9 @@
       </button>
       {% if appt.status.value == 'scheduled' %}
       <form method="POST" action="/appointments/{{ appt.id }}/status" style="display:inline;"
-            onsubmit="return confirm('Mark {{ appt.patient.name }} as No Show?');">
+            data-confirm-title="Mark {{ appt.patient.name }} as No Show?"
+            data-confirm="You can change this afterwards from the appointment."
+            data-confirm-label="Mark No Show" data-confirm-safe="1">
         <input type="hidden" name="status" value="no_show">
         <button type="submit" class="ac-action-btn" style="color:var(--muted);">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>

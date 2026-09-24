@@ -9056,3 +9056,27 @@ form[data-guard].is-dirty .settings-card { border-color: var(--warning); }
   .unsaved-modal .modal-actions .btn { border-radius: var(--radius-sm); }
   .unsaved-modal .modal-actions .btn:first-child { border-right: 1px solid var(--border-light); }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Confirm dialog (window.confirmDialog / form[data-confirm])          */
+/* ------------------------------------------------------------------ */
+
+/* Above the toast container (9998) and the offline banner (9999): this
+   dialog is blocking, so nothing should be able to sit over it. */
+.confirm-modal { z-index: 10050; }
+.confirm-modal .modal-box { max-width: 420px; gap: 16px; }
+.confirm-modal .modal-sub { line-height: 1.5; }
+.confirm-modal .modal-actions .btn {
+  padding-left: 12px;
+  padding-right: 12px;
+  white-space: nowrap;
+}
+/* .btn lifts and scales on hover, which makes the hovered half of a joined
+   pair climb over the other. Same reason as the unsaved dialog. */
+.confirm-modal .modal-actions .btn:hover { transform: none; }
+
+@media (max-width: 460px) {
+  .confirm-modal .modal-actions { flex-direction: column-reverse; gap: 8px; }
+  .confirm-modal .modal-actions .btn { border-radius: var(--radius-sm); }
+  .confirm-modal .modal-actions .btn:first-child { border-right: 1px solid var(--border-light); }
+}
