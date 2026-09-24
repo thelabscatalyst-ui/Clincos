@@ -273,29 +273,42 @@ async def close_free(
     db: Session    = Depends(get_db),
     doctor: Doctor = Depends(get_paying_doctor),
 ):
-    """Close a visit with no charge (free consultation). Creates a zero-value bill."""
+    """Close a visit with no charge (free consultation). Zero-value bill."""
     visit = _get_visit(visit_id, doctor.id, db)
     if not visit:
         return RedirectResponse("/appointments", status_code=303)
 
+    # bills.visit_id is UNIQUE, so this used to be a live 500: any visit that
+    # already had a bill — one started in the Collect Payment modal, or just a
+    # second click on Mark Free — hit an IntegrityError on insert. Reuse the
+    # row the visit already owns instead of inserting a second one.
+    bill = db.query(Bill).filter(Bill.visit_id == visit.id).first()
+
     primary_clinic = _get_primary_clinic(doctor, db, request)
     _auto_complete_appointment(db, visit)
-    bill = Bill(
-        visit_id     = visit.id,
-        doctor_id    = doctor.id,
-        clinic_id    = primary_clinic.id if primary_clinic else None,
-        patient_id   = visit.patient_id,
-        subtotal     = 0,
-        discount     = 0,
-        gst_amount   = 0,
-        total        = 0,
-        paid_amount  = 0,
-        payment_mode = PaymentMode.free,
-        paid_at      = datetime.now(),
-        notes        = notes.strip() or None,
-        created_by   = doctor.id,
-    )
-    db.add(bill)
+
+    if bill is None:
+        bill = Bill(
+            visit_id   = visit.id,
+            doctor_id  = doctor.id,
+            clinic_id  = primary_clinic.id if primary_clinic else None,
+            patient_id = visit.patient_id,
+            created_by = doctor.id,
+        )
+        db.add(bill)
+
+    # Waiving a bill zeroes it, whatever was on it before. Any line items stay
+    # attached for the record — the total is what the patient owes, and that
+    # is now nothing.
+    bill.subtotal     = 0
+    bill.discount     = 0
+    bill.gst_amount   = 0
+    bill.total        = 0
+    bill.paid_amount  = 0
+    bill.payment_mode = PaymentMode.free
+    bill.paid_at      = datetime.now()
+    bill.notes        = notes.strip() or None
+
     db.flush()
     vs.close_visit(db, visit, bill.id)
     db.commit()

@@ -16,7 +16,8 @@ from tests.conftest import TestSessionLocal
 from tests.helpers import (make_doctor, clinic_of, make_patient, make_appointment,
                            make_visit, visit_row, appt_row, give_schedule,
                            phone, count, register, verify_email, login)
-from database.models import Visit, VisitStatus, Patient, AppointmentStatus, Doctor
+from database.models import (Visit, VisitStatus, Patient, AppointmentStatus,
+                             Doctor, PaymentMode)
 
 
 @pytest.fixture
@@ -202,6 +203,43 @@ class TestQueueTransitions:
                         follow_redirects=False)
         assert r.status_code in (200, 302, 303)
         assert visit_row(v)["status"] == VisitStatus.done
+
+    def test_marking_free_a_visit_that_already_has_a_bill(self, client, doc):
+        """bills.visit_id is UNIQUE, so inserting a second one was a live 500.
+        Reached by opening Collect Payment first, then deciding to waive."""
+        from database.models import Bill
+        v = make_visit(doc["id"], doc["patient"], doc["clinic"],
+                       status=VisitStatus.billing_pending)
+        db = TestSessionLocal()
+        try:
+            db.add(Bill(visit_id=v, doctor_id=doc["id"], clinic_id=doc["clinic"],
+                        patient_id=doc["patient"], subtotal=500, total=500,
+                        paid_amount=0))
+            db.commit()
+        finally:
+            db.close()
+
+        r = client.post(f"/visits/{v}/close-free", data={"notes": "waived"},
+                        follow_redirects=False)
+        assert r.status_code in (200, 302, 303)
+
+        db = TestSessionLocal()
+        try:
+            bills = db.query(Bill).filter(Bill.visit_id == v).all()
+            assert len(bills) == 1, "a second bill row was inserted"
+            assert float(bills[0].total) == 0.0
+            assert bills[0].payment_mode == PaymentMode.free
+        finally:
+            db.close()
+
+    def test_marking_free_twice_does_not_500(self, client, doc):
+        """A double click, or a second visit to a page showing a stale row."""
+        v = make_visit(doc["id"], doc["patient"], doc["clinic"],
+                       status=VisitStatus.billing_pending)
+        for _ in range(2):
+            r = client.post(f"/visits/{v}/close-free", data={"notes": ""},
+                            follow_redirects=False)
+            assert r.status_code < 500
 
 
 # --------------------------------------------------------------------------- #

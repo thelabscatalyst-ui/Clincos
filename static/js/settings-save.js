@@ -355,6 +355,16 @@
 
     var submitter = e.submitter;
 
+    /* base.html's loading listener is registered before this one and has
+       already put the button into its spinner state — it could not know we
+       were about to cancel the submit. Hand the button back now. save()
+       turns the spinner straight back on, synchronously, so the path that
+       does save never flickers; the path that opens a dialog and gets
+       cancelled no longer leaves a dead, spinning button behind. */
+    if (window.setBtnLoading) {
+      window.setBtnLoading(submitter || form.querySelector('[type="submit"]'), false);
+    }
+
     /* Only a section save raises the dialog. Adding a blocked date or
        unpinning a price is an instant action that reloads nothing, so it
        cannot cost you the edits sitting in another card — warning about
