@@ -483,6 +483,24 @@ window.showToast = function (arg, legacyType) {
   return { dismiss: dismiss };
 };
 
+/* A toast queued by the previous page.
+   Some things worth saying happen as the user leaves — a blank prescription
+   being dropped, say — and there is no way to show a toast on a page that is
+   already unloading. The message is parked in sessionStorage and picked up
+   wherever they land. */
+(function () {
+  var KEY = 'medtrack:flash';
+  try {
+    var raw = sessionStorage.getItem(KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(KEY);
+    var f = JSON.parse(raw);
+    if (f && f.message) {
+      window.showToast({ title: f.title || '', message: f.message, type: f.type || 'info' });
+    }
+  } catch (e) { /* storage unavailable — a missing toast is not worth a throw */ }
+})();
+
 /* Convert URL param-based alerts to toasts on page load */
 (function () {
   if (typeof URLSearchParams === 'undefined') return;

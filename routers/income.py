@@ -33,6 +33,7 @@ from database.models import (
     RecurringExpense,
 )
 from services.auth_service import get_paying_doctor, require_pin, require_clinic_owner_context
+from services.percentages import with_pct
 
 router    = APIRouter(tags=["income"])
 templates = Jinja2Templates(directory="templates")
@@ -243,15 +244,13 @@ async def income_dashboard(
     )
     mode_breakdown = sorted(
         [
-            {
-                "label":  (m.value.title() if m else "Unknown"),
-                "amount": _f(t),
-                "pct":    round(_f(t) / month_income * 100) if month_income > 0 else 0,
-            }
+            {"label": (m.value.title() if m else "Unknown"), "amount": _f(t)}
             for m, t in mode_rows
         ],
         key=lambda x: x["amount"], reverse=True,
     )
+    # Shares rounded together, not one at a time, so the column adds to 100.
+    mode_breakdown = with_pct(mode_breakdown, value_key="amount")
 
     # ── Visit-type breakdown (bill → visit → appointment) this month ─── #
     bills_month = (
@@ -276,15 +275,10 @@ async def income_dashboard(
                 label = appt.appointment_type.value.replace("_", " ").title()
         type_map[label] += _f(b.total)
 
-    type_total = sum(type_map.values()) or 1
-    type_breakdown = sorted(
-        [
-            {"label": k, "amount": v,
-             "pct": round(v / type_total * 100)}
-            for k, v in type_map.items()
-        ],
+    type_breakdown = with_pct(sorted(
+        [{"label": k, "amount": v} for k, v in type_map.items()],
         key=lambda x: x["amount"], reverse=True,
-    )
+    ), value_key="amount")
 
     # ── Day-of-week breakdown (last 90 days) ─────────────────────────── #
     bills_90d = (
@@ -327,15 +321,12 @@ async def income_dashboard(
     )
     exp_breakdown = sorted(
         [
-            {
-                "label":  (c.value.title() if c else "Misc"),
-                "amount": _f(t),
-                "pct":    round(_f(t) / month_expense * 100) if month_expense > 0 else 0,
-            }
+            {"label": (c.value.title() if c else "Misc"), "amount": _f(t)}
             for c, t in exp_rows
         ],
         key=lambda x: x["amount"], reverse=True,
     )
+    exp_breakdown = with_pct(exp_breakdown, value_key="amount")
 
     # ── Top patients this month ───────────────────────────────────────── #
     top_pts = (
@@ -474,11 +465,10 @@ async def transactions_page(
                     mt[lbl] += _f(b.total)
                 mc[lbl] += 1
 
-            mo_modes = [
-                {"label": lbl, "amount": amt, "count": mc[lbl],
-                 "pct": round(amt / mo_total * 100) if mo_total > 0 else 0}
+            mo_modes = with_pct([
+                {"label": lbl, "amount": amt, "count": mc[lbl]}
                 for lbl, amt in sorted(mt.items(), key=lambda x: -x[1])
-            ]
+            ], value_key="amount")
 
             year_grand_total += mo_total
             year_txn_count   += mo_count
@@ -554,11 +544,10 @@ async def transactions_page(
             mode_totals[label] += _f(b.total)
             mode_counts[label] += 1
 
-    mode_breakdown = [
-        {"label": lbl, "amount": amt, "count": mode_counts[lbl],
-         "pct": round(amt / month_total * 100) if month_total > 0 else 0}
+    mode_breakdown = with_pct([
+        {"label": lbl, "amount": amt, "count": mode_counts[lbl]}
         for lbl, amt in sorted(mode_totals.items(), key=lambda x: -x[1])
-    ]
+    ], value_key="amount")
     if mode_counts.get("Free"):
         mode_breakdown.append({"label": "Free", "amount": 0, "count": mode_counts["Free"], "pct": 0})
 

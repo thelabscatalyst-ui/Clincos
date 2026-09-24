@@ -18,6 +18,7 @@ from database.models import (
 from config import settings
 from services.clinic_context import scope_to_active_clinic
 from services.ajax import save_result
+from services.percentages import with_pct
 from services.auth_service import (
     get_current_doctor, get_paying_doctor,
     require_pin, require_pin_auth, require_clinic_owner_context,
@@ -1027,15 +1028,14 @@ def reports_page(
         .group_by(Appointment.appointment_type)
         .all()
     )
-    type_total = sum(r.cnt for r in type_rows) or 1
-    type_breakdown = [
+    # Rounding each share on its own made these add up to 99 or 101.
+    type_breakdown = with_pct([
         {
             "label": r.appointment_type.value.replace("_", " ").title(),
             "count": r.cnt,
-            "pct":   round(r.cnt / type_total * 100),
         }
         for r in type_rows
-    ]
+    ])
 
     # ---- Source breakdown (marketing attribution per patient) ----
     # Aggregate distinct patients per first-touch source. Patients with no
@@ -1061,18 +1061,18 @@ def reports_page(
         .group_by(Patient.referral_source)
         .all()
     )
-    src_total = sum(r.cnt for r in src_rows) or 1
-    source_breakdown = sorted(
+    # Sort before assigning percentages, so the spare point from the largest
+    # remainder lands on the biggest share rather than an arbitrary one.
+    source_breakdown = with_pct(sorted(
         [
             {
                 "label": _src_labels.get(r.referral_source, r.referral_source.value.title()),
                 "count": r.cnt,
-                "pct":   round(r.cnt / src_total * 100),
             }
             for r in src_rows
         ],
         key=lambda x: x["count"], reverse=True,
-    )
+    ))
     source_known_count = sum(r.cnt for r in src_rows)
     source_unknown_count = (
         db.query(func.count(Patient.id))

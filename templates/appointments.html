@@ -995,8 +995,34 @@ function openBillModal(visitId, patientName) {
   setTimeout(() => document.querySelector('#billItemsList .bill-item-price')?.focus(), 120);
 }
 
+/* A row nobody has typed into. The modal opens with one of these so there is
+   somewhere to start, and it must not survive as a ₹0 line on the bill. */
+function _isBlankItemRow(row) {
+  const name  = row.querySelector('[name="item_name"]');
+  const price = row.querySelector('[name="item_price"]');
+  return !(name && name.value.trim()) && !(price && price.value.trim());
+}
+
 function addBillItem(name, qty, price) {
   const list = document.getElementById('billItemsList');
+
+  /* Fill the blank seed row rather than appending underneath it. Appending
+     left an empty ₹0 line sitting ABOVE the item the doctor just added,
+     which reads like the bill starts with a mistake — and it was being
+     saved onto the bill as a real line. */
+  const blank = Array.prototype.find.call(
+    list.querySelectorAll('.bill-item-row'), _isBlankItemRow);
+
+  if (blank) {
+    blank.querySelector('[name="item_name"]').value  = name || '';
+    blank.querySelector('[name="item_qty"]').value   = qty || 1;
+    blank.querySelector('[name="item_price"]').value = (price === 0 || price) ? price : '';
+    _refreshRemoveButtons();
+    blank.querySelector('.bill-item-price').focus();
+    updateTotal();
+    return;
+  }
+
   list.insertAdjacentHTML('beforeend', _mkItemRow(name, qty, price));
   _refreshRemoveButtons();
   list.lastElementChild.querySelector('.bill-item-price').focus();

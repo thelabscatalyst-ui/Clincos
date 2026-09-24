@@ -540,10 +540,23 @@ async function doAutosave() {
   }
 }
 
+/* Say so wherever they land next. The draft is gone either way; silently
+   dropping it looked like the prescription had saved. */
+function _flagEmptyDiscard() {
+  try {
+    sessionStorage.setItem('medtrack:flash', JSON.stringify({
+      title: 'Prescription was empty',
+      message: 'Nothing was written, so no prescription was saved.',
+      type: 'info',
+    }));
+  } catch (e) {}
+}
+
 async function flushAutosave() {
   clearTimeout(autosaveTimer);
   if (rxIsBlank()) {
     /* Don't autosave a blank draft on the way out — drop it instead. */
+    _flagEmptyDiscard();
     try {
       await fetch(`/prescriptions/${RX_ID}/discard-if-empty`, {
         method: 'POST', credentials: 'same-origin',
@@ -553,6 +566,8 @@ async function flushAutosave() {
   }
   await doAutosave();
 }
+
+const RX_EMPTY_RETURN = '/patients/{{ patient.id }}/prescriptions';
 
 const rxForm = document.getElementById('rxForm');
 rxForm.addEventListener('submit', function(e) { e.preventDefault(); });
@@ -570,6 +585,7 @@ window.addEventListener('beforeunload', function() {
      and started typing cannot delete real work. */
   if (rxIsBlank()) {
     clearTimeout(autosaveTimer);
+    _flagEmptyDiscard();
     navigator.sendBeacon(`/prescriptions/${RX_ID}/discard-if-empty`, new Blob([], { type: 'text/plain' }));
     return;
   }
@@ -585,7 +601,12 @@ window.addEventListener('beforeunload', function() {
   if (!el) return;
   el.addEventListener('click', function(e) {
     e.preventDefault();
-    flushAutosave().finally(function() { window.location.href = el.href; });
+    /* Done normally goes to the prescription just written. If it was blank
+       there is no prescription to go to — that link 404s and bounces to the
+       patients list, which is two steps away from where the doctor was.
+       Send them to this patient's history instead. */
+    const target = (id === 'rxDoneBtn' && rxIsBlank()) ? RX_EMPTY_RETURN : el.href;
+    flushAutosave().finally(function() { window.location.href = target; });
   });
 });
 </script>
