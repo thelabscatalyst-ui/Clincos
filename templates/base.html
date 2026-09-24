@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/static/css/main.css?v={{ request.state.asset_v }}" />
   {% block head %}{% endblock %}
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
-  <script src="/static/js/form-draft.js" defer></script>
+  <script src="/static/js/form-draft.js?v={{ request.state.asset_v }}" defer></script>
   <!-- Back/forward guard: a bfcache-restored page can show a logged-out
        doctor their patients. See static/js/session-guard.js. -->
   <script src="/static/js/session-guard.js?v={{ request.state.asset_v }}"></script>
@@ -22,7 +22,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}{% if pin_required is defined and pin_required %} pin-active{% endif %}">
 <div id="nprogress-bar"></div>
-<div id="toast-container"></div>
+<div id="toast-container" role="status" aria-live="polite"></div>
 
 {% block navbar %}
 <nav class="navbar">
@@ -428,21 +428,59 @@ function initPhoneInput(inputEl, showCounter) {
 })();
 
 
-/* ── Toast notification system ── */
-window.showToast = function (message, type) {
-  type = type || 'info';
+/* ── Toast notification system ──
+   showToast('text')                        -> info
+   showToast('text', 'success')             -> the original two-arg form
+   showToast({ message, type, title, duration, dismissible })
+   duration: 0 keeps it up until dismissed. Types: success error warning info.
+   Returns { dismiss } so a caller can take it down early. */
+window.showToast = function (arg, legacyType) {
+  var o = (typeof arg === 'string') ? { message: arg, type: legacyType } : (arg || {});
+  var type      = o.type || 'info';
+  var duration  = (o.duration === 0) ? 0 : (o.duration || 4000);
   var container = document.getElementById('toast-container');
-  if (!container) return;
+  if (!container) return null;
+
   var toast = document.createElement('div');
-  toast.className = 'toast toast--' + type;
-  toast.textContent = message;
-  container.appendChild(toast);
-  setTimeout(function () {
+  toast.className = 'toast toast--' + type + (o.title ? '' : ' toast--plain');
+
+  var dot  = document.createElement('span'); dot.className  = 'toast-dot';
+  var body = document.createElement('div');  body.className = 'toast-body';
+  if (o.title) {
+    var t = document.createElement('div');
+    t.className = 'toast-title';
+    t.textContent = o.title;                 /* textContent, never innerHTML — */
+    body.appendChild(t);                     /* these strings come from the server */
+  }
+  var m = document.createElement('div');
+  m.className = 'toast-msg';
+  m.textContent = o.message || '';
+  body.appendChild(m);
+
+  toast.appendChild(dot);
+  toast.appendChild(body);
+
+  function dismiss() {
+    if (!toast.parentNode) return;
     toast.classList.add('out');
     setTimeout(function () {
       if (toast.parentNode) toast.parentNode.removeChild(toast);
     }, 250);
-  }, 4000);
+  }
+
+  if (o.dismissible || duration === 0) {
+    var x = document.createElement('button');
+    x.className = 'toast-close';
+    x.type = 'button';
+    x.setAttribute('aria-label', 'Dismiss');
+    x.innerHTML = '&#x2715;';
+    x.addEventListener('click', dismiss);
+    toast.appendChild(x);
+  }
+
+  container.appendChild(toast);
+  if (duration > 0) setTimeout(dismiss, duration);
+  return { dismiss: dismiss };
 };
 
 /* Convert URL param-based alerts to toasts on page load */
@@ -451,7 +489,11 @@ window.showToast = function (message, type) {
   var params = new URLSearchParams(window.location.search);
   var MAP = {
     'success':   ['Saved successfully', 'success'],
-    'saved':     ['Changes saved', 'success'],
+    /* 'saved' deliberately absent. The settings page is the only thing that
+       ever produced ?saved=1, and it now saves in place and names the
+       section it saved. A generic "Changes saved" alongside that is exactly
+       the vague feedback this replaced. The param still exists for the
+       no-JS path, where the server renders its own alert. */
     'deleted':   ['Deleted', 'success'],
     'blocked':   ['Date blocked', 'success'],
     'unblocked': ['Block removed', 'success'],
@@ -488,25 +530,37 @@ window.showToast = function (message, type) {
 })();
 
 
-/* ── Button loading state on any form submit ── */
+/* ── Button loading state on any form submit ──
+   Bubble phase, not capture, and it yields to anything that cancelled the
+   submit. In capture this ran BEFORE an inline onsubmit="return confirm(...)"
+   could say no — so clicking Remove PIN and then Cancel left a permanently
+   dead, spinning button. The offline guard below has the same shape.
+
+   The state is also reversible now: a fetch-based save has no navigation to
+   wipe the page, so whoever starts the spinner has to be able to stop it. */
 (function () {
-  document.addEventListener('submit', function (e) {
-    var form = e.target;
-    /* Skip PIN dialog · it has its own UX */
-    if (form.classList.contains('pin-dialog-form')) return;
-    var btn = form.querySelector('[type="submit"]');
+  window.setBtnLoading = function (btn, on) {
     if (!btn) return;
-    /* Ensure .btn-text wrapper exists */
-    if (!btn.querySelector('.btn-text')) {
+    if (on && !btn.querySelector('.btn-text')) {
       var span = document.createElement('span');
       span.className = 'btn-text';
       span.innerHTML = btn.innerHTML;
       btn.innerHTML = '';
       btn.appendChild(span);
     }
-    btn.classList.add('btn--loading');
-    btn.disabled = true;
-  }, true);
+    btn.classList.toggle('btn--loading', !!on);
+    btn.disabled = !!on;
+  };
+
+  document.addEventListener('submit', function (e) {
+    if (e.defaultPrevented) return;
+    var form = e.target;
+    /* Skip PIN dialog · it has its own UX */
+    if (form.classList.contains('pin-dialog-form')) return;
+    /* e.submitter, not the first submit button: a form with two of them
+       (Update PIN / Remove PIN) used to spin whichever came first. */
+    window.setBtnLoading(e.submitter || form.querySelector('[type="submit"]'), true);
+  });
 })();
 
 
@@ -687,9 +741,17 @@ document.addEventListener('keydown', function(e) {
     if (e.target.dataset.noRetry) return;  // opt-out via data-no-retry attribute
     e.preventDefault();
     var form = e.target;
+    var submitter = e.submitter;
     window.showRetryToast(
       "No connection · your data is ready to send",
-      function () { form.submit(); }       // form.submit() bypasses this listener
+      function () {
+        /* requestSubmit re-dispatches a cancellable submit event, so a page
+           that saves via fetch stays on the page. form.submit() bypasses
+           every listener and navigates, which on the settings page threw
+           away every other section's unsaved edits. */
+        if (form.requestSubmit) form.requestSubmit(submitter);
+        else form.submit();
+      }
     );
   }, true /* capture phase — runs before any existing submit handlers */);
 

@@ -380,11 +380,9 @@ a:hover { color: var(--text); }
   border: 1px solid rgba(248, 113, 113, 0.2);
 }
 
-.alert-success {
-  background: rgba(74, 222, 128, 0.1);
-  color: var(--success);
-  border: 1px solid rgba(74, 222, 128, 0.2);
-}
+/* .alert-success lives further down (search "rgba(200,180,154"). The rule
+   that used to sit here was a cold green that nothing else in this warm
+   palette uses, and it was shadowed by that later one anyway. */
 
 /* ------------------------------------------------------------------ */
 /*  Auth footer link                                                    */
@@ -7776,44 +7774,88 @@ html.light .form-group textarea:focus {
   box-shadow: 0 0 0 3px rgba(100, 70, 20, 0.12);
 }
 
-/* ── Toast Notifications ──────────────────────────────────────────── */
+/* ── Toast Notifications ──────────────────────────────────────────────
+   Top centre, so feedback lands where the eye already is rather than in a
+   corner. The visual language is borrowed from #retryToast in base.html —
+   soft dark pill, 12px radius, deep shadow — but built on theme tokens,
+   because that element is hard-coded hex and looks wrong in light mode. */
 #toast-container {
   position: fixed;
-  top: 20px; right: 20px;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 9998;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 10px;
   pointer-events: none;
+  width: min(420px, calc(100vw - 24px));
 }
 
 .toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
   background: var(--bg-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
+  border-radius: 12px;
+  padding: 12px 14px;
   font-size: 13px;
+  line-height: 1.45;
   color: var(--text);
-  box-shadow: var(--glow);
-  max-width: 320px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
   animation: toastIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  line-height: 1.45;
 }
-.toast.out {
-  animation: toastOut 0.22s ease forwards;
-}
-.toast--success { border-left: 3px solid #4ade80; }
-.toast--error   { border-left: 3px solid var(--danger, #f87171); }
-.toast--info    { border-left: 3px solid var(--border); }
+html.light .toast { box-shadow: 0 6px 24px rgba(90, 60, 25, 0.16); }
+.toast.out { animation: toastOut 0.22s ease forwards; }
 
+.toast-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.toast-body  { flex: 1; min-width: 0; }
+.toast-title { font-weight: 600; margin-bottom: 2px; }
+.toast-msg   { color: var(--text-muted); }
+/* Single-line toasts carry no title, so the message IS the headline. */
+.toast--plain .toast-msg { color: var(--text); }
+
+.toast-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim);
+  font-size: 15px; line-height: 1;
+  padding: 2px;
+  flex-shrink: 0;
+}
+.toast-close:hover { color: var(--text); }
+
+/* --success was #4ade80, a cold green that appears nowhere else in this
+   palette. The design tokens already define a warm one. */
+.toast--success { border-left: 3px solid var(--success); }
+.toast--success .toast-dot { background: var(--success); }
+.toast--error   { border-left: 3px solid var(--danger); }
+.toast--error   .toast-dot { background: var(--danger); }
+.toast--warning { border-left: 3px solid var(--warning); }
+.toast--warning .toast-dot { background: var(--warning); }
+.toast--info    { border-left: 3px solid var(--border-light); }
+.toast--info    .toast-dot { background: var(--text-muted); }
+
+/* Centred entrance. The old keyframes slid in on X, which fought the
+   container's own translateX(-50%) and made the toast drift sideways. */
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(16px); }
-  to   { opacity: 1; transform: translateX(0);    }
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);    }
 }
 @keyframes toastOut {
-  from { opacity: 1; transform: translateX(0);    }
-  to   { opacity: 0; transform: translateX(16px); }
+  from { opacity: 1; transform: translateY(0)    scale(1);    }
+  to   { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast, .toast.out { animation-duration: 0.01ms; }
 }
 
 /* ── Skeleton Shimmer ─────────────────────────────────────────────── */
@@ -8627,13 +8669,14 @@ html.light .skeleton::after {
   }
 }
 
-/* ─── 27. Toast: full-width on small screens ──────────────────────────── */
+/* ─── 27. Toast: full-width, still top-centre on small screens ────────── */
 @media (max-width: 480px) {
   #toast-container {
     left: 12px;
     right: 12px;
-    bottom: 70px; /* above mobile nav if present */
-    top: auto;
+    top: 12px;
+    transform: none;   /* left + right do the centring now */
+    width: auto;
   }
 
   .toast {
@@ -8936,3 +8979,59 @@ html.light .skeleton::after {
   }
 }
 
+
+/* ------------------------------------------------------------------ */
+/*  Settings — per-section save state                                   */
+/* ------------------------------------------------------------------ */
+
+/* Sits next to each section's Save button. The point is that a section can
+   say "you have not saved me" on its own, instead of the page showing one
+   ambiguous banner for whatever happened last. */
+.section-status {
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.section-status.is-shown { opacity: 1; }
+.section-status::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.section-status--dirty { color: var(--warning); }
+.section-status--saved { color: var(--success); }
+.section-status--error { color: var(--danger); }
+
+/* The header is title-on-the-left, button-on-the-right. On a narrow screen
+   the status would push the button off, so let the row wrap. */
+.settings-card-header { flex-wrap: wrap; gap: 10px; }
+.settings-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* A dirty section gets a quiet warm edge — enough to find by scrolling,
+   not enough to shout. */
+form[data-guard] .settings-card { transition: border-color 0.2s ease; }
+form[data-guard].is-dirty .settings-card { border-color: var(--warning); }
+
+/* ------------------------------------------------------------------ */
+/*  Unsaved-changes dialog                                              */
+/* ------------------------------------------------------------------ */
+
+/* .modal-backdrop sits at z-index 1000, which is under the toast container
+   (9998) and the offline banner (9999). This dialog blocks navigation, so
+   it has to outrank both. */
+.unsaved-modal { z-index: 10050; }
+.unsaved-modal .modal-box { max-width: 400px; gap: 16px; }
+.unsaved-modal .modal-sub { line-height: 1.5; }
+.unsaved-modal .modal-sub strong { color: var(--text); font-weight: 600; }
