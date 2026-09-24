@@ -13,6 +13,9 @@
 {% if pin_error %}
 <div class="alert alert-error" style="margin-bottom:24px;">{{ pin_error }}</div>
 {% endif %}
+{% if error_msg %}
+<div class="alert alert-error" style="margin-bottom:24px;">{{ error_msg }}</div>
+{% endif %}
 {% if account_error %}
 <div class="alert alert-error" style="margin-bottom:24px;">{{ account_error }}</div>
 {% endif %}
@@ -195,7 +198,9 @@
 <!-- ───────────────────────────────────────────────────── -->
 <!--  1. Working Hours                                      -->
 <!-- ───────────────────────────────────────────────────── -->
-<form method="POST" action="/doctors/settings/schedule">
+<form method="POST" action="/doctors/settings/schedule"
+      data-section="schedule" data-section-label="Working hours"
+      data-guard="1" data-no-draft="1">
   <div class="settings-card">
     <div class="settings-card-header">
       <div>
@@ -211,7 +216,10 @@
         <div class="settings-card-sub">Set the days and times your clinic is open</div>
         {% endif %}
       </div>
-      <button type="submit" class="btn btn-primary btn-sm">Save Hours</button>
+      <div class="settings-card-actions">
+        <div class="section-status" aria-live="polite"></div>
+        <button type="submit" class="btn btn-primary btn-sm">Save Hours</button>
+      </div>
     </div>
 
     <div class="schedule-grid">
@@ -340,14 +348,19 @@
 {% if request.state.active_role != 'associate' %}
 <!--  2. Clinic Profile                                     -->
 <!-- ───────────────────────────────────────────────────── -->
-<form method="POST" action="/doctors/settings/profile">
+<form method="POST" action="/doctors/settings/profile"
+      data-section="profile" data-section-label="Clinic profile"
+      data-guard="1" data-no-draft="1">
   <div class="settings-card">
     <div class="settings-card-header">
       <div>
         <div class="settings-card-title">Clinic Profile</div>
         <div class="settings-card-sub">Appears on your public booking page and printed prescriptions</div>
       </div>
-      <button type="submit" class="btn btn-primary btn-sm">Save Profile</button>
+      <div class="settings-card-actions">
+        <div class="section-status" aria-live="polite"></div>
+        <button type="submit" class="btn btn-primary btn-sm">Save Profile</button>
+      </div>
     </div>
 
     <div class="settings-form-grid">
@@ -379,14 +392,19 @@
 <!-- ───────────────────────────────────────────────────── -->
 <!--  2b. Account Details                                   -->
 <!-- ───────────────────────────────────────────────────── -->
-<form method="POST" action="/doctors/settings/account">
+<form method="POST" action="/doctors/settings/account"
+      data-section="account" data-section-label="Account details"
+      data-guard="1" data-no-draft="1">
   <div class="settings-card">
     <div class="settings-card-header">
       <div>
         <div class="settings-card-title">Account Details</div>
         <div class="settings-card-sub">Your personal contact information and login email</div>
       </div>
-      <button type="submit" class="btn btn-primary btn-sm">Save Details</button>
+      <div class="settings-card-actions">
+        <div class="section-status" aria-live="polite"></div>
+        <button type="submit" class="btn btn-primary btn-sm">Save Details</button>
+      </div>
     </div>
 
     <div class="settings-form-grid">
@@ -424,7 +442,7 @@
 <!-- ───────────────────────────────────────────────────── -->
 <!--  3. Blocked Dates                                      -->
 <!-- ───────────────────────────────────────────────────── -->
-<div class="settings-card">
+<div class="settings-card" id="card-blocked-dates">
   <div class="settings-card-header">
     <div>
       <div class="settings-card-title">Blocked Dates</div>
@@ -432,6 +450,9 @@
     </div>
   </div>
 
+  {# .section-list is the swap target after an add or remove — it has to
+     exist in both branches, so it wraps the empty state too. #}
+  <div class="section-list">
   {% if blocked_dates %}
   <div class="blocked-list">
     {% for b in blocked_dates %}
@@ -440,7 +461,8 @@
         <span class="blocked-date">{{ b.blocked_date.strftime("%d %b %Y") }}</span>
         {% if b.reason %}<span class="blocked-reason">{{ b.reason }}</span>{% endif %}
       </div>
-      <form method="POST" action="/doctors/settings/unblock/{{ b.id }}" style="margin:0;">
+      <form method="POST" action="/doctors/settings/unblock/{{ b.id }}" style="margin:0;"
+            data-section="blocked_dates" data-section-label="Blocked dates" data-no-draft="1">
         <button type="submit" class="btn-icon-remove" title="Remove">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/>
@@ -454,9 +476,11 @@
   {% else %}
   <p class="settings-empty">No blocked dates yet.</p>
   {% endif %}
+  </div>
 
   <div class="blocked-add-form">
-    <form method="POST" action="/doctors/settings/block" class="blocked-add-row">
+    <form method="POST" action="/doctors/settings/block" class="blocked-add-row"
+          data-section="blocked_dates" data-section-label="Blocked dates" data-no-draft="1">
       <input type="date" name="blocked_date" required class="input-sm" style="flex:1;" />
       <input type="text" name="reason" placeholder="Reason (optional)" class="input-sm" style="flex:2;" />
       <button type="submit" class="btn btn-secondary btn-sm">Add</button>
@@ -467,7 +491,7 @@
 <!-- ───────────────────────────────────────────────────── -->
 <!--  3b. Blocked Times                                     -->
 <!-- ───────────────────────────────────────────────────── -->
-<div class="settings-card">
+<div class="settings-card" id="card-blocked-times">
   <div class="settings-card-header">
     <div>
       <div class="settings-card-title">Blocked Times</div>
@@ -475,6 +499,7 @@
     </div>
   </div>
 
+  <div class="section-list">
   {% if blocked_times %}
   <div class="blocked-list">
     {% for bt in blocked_times %}
@@ -486,7 +511,8 @@
         </span>
         {% if bt.reason %}<span class="blocked-reason">{{ bt.reason }}</span>{% endif %}
       </div>
-      <form method="POST" action="/doctors/settings/unblocktime/{{ bt.id }}" style="margin:0;">
+      <form method="POST" action="/doctors/settings/unblocktime/{{ bt.id }}" style="margin:0;"
+            data-section="blocked_times" data-section-label="Blocked times" data-no-draft="1">
         <button type="submit" class="btn-icon-remove" title="Remove">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/>
@@ -500,9 +526,11 @@
   {% else %}
   <p class="settings-empty">No blocked times yet.</p>
   {% endif %}
+  </div>
 
   <div class="blocked-add-form">
-    <form method="POST" action="/doctors/settings/blocktime" class="blocked-add-row" style="flex-wrap:wrap;gap:8px;">
+    <form method="POST" action="/doctors/settings/blocktime" class="blocked-add-row" style="flex-wrap:wrap;gap:8px;"
+          data-section="blocked_times" data-section-label="Blocked times" data-no-draft="1">
       <input type="date" name="blocked_date" required class="input-sm" style="flex:1;min-width:130px;" />
       <input type="time" name="start_time"   required class="input-sm" style="flex:1;min-width:110px;" placeholder="From" />
       <input type="time" name="end_time"     required class="input-sm" style="flex:1;min-width:110px;" placeholder="To" />
@@ -547,7 +575,7 @@
 <!-- ───────────────────────────────────────────────────── -->
 {% if request.state.active_role != 'associate' %}
 <!-- ── Price Catalog ── -->
-<div class="settings-card">
+<div class="settings-card" id="card-price-catalog">
   <div class="settings-card-header" style="margin-bottom:20px;">
     <div>
       <div class="settings-card-title">Price Catalog</div>
@@ -555,6 +583,7 @@
     </div>
   </div>
 
+  <div class="section-list">
   {% if price_catalog %}
   <div class="catalog-list">
     {% for item in price_catalog %}
@@ -567,12 +596,14 @@
       </div>
       <div class="catalog-price">₹{{ "{:,.0f}".format(item.default_price) }}</div>
       <div class="catalog-actions">
-        <form method="POST" action="/price-catalog/{{ item.id }}/pin" style="display:inline;">
+        <form method="POST" action="/price-catalog/{{ item.id }}/pin" style="display:inline;"
+              data-section="catalog" data-section-label="Price catalog" data-no-draft="1">
           <button type="submit" class="btn btn-secondary btn-xs" title="{{ 'Unpin' if item.is_pinned else 'Pin as quick button' }}">
             {{ 'Unpin' if item.is_pinned else 'Pin' }}
           </button>
         </form>
         <form method="POST" action="/price-catalog/{{ item.id }}/delete" style="display:inline;"
+              data-section="catalog" data-section-label="Price catalog" data-no-draft="1"
               onsubmit="return confirm('Remove {{ item.name }}?')">
           <button type="submit" class="btn btn-secondary btn-xs" style="color:var(--danger);border-color:rgba(248,113,113,.3);">Remove</button>
         </form>
@@ -583,8 +614,10 @@
   {% else %}
   <p style="color:var(--muted);font-size:13px;margin-bottom:16px;">No items yet. Add your consultation fees below.</p>
   {% endif %}
+  </div>
 
-  <form method="POST" action="/price-catalog" class="catalog-add-form">
+  <form method="POST" action="/price-catalog" class="catalog-add-form"
+        data-section="catalog" data-section-label="Price catalog" data-no-draft="1">
     <input type="text" name="name" class="input-sm" placeholder="e.g. New Patient Consultation" required style="flex:1;min-width:200px;">
     <input type="number" name="price" class="input-sm" placeholder="₹ Amount" min="0" step="1" required style="width:130px;">
     <label class="catalog-pin-label catalog-pin-toggle" id="catalogPinLabel">
@@ -600,20 +633,31 @@
 {% endif %}
 
 <!-- ── PIN Protection ── -->
-<div class="settings-card">
+<div class="settings-card" id="card-pin">
   <div class="settings-card-header" style="margin-bottom:20px;">
     <div>
       <div class="settings-card-title">PIN Protection</div>
     </div>
-    {% if doctor.pin_hash %}
-    <span class="badge badge--scheduled" style="font-size:12px;padding:4px 10px;">Enabled</span>
-    {% else %}
-    <span class="badge badge--cancelled" style="font-size:12px;padding:4px 10px;">Not set</span>
-    {% endif %}
+    <div class="settings-card-actions">
+      <div class="section-status" aria-live="polite"></div>
+      {% if doctor.pin_hash %}
+      <span class="badge badge--scheduled" id="pinBadge" style="font-size:12px;padding:4px 10px;">Enabled</span>
+      {% else %}
+      <span class="badge badge--cancelled" id="pinBadge" style="font-size:12px;padding:4px 10px;">Not set</span>
+      {% endif %}
+    </div>
   </div>
 
-  <form method="POST" action="/doctors/settings/pin">
+  <form method="POST" action="/doctors/settings/pin"
+        data-section="pin" data-section-label="PIN protection"
+        data-guard="1" data-no-draft="1"
+        data-pin-enabled="{{ '1' if doctor.pin_hash else '0' }}">
     <input type="hidden" name="action" value="set" />
+    {# Which controls belong in this card depends on whether a PIN exists, so
+       setting or removing one has to re-render this body. It is swapped in
+       place; the <form> itself is not, because the dirty tracker holds a
+       reference to that node. #}
+    <div class="pin-form-body">
     <div class="settings-form-grid">
       {% if doctor.pin_hash %}
       <div class="form-group">
@@ -647,19 +691,41 @@
       </button>
       {% endif %}
     </div>
+    </div><!-- /.pin-form-body -->
   </form>
+</div>
+
+<!-- ───────────────────────────────────────────────────── -->
+<!--  Unsaved-changes dialog                                -->
+<!-- ───────────────────────────────────────────────────── -->
+<div class="modal-backdrop unsaved-modal" id="unsavedModal"
+     role="dialog" aria-modal="true"
+     aria-labelledby="unsavedTitle" aria-describedby="unsavedBody">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="unsavedTitle"></div>
+        <div class="modal-sub" id="unsavedBody"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="unsavedSecondary"></button>
+      <button type="button" class="btn btn-primary" id="unsavedPrimary"></button>
+    </div>
+  </div>
 </div>
 
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/settings-save.js?v={{ request.state.asset_v }}" defer></script>
 <script>
 /* ── Preserve scroll position across save-and-reload ─────────────────
-   Every save button here is a plain form POST that redirects back to
-   this same page — simplest and most robust way to stop that reload
-   from dumping the doctor back at the top is to remember where they
-   were and jump straight back, rather than turning ~10 separate save
-   routes into a JSON API. */
+   Saves normally go through static/js/settings-save.js and never reload
+   the page at all, so this does nothing in the common case. It still
+   earns its keep on the two paths that DO navigate: JavaScript switched
+   off, and the offline fallback in base.html. Cheap insurance against
+   dumping the doctor back at the top of a long page. */
 document.querySelectorAll('form').forEach(function(form) {
   form.addEventListener('submit', function() {
     sessionStorage.setItem('settingsScrollY', String(window.scrollY));
@@ -771,22 +837,30 @@ function onShiftChange(dayIdx) {
 
 const BOOKING_URL = window.location.origin + '/book/{{ doctor.slug }}';
 
-// Fill the display span with the full URL on load
+/* The booking-link card above is hidden from associates, and from anyone
+   without a slug. Without this guard the lookup returns null, the throw
+   aborts the rest of this DOMContentLoaded handler, and everything wired
+   up after it silently stops working.
+
+   Keep the card's title out of this comment: a test asserts the exact
+   string is absent from an associate's page, and a comment counts. */
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('bookingLinkDisplay').textContent = BOOKING_URL;
+  const el = document.getElementById('bookingLinkDisplay');
+  if (el) el.textContent = BOOKING_URL;
 });
 
 function copyLink() {
   navigator.clipboard.writeText(BOOKING_URL).then(() => {
     const btn = document.getElementById('copyBtn');
+    if (!btn) return;
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
   });
 }
 
 function updatePinLabel(cb) {
-  document.getElementById('catalogPinBtn').textContent =
-    cb.checked ? 'Quick button: On' : 'Quick button: Off';
+  const btn = document.getElementById('catalogPinBtn');
+  if (btn) btn.textContent = cb.checked ? 'Quick button: On' : 'Quick button: Off';
 }
 
 function shareWhatsApp() {

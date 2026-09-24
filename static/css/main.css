@@ -7781,7 +7781,9 @@ html.light .form-group textarea:focus {
    because that element is hard-coded hex and looks wrong in light mode. */
 #toast-container {
   position: fixed;
-  top: 20px;
+  /* Clears the fixed 58px navbar rather than sitting on top of it. Pages
+     without a navbar just get a slightly lower toast, which is harmless. */
+  top: 72px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9998;
@@ -8674,7 +8676,7 @@ html.light .skeleton::after {
   #toast-container {
     left: 12px;
     right: 12px;
-    top: 12px;
+    top: 68px;
     transform: none;   /* left + right do the centring now */
     width: auto;
   }
@@ -9032,6 +9034,18 @@ form[data-guard].is-dirty .settings-card { border-color: var(--warning); }
    (9998) and the offline banner (9999). This dialog blocks navigation, so
    it has to outrank both. */
 .unsaved-modal { z-index: 10050; }
-.unsaved-modal .modal-box { max-width: 400px; gap: 16px; }
+.unsaved-modal .modal-box { max-width: 440px; gap: 16px; }
 .unsaved-modal .modal-sub { line-height: 1.5; }
 .unsaved-modal .modal-sub strong { color: var(--text); font-weight: 600; }
+/* The labels name what each button does rather than saying "OK"/"Cancel",
+   so they are long. Keep them on one line at this width. */
+.unsaved-modal .modal-actions .btn {
+  font-size: 13px;
+  padding-left: 10px;
+  padding-right: 10px;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .unsaved-modal .modal-actions { flex-direction: column; }
+  .unsaved-modal .modal-actions .btn { border-radius: var(--radius-sm); }
+}
