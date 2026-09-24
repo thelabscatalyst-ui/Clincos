@@ -9080,3 +9080,42 @@ form[data-guard].is-dirty .settings-card { border-color: var(--warning); }
   .confirm-modal .modal-actions .btn { border-radius: var(--radius-sm); }
   .confirm-modal .modal-actions .btn:first-child { border-right: 1px solid var(--border-light); }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Price catalog — row actions and the edit dialog                     */
+/* ------------------------------------------------------------------ */
+
+/* The row buttons were btn-xs: 11px text in a 4px box, set with !important,
+   noticeably smaller than every other control in the app and below a
+   comfortable touch target. They are btn-sm now, matching the Add button
+   sitting directly beneath them in the same card. */
+.catalog-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Destructive, but it sits in a list row — a solid red block per row would
+   dominate the card. Outline now, solid red on hover, where it matters. */
+.btn-quiet-danger {
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.32);
+}
+.btn-quiet-danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.catalog-edit-modal { z-index: 10050; }
+.catalog-edit-modal .modal-box { max-width: 420px; }
+.catalog-edit-modal .modal-actions { margin-top: 4px; }
+.catalog-edit-modal .modal-actions .btn:hover { transform: none; }
+
+@media (max-width: 560px) {
+  /* Name, price and the three buttons each get their own line rather than
+     being squeezed into a row that no longer fits. */
+  .catalog-row { flex-wrap: wrap; }
+  .catalog-actions { width: 100%; }
+  .catalog-actions .btn { flex: 1; }
+}

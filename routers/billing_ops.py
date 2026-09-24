@@ -603,6 +603,47 @@ async def delete_catalog_item(
                        redirect="/doctors/settings?saved=1")
 
 
+@router.post("/price-catalog/{item_id}/edit")
+async def edit_catalog_item(
+    item_id: int,
+    request: Request,
+    name: str    = Form(...),
+    price: float = Form(...),
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(require_clinic_owner_context),
+):
+    """Rename or reprice an entry.
+
+    Without this the only way to correct a typo was to remove the entry and
+    add it back, which loses its pinned state and its place in the list.
+    """
+    item = db.query(PriceCatalog).filter(
+        PriceCatalog.id == item_id,
+        PriceCatalog.doctor_id == doctor.id,
+    ).first()
+    if not item:
+        return save_result(request, ok=False, section="catalog",
+                           message="That price is no longer in your catalog.",
+                           redirect="/doctors/settings?saved=1")
+
+    name = name.strip()
+    if not name:
+        return save_result(request, ok=False, section="catalog",
+                           message="A name is required.",
+                           redirect="/doctors/settings?saved=1")
+    if price < 0:
+        return save_result(request, ok=False, section="catalog",
+                           message="A price cannot be negative.",
+                           redirect="/doctors/settings?saved=1")
+
+    item.name          = name
+    item.default_price = price
+    db.commit()
+    return save_result(request, ok=True, section="catalog",
+                       message="Price updated",
+                       redirect="/doctors/settings?saved=1")
+
+
 @router.post("/price-catalog/{item_id}/pin")
 async def toggle_pin(
     item_id: int,

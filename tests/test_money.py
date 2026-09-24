@@ -86,6 +86,75 @@ class TestPriceCatalog:
         assert r.status_code == 303
         assert r.headers["location"] == "/doctors/settings?saved=1"
 
+    def test_edit_renames_and_reprices_without_losing_the_pin(self, client, doc):
+        """Before this route the only way to fix a typo was remove-and-re-add,
+        which loses the entry's pinned state and its place in the list."""
+        client.post("/price-catalog", data={"name": "Typo Name", "price": "300",
+                                            "pinned": "true"}, follow_redirects=False)
+        db = TestSessionLocal()
+        try:
+            item = db.query(PriceCatalog).filter(
+                PriceCatalog.doctor_id == doc["id"]).first()
+            iid, was_pinned = item.id, item.is_pinned
+        finally:
+            db.close()
+        assert was_pinned
+
+        r = client.post(f"/price-catalog/{iid}/edit",
+                        data={"name": "Correct Name", "price": "450"},
+                        headers={"X-Requested-With": "fetch",
+                                 "Accept": "application/json"},
+                        follow_redirects=False)
+        assert r.status_code == 200 and r.json()["message"] == "Price updated"
+
+        db = TestSessionLocal()
+        try:
+            item = db.query(PriceCatalog).filter(PriceCatalog.id == iid).first()
+            assert item.name == "Correct Name"
+            assert float(item.default_price) == 450.0
+            assert item.is_pinned is True, "editing dropped the pin"
+        finally:
+            db.close()
+
+    def test_edit_rejects_an_empty_name(self, client, doc):
+        client.post("/price-catalog", data={"name": "Keep", "price": "100"},
+                    follow_redirects=False)
+        db = TestSessionLocal()
+        try:
+            iid = db.query(PriceCatalog).filter(
+                PriceCatalog.doctor_id == doc["id"]).first().id
+        finally:
+            db.close()
+        r = client.post(f"/price-catalog/{iid}/edit",
+                        data={"name": "   ", "price": "100"},
+                        headers={"X-Requested-With": "fetch",
+                                 "Accept": "application/json"},
+                        follow_redirects=False)
+        assert r.status_code == 400 and r.json()["ok"] is False
+
+    def test_another_doctor_cannot_edit_your_price(self, client, doc):
+        client.post("/price-catalog", data={"name": "Mine", "price": "900"},
+                    follow_redirects=False)
+        db = TestSessionLocal()
+        try:
+            iid = db.query(PriceCatalog).filter(
+                PriceCatalog.doctor_id == doc["id"]).first().id
+        finally:
+            db.close()
+
+        register(client, "catalog-thief@test.com")
+        verify_email("catalog-thief@test.com")
+        login(client, "catalog-thief@test.com")
+        client.post(f"/price-catalog/{iid}/edit",
+                    data={"name": "Stolen", "price": "1"}, follow_redirects=False)
+
+        db = TestSessionLocal()
+        try:
+            assert db.query(PriceCatalog).filter(
+                PriceCatalog.id == iid).first().name == "Mine"
+        finally:
+            db.close()
+
     def test_pin_and_delete_item(self, client, doc):
         client.post("/price-catalog", data={"name": "X-Ray", "price": "800"},
                     follow_redirects=False)

@@ -596,9 +596,13 @@
       </div>
       <div class="catalog-price">₹{{ "{:,.0f}".format(item.default_price) }}</div>
       <div class="catalog-actions">
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="openCatalogEdit({{ item.id }}, this)"
+                data-name="{{ item.name }}" data-price="{{ '%.0f'|format(item.default_price) }}"
+                title="Edit name and price">Edit</button>
         <form method="POST" action="/price-catalog/{{ item.id }}/pin" style="display:inline;"
               data-section="catalog" data-section-label="Price catalog" data-no-draft="1">
-          <button type="submit" class="btn btn-secondary btn-xs" title="{{ 'Unpin' if item.is_pinned else 'Pin as quick button' }}">
+          <button type="submit" class="btn btn-secondary btn-sm" title="{{ 'Stop showing as a quick button in billing' if item.is_pinned else 'Show as a quick button in billing' }}">
             {{ 'Unpin' if item.is_pinned else 'Pin' }}
           </button>
         </form>
@@ -607,7 +611,7 @@
               data-confirm-title="Remove {{ item.name }}?"
               data-confirm="It will stop appearing in the billing modal. Bills already issued keep it."
               data-confirm-label="Remove">
-          <button type="submit" class="btn btn-secondary btn-xs" style="color:var(--danger);border-color:rgba(248,113,113,.3);">Remove</button>
+          <button type="submit" class="btn btn-secondary btn-sm btn-quiet-danger">Remove</button>
         </form>
       </div>
     </div>
@@ -695,6 +699,40 @@
     </div>
     </div><!-- /.pin-form-body -->
   </form>
+</div>
+
+<!-- ───────────────────────────────────────────────────── -->
+<!--  Price catalog — edit                                  -->
+<!-- ───────────────────────────────────────────────────── -->
+<div class="modal-backdrop catalog-edit-modal" id="catalogEditModal"
+     role="dialog" aria-modal="true" aria-labelledby="catalogEditTitle">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="catalogEditTitle">Edit price</div>
+        <div class="modal-sub">Renaming or repricing keeps the entry pinned and in place.</div>
+      </div>
+    </div>
+    {# Posts like every other catalog form, so the settings fetch layer picks
+       it up and refreshes the list without a reload. The action is set from
+       JS when the dialog opens. #}
+    <form method="POST" id="catalogEditForm"
+          data-section="catalog" data-section-label="Price catalog" data-no-draft="1">
+      <div class="form-group">
+        <label for="catalogEditName">Name</label>
+        <input type="text" id="catalogEditName" name="name" required
+               placeholder="e.g. New Patient Consultation" />
+      </div>
+      <div class="form-group">
+        <label for="catalogEditPrice">Price (₹)</label>
+        <input type="number" id="catalogEditPrice" name="price" min="0" step="1" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeCatalogEdit()">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- ───────────────────────────────────────────────────── -->
@@ -869,6 +907,42 @@ function copyLink() {
    button rather than to the form — data-confirm would ask on Update too.
    Re-clicking with the flag set lets the real submit through, with this
    button as the submitter, which is what carries action=remove. */
+/* ── Price catalog edit ── */
+let _catalogEditReturnFocus = null;
+
+function openCatalogEdit(itemId, btn) {
+  const modal = document.getElementById('catalogEditModal');
+  const form  = document.getElementById('catalogEditForm');
+  form.setAttribute('action', '/price-catalog/' + itemId + '/edit');
+  document.getElementById('catalogEditName').value  = btn.dataset.name;
+  document.getElementById('catalogEditPrice').value = btn.dataset.price;
+  _catalogEditReturnFocus = btn;
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('catalogEditName').focus();
+}
+
+function closeCatalogEdit() {
+  document.getElementById('catalogEditModal').classList.remove('open');
+  document.body.style.overflow = '';
+  if (_catalogEditReturnFocus) _catalogEditReturnFocus.focus();
+  _catalogEditReturnFocus = null;
+}
+
+document.getElementById('catalogEditModal').addEventListener('click', function (e) {
+  if (e.target === this) closeCatalogEdit();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' &&
+      document.getElementById('catalogEditModal').classList.contains('open')) {
+    closeCatalogEdit();
+  }
+});
+/* The fetch layer refreshes the list; close as soon as the save lands. */
+document.getElementById('catalogEditForm').addEventListener('submit', function () {
+  setTimeout(closeCatalogEdit, 50);
+});
+
 function pinRemoveGuard(btn, ev) {
   if (btn._confirmed) { btn._confirmed = false; return true; }
   ev.preventDefault();
