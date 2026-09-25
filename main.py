@@ -98,10 +98,25 @@ async def lifespan(app: FastAPI):
     # this container — it has no persistent disk, so anything written here is
     # destroyed by the next deploy. The local directory is only created when
     # the disk fallback is actually in use, which is local dev and tests.
-    if not storage_service.is_configured():
+    #
+    # This is logged at WARNING on purpose, not INFO: uvicorn leaves the root
+    # logger at WARNING, so an INFO line here is invisible in production — and
+    # "which backend is actually live" is precisely the thing that must never
+    # be a guess. A version of this shipped writing to local disk while every
+    # screen reported success, and nothing on the console said otherwise.
+    _log = logging.getLogger(__name__)
+    if storage_service.is_configured():
+        _log.warning("document vault: Cloudflare R2 (bucket %s)", settings.R2_BUCKET)
+    else:
         Path("uploads/patients").mkdir(parents=True, exist_ok=True)
-    logging.getLogger(__name__).info(
-        "document vault backend: %s", storage_service.backend_name())
+        if settings.ENVIRONMENT.lower() == "production":
+            _log.error(
+                "DOCUMENT VAULT IS ON LOCAL DISK IN PRODUCTION. This container "
+                "has no persistent volume — every uploaded patient file will be "
+                "destroyed by the next deploy. Set R2_ACCOUNT_ID, "
+                "R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET.")
+        else:
+            _log.warning("document vault: local disk at ./uploads (R2 not configured)")
     create_tables()
     start_scheduler()
     yield

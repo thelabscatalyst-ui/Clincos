@@ -128,6 +128,93 @@ class TestUnconfiguredFallsBackToDisk:
                 f"missing {present} still read as configured")
 
 
+class TestConfiguredButUnreachableNeverTouchesDisk:
+    """The bug this class exists for, found in verification rather than here.
+
+    The first version treated "configured but no usable client" the same as
+    "not configured", so a missing boto3 made every upload fall through to the
+    local filesystem. The app reported success, the vault page listed the
+    document, and on Railway that file was destroyed by the next deploy —
+    silently writing patient records somewhere doomed, which is the precise
+    failure the whole module was written to remove.
+
+    Once R2 is configured, disk is not a fallback. It fails loudly instead, so
+    the caller declines to create a row and the doctor sees an error now rather
+    than a missing lab report next week.
+    """
+
+    @pytest.fixture
+    def broken_r2(self, monkeypatch):
+        for field in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID",
+                      "R2_SECRET_ACCESS_KEY", "R2_BUCKET"):
+            monkeypatch.setattr(settings, field, "configured-but-broken")
+        # Exactly what a missing boto3 or a bad endpoint produces.
+        monkeypatch.setattr(storage, "_r2", lambda: None)
+        return True
+
+    def test_put_fails_rather_than_writing_to_disk(self, broken_r2, tmp_path):
+        key = "patients/999999/888888/must-not-land-on-disk.pdf"
+        ok, detail = storage.put(key, b"patient data", "application/pdf")
+        assert ok is False, "a broken vault reported a successful write"
+        assert "unavailable" in detail
+        from pathlib import Path
+        assert not (Path("uploads") / key).exists(), (
+            "file was written to the container filesystem, which the next "
+            "deploy destroys — this is the original bug")
+
+    def test_get_does_not_serve_leftovers_from_disk(self, broken_r2):
+        """A stray file on one container must never read back as the vault."""
+        from pathlib import Path
+        stray = Path("uploads/patients/999999/888888/stray.pdf")
+        stray.parent.mkdir(parents=True, exist_ok=True)
+        stray.write_bytes(b"leftover from an old deploy")
+        try:
+            assert storage.get("patients/999999/888888/stray.pdf") is None
+        finally:
+            stray.unlink(missing_ok=True)
+
+    def test_delete_reports_failure_instead_of_pretending(self, broken_r2):
+        ok, detail = storage.delete("patients/999999/888888/x.pdf")
+        assert ok is False and "unavailable" in detail
+
+    def test_delete_prefix_removes_nothing_and_says_so(self, broken_r2):
+        count, detail = storage.delete_prefix("patients/999999/888888/")
+        assert count == 0 and "unavailable" in detail
+
+    def test_exists_is_false_not_an_exception(self, broken_r2):
+        assert storage.exists("patients/999999/888888/x.pdf") is False
+
+    def test_the_route_declines_to_create_a_row(self, client, doc, broken_r2):
+        """End to end: a failed upload must leave no PatientDocument behind.
+
+        A row whose file does not exist is worse than no row at all — the
+        doctor believes the report is filed.
+        """
+        before = TestSessionLocal()
+        try:
+            start = before.query(PatientDocument).filter(
+                PatientDocument.patient_id == doc["patient"]).count()
+        finally:
+            before.close()
+
+        client.post(
+            f"/patients/{doc['patient']}/vault/upload",
+            data={"category": "lab_report", "description": "should not persist"},
+            files={"files": ("ghost.pdf", io.BytesIO(b"%PDF-1.4 ghost"),
+                             "application/pdf")},
+            follow_redirects=False,
+        )
+
+        after = TestSessionLocal()
+        try:
+            end = after.query(PatientDocument).filter(
+                PatientDocument.patient_id == doc["patient"]).count()
+        finally:
+            after.close()
+        assert end == start, (
+            "a vault row was created for a file that was never stored")
+
+
 # --------------------------------------------------------------------------- #
 #  Keys are not paths                                                           #
 # --------------------------------------------------------------------------- #

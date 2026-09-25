@@ -75,6 +75,8 @@ def _r2():
 
     Cached, including the failure: a bad endpoint or missing boto3 should be
     logged once, not once per uploaded file.
+
+    A None return is NOT a cue to use the disk. See _r2_required().
     """
     global _client, _client_failed
     if _client is not None or _client_failed:
@@ -102,9 +104,36 @@ def _r2():
         return _client
     except Exception as exc:                      # pragma: no cover - env dependent
         _client_failed = True
-        logger.error("R2 client unavailable (%s: %s) — falling back to disk",
+        logger.error("R2 client could NOT be built (%s: %s) — the vault is "
+                     "unavailable; refusing to write to local disk instead",
                      type(exc).__name__, exc)
         return None
+
+
+class _VaultUnavailable(Exception):
+    """R2 is configured but unreachable. Raised internally, never escapes."""
+
+
+def _r2_required():
+    """The client when R2 is configured, raising if it cannot be built.
+
+    This exists because of a bug caught in verification. The first version of
+    this module treated "configured but no client" the same as "not
+    configured", so a missing boto3 made uploads fall through to the local
+    disk. Every screen said success — and on Railway that disk is destroyed by
+    the next deploy. Silently writing patient files somewhere doomed is the
+    exact failure this whole module was written to remove, and it was invisible
+    because it looked identical to working.
+
+    So: once R2 is configured, disk is never a fallback. A configured vault
+    that cannot be reached fails loudly and the caller declines to create a
+    row, leaving the doctor with a visible error instead of a file that
+    evaporates a day later.
+    """
+    client = _r2()
+    if client is None:
+        raise _VaultUnavailable("R2 is configured but the client is unavailable")
+    return client
 
 
 # --------------------------------------------------------------------------- #
@@ -160,23 +189,22 @@ def put(key: str, data: bytes, content_type: str = "application/octet-stream") -
         return False, "unsafe key"
 
     if is_configured():
-        client = _r2()
-        if client is not None:
-            try:
-                client.put_object(
-                    Bucket=settings.R2_BUCKET,
-                    Key=safe,
-                    Body=data,
-                    ContentType=content_type or "application/octet-stream",
-                )
-                return True, "r2"
-            except Exception as exc:
-                # Deliberately NOT falling through to disk here. A write that
-                # lands on the container filesystem looks like success and then
-                # disappears at the next deploy — a silent partial failure is
-                # worse than a visible one the caller can report.
-                logger.error("R2 put failed for %s (%s: %s)", safe, type(exc).__name__, exc)
-                return False, f"r2 error: {type(exc).__name__}"
+        # No disk fallback past this point, for any reason. A write that lands
+        # on the container filesystem looks like success and then disappears at
+        # the next deploy.
+        try:
+            _r2_required().put_object(
+                Bucket=settings.R2_BUCKET,
+                Key=safe,
+                Body=data,
+                ContentType=content_type or "application/octet-stream",
+            )
+            return True, "r2"
+        except _VaultUnavailable:
+            return False, "vault unavailable"
+        except Exception as exc:
+            logger.error("R2 put failed for %s (%s: %s)", safe, type(exc).__name__, exc)
+            return False, f"r2 error: {type(exc).__name__}"
 
     path = _disk_path(safe)
     if path is None:
@@ -202,20 +230,21 @@ def get(key: str) -> Optional[bytes]:
         return None
 
     if is_configured():
-        client = _r2()
-        if client is not None:
-            try:
-                obj = client.get_object(Bucket=settings.R2_BUCKET, Key=safe)
-                return obj["Body"].read()
-            except Exception as exc:
-                # A missing object is ordinary (deleted, or lost to an old
-                # deploy); anything else is worth a log line but reads the same
-                # to the caller.
-                if type(exc).__name__ not in ("NoSuchKey", "ClientError"):
-                    logger.error("R2 get failed for %s (%s: %s)", safe, type(exc).__name__, exc)
-                else:
-                    logger.info("R2 object not found: %s", safe)
-                return None
+        try:
+            obj = _r2_required().get_object(Bucket=settings.R2_BUCKET, Key=safe)
+            return obj["Body"].read()
+        except _VaultUnavailable:
+            return None
+        except Exception as exc:
+            # A missing object is ordinary (deleted, or lost to an old deploy);
+            # anything else is worth a log line but reads the same to the
+            # caller. Reading from disk here would be worse than useless: it
+            # would serve one container's leftovers as if they were the vault.
+            if type(exc).__name__ not in ("NoSuchKey", "ClientError"):
+                logger.error("R2 get failed for %s (%s: %s)", safe, type(exc).__name__, exc)
+            else:
+                logger.info("R2 object not found: %s", safe)
+            return None
 
     path = _disk_path(safe)
     if path is None or not path.exists():
@@ -234,13 +263,11 @@ def exists(key: str) -> bool:
         return False
 
     if is_configured():
-        client = _r2()
-        if client is not None:
-            try:
-                client.head_object(Bucket=settings.R2_BUCKET, Key=safe)
-                return True
-            except Exception:
-                return False
+        try:
+            _r2_required().head_object(Bucket=settings.R2_BUCKET, Key=safe)
+            return True
+        except Exception:
+            return False
 
     path = _disk_path(safe)
     return bool(path and path.exists())
@@ -257,14 +284,14 @@ def delete(key: str) -> tuple[bool, str]:
         return False, "unsafe key"
 
     if is_configured():
-        client = _r2()
-        if client is not None:
-            try:
-                client.delete_object(Bucket=settings.R2_BUCKET, Key=safe)
-                return True, "r2"
-            except Exception as exc:
-                logger.error("R2 delete failed for %s (%s: %s)", safe, type(exc).__name__, exc)
-                return False, f"r2 error: {type(exc).__name__}"
+        try:
+            _r2_required().delete_object(Bucket=settings.R2_BUCKET, Key=safe)
+            return True, "r2"
+        except _VaultUnavailable:
+            return False, "vault unavailable"
+        except Exception as exc:
+            logger.error("R2 delete failed for %s (%s: %s)", safe, type(exc).__name__, exc)
+            return False, f"r2 error: {type(exc).__name__}"
 
     path = _disk_path(safe)
     if path is None:
@@ -291,25 +318,26 @@ def delete_prefix(prefix: str) -> tuple[int, str]:
         safe += "/"
 
     if is_configured():
-        client = _r2()
-        if client is not None:
-            removed = 0
-            try:
-                paginator = client.get_paginator("list_objects_v2")
-                for page in paginator.paginate(Bucket=settings.R2_BUCKET, Prefix=safe):
-                    keys = [{"Key": o["Key"]} for o in page.get("Contents", [])]
-                    if not keys:
-                        continue
-                    # delete_objects caps at 1000 per call; the paginator
-                    # already yields at most that many.
-                    client.delete_objects(Bucket=settings.R2_BUCKET,
-                                          Delete={"Objects": keys})
-                    removed += len(keys)
-                return removed, "r2"
-            except Exception as exc:
-                logger.error("R2 delete_prefix failed for %s (%s: %s)",
-                             safe, type(exc).__name__, exc)
-                return removed, f"r2 error: {type(exc).__name__}"
+        removed = 0
+        try:
+            client = _r2_required()
+            paginator = client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.R2_BUCKET, Prefix=safe):
+                keys = [{"Key": o["Key"]} for o in page.get("Contents", [])]
+                if not keys:
+                    continue
+                # delete_objects caps at 1000 per call; the paginator already
+                # yields at most that many.
+                client.delete_objects(Bucket=settings.R2_BUCKET,
+                                      Delete={"Objects": keys})
+                removed += len(keys)
+            return removed, "r2"
+        except _VaultUnavailable:
+            return 0, "vault unavailable"
+        except Exception as exc:
+            logger.error("R2 delete_prefix failed for %s (%s: %s)",
+                         safe, type(exc).__name__, exc)
+            return removed, f"r2 error: {type(exc).__name__}"
 
     path = _disk_path(safe)
     if path is None or not path.exists():
@@ -332,16 +360,16 @@ def list_keys(prefix: str = "") -> list[str]:
         return []
 
     if is_configured():
-        client = _r2()
-        if client is not None:
-            out: list[str] = []
-            try:
-                paginator = client.get_paginator("list_objects_v2")
-                for page in paginator.paginate(Bucket=settings.R2_BUCKET, Prefix=safe or ""):
-                    out.extend(o["Key"] for o in page.get("Contents", []))
-            except Exception as exc:
-                logger.error("R2 list failed for %s (%s: %s)", safe, type(exc).__name__, exc)
-            return out
+        out: list[str] = []
+        try:
+            paginator = _r2_required().get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.R2_BUCKET, Prefix=safe or ""):
+                out.extend(o["Key"] for o in page.get("Contents", []))
+        except _VaultUnavailable:
+            pass
+        except Exception as exc:
+            logger.error("R2 list failed for %s (%s: %s)", safe, type(exc).__name__, exc)
+        return out
 
     root = _DISK_ROOT / (safe or "")
     if not root.exists():
