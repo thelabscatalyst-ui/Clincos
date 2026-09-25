@@ -55,6 +55,16 @@ class Settings(BaseSettings):
     # once when static assets change.
     ASSET_VERSION: str = "169"
 
+    # Cloudflare R2 — the patient document vault. Leave these unset and
+    # services/storage_service falls back to local disk under uploads/, which
+    # is how local development and the test suite run. They MUST be set in
+    # production: the app container has no persistent disk, so a file written
+    # locally there survives only until the next deploy.
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET: str = ""
+
     class Config:
         env_file = ".env"
 

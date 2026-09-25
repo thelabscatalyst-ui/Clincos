@@ -1,3 +1,4 @@
+import logging
 import math
 import mimetypes
 import uuid
@@ -5,9 +6,9 @@ from datetime import date
 from pathlib import Path
 from typing import List, Optional
 
-import aiofiles
 from fastapi import APIRouter, Request, Depends, Form, Query, File, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
@@ -19,9 +20,12 @@ from datetime import datetime
 from database.connection import get_db
 from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill, PatientDocument, DOCUMENT_CATEGORIES, ReferralSource, Prescription
 from services.auth_service import get_paying_doctor, require_pin
+from services import storage_service as storage
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 templates = Jinja2Templates(directory="templates")
+
+logger = logging.getLogger(__name__)
 
 MAX_FILE_BYTES = 10 * 1024 * 1024   # 10 MB
 
@@ -90,15 +94,13 @@ def _notes_data(patient_notes) -> list:
     return out
 
 
-def _upload_dir(doctor_id: int, patient_id: int) -> Path:
-    p = Path(f"uploads/patients/{doctor_id}/{patient_id}")
-    p.mkdir(parents=True, exist_ok=True)
-    return p
-
-
 def _safe_filename(original: str) -> str:
-    """Strip any directory components so callers cannot traverse outside uploads/.
+    """Strip any directory components so callers cannot traverse outside the
+    patient's own prefix.
     e.g. '../../etc/passwd' → 'etc_passwd', 'report.pdf' → 'report.pdf'
+
+    Still the first line of defence now that files live in an object store:
+    '../' in a key is every bit as dangerous as '../' in a path.
     """
     # Path.name strips everything before the last separator
     name = Path(original).name
@@ -456,7 +458,6 @@ async def add_note(
     db.flush()   # populate note.id before inserting files
 
     saved_files = []
-    udir = _upload_dir(doctor.id, patient_id)
 
     for f in real_files:
         content = await f.read()
@@ -464,9 +465,18 @@ async def add_note(
             continue   # silently skip oversized files
 
         stored_name = f"{uuid.uuid4().hex}_{_safe_filename(f.filename)}"
-        dest = udir / stored_name
-        async with aiofiles.open(dest, "wb") as fh:
-            await fh.write(content)
+        mime, _ = mimetypes.guess_type(f.filename)
+        ok, detail = await run_in_threadpool(
+            storage.put,
+            storage.object_key(doctor.id, patient_id, stored_name),
+            content,
+            mime or "application/octet-stream",
+        )
+        if not ok:
+            # No row without an object. A NoteFile pointing at nothing is a
+            # broken attachment the doctor can see but never open.
+            logger.error("note attachment not stored (%s) for patient %s", detail, patient_id)
+            continue
 
         nf = NoteFile(
             note_id=note.id,
@@ -511,9 +521,11 @@ def view_file(
     if not nf:
         return JSONResponse({"error": "File not found."}, status_code=404)
 
-    path = Path(f"uploads/patients/{doctor.id}/{patient_id}/{nf.stored_name}")
-    if not path.exists():
-        return JSONResponse({"error": "File missing on disk."}, status_code=404)
+    data = storage.get(storage.object_key(doctor.id, patient_id, nf.stored_name))
+    if data is None:
+        # Either deleted, or destroyed by a deploy before the vault moved off
+        # the container filesystem. The row outlived the file.
+        return JSONResponse({"error": "File is no longer available."}, status_code=404)
 
     mime_type, _ = mimetypes.guess_type(nf.original_name)
     if not mime_type:
@@ -529,10 +541,13 @@ def view_file(
     disposition = "inline" if previewable else "attachment"
 
     safe_name = nf.original_name.replace('"', '').replace("'", '')
-    return FileResponse(
-        path=str(path),
+    return Response(
+        content=data,
         media_type=mime_type,
-        headers={"Content-Disposition": f'{disposition}; filename="{safe_name}"'},
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{safe_name}"',
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
@@ -553,12 +568,9 @@ def delete_note(
         PatientNote.doctor_id == doctor.id,
     ).first()
     if note:
-        # Delete physical files from disk
-        udir = Path(f"uploads/patients/{doctor.id}/{patient_id}")
+        # Remove the stored objects as well as the rows
         for nf in note.files:
-            p = udir / nf.stored_name
-            if p.exists():
-                p.unlink()
+            storage.delete(storage.object_key(doctor.id, patient_id, nf.stored_name))
         db.delete(note)
         db.commit()
     return JSONResponse({"ok": True})
@@ -598,15 +610,22 @@ async def edit_note(
 
     # Save any new files
     if real_files:
-        udir = _upload_dir(doctor.id, patient_id)
         for f in real_files:
             content = await f.read()
             if len(content) > MAX_FILE_BYTES:
                 continue
             stored_name = f"{uuid.uuid4().hex}_{_safe_filename(f.filename)}"
-            dest = udir / stored_name
-            async with aiofiles.open(dest, "wb") as fh:
-                await fh.write(content)
+            mime, _ = mimetypes.guess_type(f.filename)
+            ok, detail = await run_in_threadpool(
+                storage.put,
+                storage.object_key(doctor.id, patient_id, stored_name),
+                content,
+                mime or "application/octet-stream",
+            )
+            if not ok:
+                logger.error("note attachment not stored (%s) for patient %s",
+                             detail, patient_id)
+                continue
             db.add(NoteFile(
                 note_id=note.id,
                 original_name=f.filename,
@@ -646,9 +665,7 @@ def delete_note_file(
     if not nf:
         return JSONResponse({"error": "File not found."}, status_code=404)
 
-    path = Path(f"uploads/patients/{doctor.id}/{patient_id}/{nf.stored_name}")
-    if path.exists():
-        path.unlink()
+    storage.delete(storage.object_key(doctor.id, patient_id, nf.stored_name))
 
     db.delete(nf)
     db.commit()
@@ -671,11 +688,10 @@ def delete_patient(
         Patient.doctor_id == doctor.id,
     ).first()
     if patient:
-        # Remove upload directory for this patient
-        import shutil
-        udir = Path(f"uploads/patients/{doctor.id}/{patient_id}")
-        if udir.exists():
-            shutil.rmtree(udir, ignore_errors=True)
+        # Remove every stored object for this patient. An object store has no
+        # directories, so what used to be one rmtree is "list the prefix and
+        # delete each key".
+        storage.delete_prefix(storage.patient_prefix(doctor.id, patient_id))
 
         # Delete all child records in dependency order to avoid FK errors
         # 1. NoteFiles attached to this patient's notes
@@ -856,7 +872,6 @@ async def vault_upload(
     if not real_files:
         return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
 
-    upload_dir = _upload_dir(doctor.id, patient_id)
     cat = category if category in DOCUMENT_CATEGORIES else "other"
 
     for f in real_files:
@@ -865,8 +880,19 @@ async def vault_upload(
             continue
         safe   = _safe_filename(f.filename)
         stored = f"doc_{uuid.uuid4().hex}_{safe}"
-        (upload_dir / stored).write_bytes(data)
         mime, _ = mimetypes.guess_type(f.filename)
+        ok, detail = await run_in_threadpool(
+            storage.put,
+            storage.object_key(doctor.id, patient_id, stored),
+            data,
+            mime or "application/octet-stream",
+        )
+        if not ok:
+            # No row without an object — a vault entry that cannot be opened is
+            # worse than one that was never created, because the doctor
+            # believes the report is filed.
+            logger.error("vault upload not stored (%s) for patient %s", detail, patient_id)
+            continue
         db.add(PatientDocument(
             doctor_id     = doctor.id,
             patient_id    = patient_id,
@@ -898,8 +924,8 @@ def vault_serve(
     if not doc:
         return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
 
-    file_path = _upload_dir(doctor.id, patient_id) / doc.stored_name
-    if not file_path.exists():
+    data = storage.get(storage.object_key(doctor.id, patient_id, doc.stored_name))
+    if data is None:
         return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
 
     mime = doc.mime_type or "application/octet-stream"
@@ -918,7 +944,7 @@ def vault_serve(
         "Content-Disposition": f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded}",
         "X-Content-Type-Options": "nosniff",
     }
-    return FileResponse(str(file_path), media_type=mime, headers=headers)
+    return Response(content=data, media_type=mime, headers=headers)
 
 
 @router.post("/{patient_id}/vault/{doc_id}/delete", response_class=HTMLResponse)
@@ -934,9 +960,7 @@ def vault_delete(
         PatientDocument.doctor_id  == doctor.id,
     ).first()
     if doc:
-        file_path = _upload_dir(doctor.id, patient_id) / doc.stored_name
-        if file_path.exists():
-            file_path.unlink()
+        storage.delete(storage.object_key(doctor.id, patient_id, doc.stored_name))
         db.delete(doc)
         db.commit()
     return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)

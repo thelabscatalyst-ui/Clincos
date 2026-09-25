@@ -6,11 +6,11 @@ Saves to patient vault automatically after every successful billing.
 
 import uuid
 from datetime import datetime
-from pathlib import Path
 
 from fpdf import FPDF
 
 from database.models import Doctor, Patient, Bill, PatientDocument, Appointment
+from services import storage_service as storage
 
 
 # ── Warm parchment palette ─────────────────────────────────────────────────── #
@@ -39,12 +39,6 @@ assert CD + CQ + CP + CT == CW
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────── #
-
-def _upload_dir(doctor_id: int, patient_id: int) -> Path:
-    p = Path("uploads") / "patients" / str(doctor_id) / str(patient_id)
-    p.mkdir(parents=True, exist_ok=True)
-    return p
-
 
 def _safe(text) -> str:
     """Encode to Latin-1, replacing any character the Helvetica font can't render.
@@ -87,7 +81,15 @@ def regenerate_bill_pdf(bill: Bill, db) -> None:
 
 
 def _delete_existing_bill_pdf(bill: Bill, db) -> None:
-    upload_dir = _upload_dir(bill.doctor_id, bill.patient_id)
+    """Clear out bill PDFs that older versions stored in the vault.
+
+    Nothing writes these any more (_do_generate is a no-op; PDFs are built on
+    download), but rows and objects from before that change still exist and must
+    be cleaned up through the storage service like anything else. This used to
+    carry its own private copy of _upload_dir — a second definition of where
+    files live, which is exactly how a delete ends up pointed at the wrong
+    place after a storage change.
+    """
     prefix = f"bill_{bill.id}_"
     existing = db.query(PatientDocument).filter(
         PatientDocument.doctor_id  == bill.doctor_id,
@@ -95,10 +97,8 @@ def _delete_existing_bill_pdf(bill: Bill, db) -> None:
         PatientDocument.stored_name.like(f"{prefix}%"),
     ).all()
     for doc in existing:
-        try:
-            (upload_dir / doc.stored_name).unlink(missing_ok=True)
-        except Exception:
-            pass
+        storage.delete(storage.object_key(bill.doctor_id, bill.patient_id,
+                                          doc.stored_name))
         db.delete(doc)
     db.commit()
 

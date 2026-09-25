@@ -1,6 +1,7 @@
 # ── Force the whole process to India Standard Time ─────────────────────────
 # Railway servers run in UTC; without this every date.today()/datetime.now()
 # is 5.5 hours behind IST, which shows the wrong day's queue and visit times.
+import logging
 import os
 import time
 os.environ["TZ"] = "Asia/Kolkata"
@@ -22,6 +23,7 @@ import collections
 from database.connection import create_tables
 from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income, prescriptions, feedback
 from services.scheduler_service import start_scheduler, stop_scheduler
+from services import storage_service
 from services.auth_service import (
     PlanExpired, PinRequired, OwnerOnly, EmailNotVerified, decode_token, create_access_token, should_renew,
 )
@@ -92,8 +94,14 @@ def _client_ip(request: Request) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure file-upload directory exists
-    Path("uploads/patients").mkdir(parents=True, exist_ok=True)
+    # Patient files live in Cloudflare R2 (services/storage_service), not on
+    # this container — it has no persistent disk, so anything written here is
+    # destroyed by the next deploy. The local directory is only created when
+    # the disk fallback is actually in use, which is local dev and tests.
+    if not storage_service.is_configured():
+        Path("uploads/patients").mkdir(parents=True, exist_ok=True)
+    logging.getLogger(__name__).info(
+        "document vault backend: %s", storage_service.backend_name())
     create_tables()
     start_scheduler()
     yield

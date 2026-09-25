@@ -50,6 +50,21 @@ _test_settings.RESEND_API_KEY = ""
 _test_settings.RAZORPAY_KEY_ID = ""
 _test_settings.RAZORPAY_KEY_SECRET = ""
 
+# ── Cloudflare R2: hard-off for the entire suite ────────────────────────────
+# Third instance of the same failure mode. Once .env holds real R2 keys, an
+# unblanked suite would write every uploaded test fixture into the production
+# document vault and — worse — the delete and delete_prefix tests would run
+# against real patient files.
+#
+# Blanking these makes services.storage_service.is_configured() False, so the
+# whole suite uses the local-disk fallback under uploads/. That is also the
+# branch most tests should be exercising anyway: they assert on authorisation
+# and wiring, not on Cloudflare's behaviour.
+_test_settings.R2_ACCOUNT_ID = ""
+_test_settings.R2_ACCESS_KEY_ID = ""
+_test_settings.R2_SECRET_ACCESS_KEY = ""
+_test_settings.R2_BUCKET = ""
+
 from database.connection import Base, get_db            # noqa: E402
 
 test_engine = create_engine(
