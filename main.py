@@ -106,7 +106,16 @@ async def lifespan(app: FastAPI):
     # screen reported success, and nothing on the console said otherwise.
     _log = logging.getLogger(__name__)
     if storage_service.is_configured():
-        _log.warning("document vault: Cloudflare R2 (bucket %s)", settings.R2_BUCKET)
+        # Prove it, don't assume it: "configured" is four non-empty strings.
+        _ok, _detail = storage_service.health_check()
+        if _ok:
+            _log.warning("document vault: Cloudflare R2 (bucket %s) — reachable",
+                         settings.R2_BUCKET)
+        else:
+            _log.error(
+                "DOCUMENT VAULT IS CONFIGURED BUT UNREACHABLE (%s). Uploads and "
+                "downloads will fail until this is fixed — they will NOT fall "
+                "back to local disk.", _detail)
     else:
         Path("uploads/patients").mkdir(parents=True, exist_ok=True)
         if settings.ENVIRONMENT.lower() == "production":

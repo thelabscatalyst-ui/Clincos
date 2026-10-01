@@ -70,6 +70,27 @@ def backend_name() -> str:
     return "r2" if is_configured() else "disk"
 
 
+def health_check() -> tuple[bool, str]:
+    """Can the vault actually be reached right now? Never raises.
+
+    "Configured" only means four settings are non-empty. It says nothing about
+    whether boto3 is installed, the keys are valid, or the bucket exists — and
+    the first version of this module was bitten by exactly that gap: configured,
+    unreachable, and nothing on the console to say so. This does one cheap
+    authenticated call so startup can report the truth.
+    """
+    if not is_configured():
+        return True, "disk"
+    try:
+        _r2_required().head_bucket(Bucket=settings.R2_BUCKET)
+        return True, "reachable"
+    except _VaultUnavailable:
+        return False, "client could not be built (is boto3 installed?)"
+    except Exception as exc:
+        code = getattr(exc, "response", {}).get("Error", {}).get("Code", "")
+        return False, f"{type(exc).__name__} {code}".strip()
+
+
 def _r2():
     """The boto3 client, or None if it cannot be built.
 
@@ -97,6 +118,10 @@ def _r2():
             config=Config(
                 signature_version="s3v4",
                 retries={"max_attempts": 3, "mode": "standard"},
+                # botocore's default connect timeout is 60s. The startup
+                # health check runs inside app boot, and a wedged network
+                # must not hold a deploy hostage for a minute per retry.
+                connect_timeout=10,
                 request_checksum_calculation="when_required",
                 response_checksum_validation="when_required",
             ),

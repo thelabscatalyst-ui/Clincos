@@ -184,6 +184,17 @@ class TestConfiguredButUnreachableNeverTouchesDisk:
     def test_exists_is_false_not_an_exception(self, broken_r2):
         assert storage.exists("patients/999999/888888/x.pdf") is False
 
+    def test_health_check_reports_the_truth(self, broken_r2):
+        """Startup uses this to say whether the vault really works. A
+        configured-but-broken vault must read as unhealthy, not as 'r2'."""
+        ok, detail = storage.health_check()
+        assert ok is False
+        assert "boto3" in detail
+
+    def test_health_check_is_healthy_on_disk(self):
+        """Unconfigured is a normal state, not a failure."""
+        assert storage.health_check() == (True, "disk")
+
     def test_the_route_declines_to_create_a_row(self, client, doc, broken_r2):
         """End to end: a failed upload must leave no PatientDocument behind.
 
