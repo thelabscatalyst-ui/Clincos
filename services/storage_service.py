@@ -401,3 +401,173 @@ def list_keys(prefix: str = "") -> list[str]:
         return []
     base = _DISK_ROOT.resolve()
     return [str(p.resolve().relative_to(base)) for p in root.rglob("*") if p.is_file()]
+
+
+# --------------------------------------------------------------------------- #
+#  Trash                                                                        #
+# --------------------------------------------------------------------------- #
+#
+# R2 has no object versioning — its API answers ListObjectVersions with
+# NotImplemented — so nothing at the bucket level can undo a delete. A doctor
+# who removes the wrong lab report would lose it outright.
+#
+# Instead, deleting moves an object under `trash/`, inside the same bucket.
+# It is exactly as durable as a live file: R2 is outside the app container, so
+# deploys cannot touch either. A daily job purges anything that has sat in the
+# trash longer than TRASH_RETENTION_DAYS.
+
+TRASH_PREFIX = "trash/"
+TRASH_RETENTION_DAYS = 30
+
+
+def trash_key(key: str) -> str:
+    """Where `key` lives while it is in the trash."""
+    return f"{TRASH_PREFIX}{key}"
+
+
+def _is_missing(exc: Exception) -> bool:
+    code = getattr(exc, "response", {}).get("Error", {}).get("Code", "")
+    return code in ("NoSuchKey", "404", "NotFound")
+
+
+def _move(src: str, dst: str) -> tuple[bool, str]:
+    """Move one object. Returns (ok, detail); detail is "missing" if `src`
+    did not exist. Never raises.
+
+    Object stores have no rename, so on R2 this is copy-then-delete. The copy
+    must succeed before the original is touched; if the delete afterwards
+    fails, the object exists in both places — wasteful, never lossy.
+    """
+    s, d = _safe_key(src), _safe_key(dst)
+    if s is None or d is None:
+        return False, "unsafe key"
+
+    if is_configured():
+        try:
+            client = _r2_required()
+            client.copy_object(Bucket=settings.R2_BUCKET, Key=d,
+                               CopySource={"Bucket": settings.R2_BUCKET, "Key": s})
+        except _VaultUnavailable:
+            return False, "vault unavailable"
+        except Exception as exc:
+            if _is_missing(exc):
+                return False, "missing"
+            logger.error("R2 move %s -> %s failed (%s: %s)", s, d, type(exc).__name__, exc)
+            return False, f"r2 error: {type(exc).__name__}"
+        try:
+            client.delete_object(Bucket=settings.R2_BUCKET, Key=s)
+        except Exception as exc:
+            logger.warning("R2 move %s -> %s copied but the original remains (%s)",
+                           s, d, type(exc).__name__)
+        return True, "r2"
+
+    sp, dp = _disk_path(s), _disk_path(d)
+    if sp is None or dp is None:
+        return False, "unsafe key"
+    if not sp.exists():
+        return False, "missing"
+    try:
+        import os
+        dp.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(sp, dp)
+        # A rename keeps the upload's mtime. The purge reads age from mtime,
+        # so without this a file uploaded 40 days ago would be purged the
+        # moment it was trashed. R2's copy stamps a fresh LastModified itself.
+        os.utime(dp, None)
+        return True, "disk"
+    except Exception as exc:
+        logger.error("disk move %s -> %s failed (%s: %s)", s, d, type(exc).__name__, exc)
+        return False, f"disk error: {type(exc).__name__}"
+
+
+def trash(key: str) -> tuple[bool, str]:
+    """Move a live object into the trash.
+
+    An object that is already gone (lost to a deploy before the vault moved to
+    R2) is reported as ok with detail "missing": there is nothing to protect,
+    and the caller should still be allowed to move the row along.
+    """
+    ok, detail = _move(key, trash_key(key))
+    if not ok and detail == "missing":
+        return True, "missing"
+    return ok, detail
+
+
+def restore(key: str) -> tuple[bool, str]:
+    """Move an object back out of the trash.
+
+    Unlike trash(), a missing object is a failure: restoring a row whose file
+    has already been purged would put a document back in the vault that can
+    never be opened.
+    """
+    return _move(trash_key(key), key)
+
+
+def trash_prefix(prefix: str) -> tuple[int, str]:
+    """Trash everything under `prefix`. Returns (count_moved, detail).
+
+    Used when a whole patient is deleted — the object-store equivalent of
+    moving their folder to the bin rather than shredding it.
+    """
+    if _safe_key(prefix) is None:
+        return 0, "unsafe prefix"
+    p = prefix if prefix.endswith("/") else prefix + "/"
+    moved = 0
+    detail = backend_name()
+    for key in list_keys(p):
+        if key.startswith(TRASH_PREFIX):
+            continue
+        ok, d = trash(key)
+        if ok:
+            moved += 1
+        else:
+            detail = d
+    return moved, detail
+
+
+def purge_trash(older_than_days: int = TRASH_RETENTION_DAYS,
+                now=None) -> tuple[int, str]:
+    """Permanently delete trashed objects older than the retention window.
+
+    Age is when the object entered the trash: R2's LastModified is stamped by
+    the copy, and the disk path refreshes mtime on move. `now` exists for tests.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    cutoff = now - timedelta(days=older_than_days)
+
+    if is_configured():
+        removed = 0
+        try:
+            client = _r2_required()
+            paginator = client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.R2_BUCKET, Prefix=TRASH_PREFIX):
+                stale = [{"Key": o["Key"]} for o in page.get("Contents", [])
+                         if o["LastModified"] < cutoff]
+                if stale:
+                    client.delete_objects(Bucket=settings.R2_BUCKET,
+                                          Delete={"Objects": stale})
+                    removed += len(stale)
+            return removed, "r2"
+        except _VaultUnavailable:
+            return 0, "vault unavailable"
+        except Exception as exc:
+            logger.error("R2 purge_trash failed (%s: %s)", type(exc).__name__, exc)
+            return removed, f"r2 error: {type(exc).__name__}"
+
+    root = _DISK_ROOT / TRASH_PREFIX
+    if not root.exists():
+        return 0, "disk"
+    removed = 0
+    cutoff_ts = cutoff.timestamp()
+    for p in list(root.rglob("*")):
+        try:
+            if p.is_file() and p.stat().st_mtime < cutoff_ts:
+                p.unlink()
+                removed += 1
+        except Exception as exc:
+            logger.error("disk purge failed for %s (%s)", p, type(exc).__name__)
+    return removed, "disk"

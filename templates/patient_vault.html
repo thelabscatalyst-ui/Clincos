@@ -14,6 +14,15 @@
   </div>
 </div>
 
+{% if restore_failed %}
+<div class="settings-card" role="alert"
+     style="margin-bottom:16px;padding:12px 16px;border-color:rgba(248,113,113,.35);font-size:13px;">
+  That file couldn't be restored — it is no longer stored. It may have been lost
+  before documents moved to permanent storage. It will clear from
+  Recently deleted on its own.
+</div>
+{% endif %}
+
 <!-- ── Upload Panel ──────────────────────────────────────────────────── -->
 <div id="uploadPanel" style="display:none;margin-bottom:24px;">
   <div class="settings-card">
@@ -125,7 +134,7 @@
                   onclick="vaultShowEdit({{ doc.id }})">Edit</button>
           <form method="POST" action="/patients/{{ patient.id }}/vault/{{ doc.id }}/delete"
                 style="margin:0;" data-confirm-title="Delete this file?"
-                data-confirm="{{ doc.original_name }} will be removed permanently."
+                data-confirm="{{ doc.original_name }} moves to Recently deleted. You can restore it for {{ retention_days }} days."
                 data-confirm-label="Delete">
             <button type="submit" class="btn btn-secondary btn-sm"
                     style="color:var(--danger,#f87171);border-color:rgba(248,113,113,.25);">Delete</button>
@@ -165,6 +174,47 @@
 {% endif %}
 {% endfor %}
 
+{% endif %}
+
+<!-- ── Recently deleted ─────────────────────────────────────────────── -->
+{% if trash_rows %}
+<details class="settings-card" id="vaultTrash" style="margin-top:8px;"
+         {% if restore_failed %}open{% endif %}>
+  <summary style="cursor:pointer;display:flex;align-items:center;gap:10px;list-style:none;">
+    <span style="font-size:13px;font-weight:600;color:var(--text);">Recently deleted</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--bg-2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;">{{ trash_rows|length }}</span>
+    <span style="font-size:11px;color:var(--muted);margin-left:auto;">Kept {{ retention_days }} days, then removed for good</span>
+  </summary>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
+    {% for row in trash_rows %}
+    {% set doc = row.doc %}
+    <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;background:var(--bg-2);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+             title="{{ doc.original_name }}">{{ doc.original_name }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;">
+          <span>{{ categories.get(doc.category, 'Other') }}</span>
+          <span>Deleted {% if row.days_ago == 0 %}today{% elif row.days_ago == 1 %}yesterday{% else %}{{ row.days_ago }} days ago{% endif %}</span>
+          <span>Removed for good in {{ row.days_left }} day{{ '' if row.days_left == 1 else 's' }}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <form method="POST" action="/patients/{{ patient.id }}/vault/{{ doc.id }}/restore" style="margin:0;">
+          <button type="submit" class="btn btn-secondary btn-sm">Restore</button>
+        </form>
+        <form method="POST" action="/patients/{{ patient.id }}/vault/{{ doc.id }}/purge"
+              style="margin:0;" data-confirm-title="Delete forever?"
+              data-confirm="{{ doc.original_name }} will be erased now. This can't be undone."
+              data-confirm-label="Delete forever">
+          <button type="submit" class="btn btn-secondary btn-sm"
+                  style="color:var(--danger,#f87171);border-color:rgba(248,113,113,.25);">Delete forever</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</details>
 {% endif %}
 
 {% endblock %}

@@ -141,6 +141,64 @@ def _auto_no_show():
 
 
 # ------------------------------------------------------------------ #
+#  Vault trash purge job                                              #
+# ------------------------------------------------------------------ #
+
+def purge_vault_trash(now: datetime | None = None, db=None) -> dict:
+    """Permanently remove trashed vault files past the retention window.
+
+    Two passes, both keyed on when something entered the trash:
+
+      1. Documents: PatientDocument rows with deleted_at older than the window
+         — delete the trashed object, then the row. Row-driven, because the
+         row is what "Recently deleted" shows the doctor.
+      2. Everything else: a sweep of trash/ by object age. Note attachments
+         and whole-patient deletes have no row left to drive pass 1.
+
+    Deleting an object that pass 2 already removed is a no-op, so the order
+    is safe either way. Returns counts, for tests and the log line.
+    """
+    from database.connection import SessionLocal
+    from database.models import PatientDocument
+    from services import storage_service as storage
+
+    now = now or datetime.utcnow()
+    cutoff = now - timedelta(days=storage.TRASH_RETENTION_DAYS)
+    own_session = db is None
+    db = db or SessionLocal()
+    rows = 0
+    try:
+        expired = db.query(PatientDocument).filter(
+            PatientDocument.deleted_at.isnot(None),
+            PatientDocument.deleted_at < cutoff,
+        ).all()
+        for doc in expired:
+            ok, detail = storage.delete(storage.trash_key(
+                storage.object_key(doc.doctor_id, doc.patient_id, doc.stored_name)))
+            if not ok:
+                # Keep the row: deleting it would orphan a file nobody can
+                # see or remove. Tomorrow's run tries again.
+                logger.error("trash purge: object for doc %s not removed (%s)",
+                             doc.id, detail)
+                continue
+            db.delete(doc)
+            rows += 1
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("trash purge: row pass failed (%s: %s)", type(exc).__name__, exc)
+    finally:
+        if own_session:
+            db.close()
+
+    swept, detail = storage.purge_trash(now=now)
+    if rows or swept:
+        logger.warning("vault trash purge: %s document row(s), %s object(s) removed (%s)",
+                       rows, swept, detail)
+    return {"rows": rows, "objects": swept}
+
+
+# ------------------------------------------------------------------ #
 #  Start / stop (called from main.py lifespan)                        #
 # ------------------------------------------------------------------ #
 
@@ -161,6 +219,19 @@ def start_scheduler():
         id="auto_no_show",
         replace_existing=True,
         misfire_grace_time=120,
+    )
+    # Daily, in the small hours IST when no clinic is open. A generous misfire
+    # window and coalesce: if the app was mid-deploy at 03:30, one late run is
+    # what we want, not zero and not several.
+    _scheduler.add_job(
+        purge_vault_trash,
+        trigger="cron",
+        hour=3,
+        minute=30,
+        id="vault_trash_purge",
+        replace_existing=True,
+        misfire_grace_time=6 * 3600,
+        coalesce=True,
     )
     _scheduler.start()
     logger.info("Reminder scheduler started (every 15 min).")

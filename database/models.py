@@ -391,6 +391,11 @@ class PatientDocument(Base):
     category      = Column(String(50), default="other")  # lab_report | prescription | xray_scan | discharge_summary | insurance | other
     description   = Column(Text, nullable=True)
     uploaded_at   = Column(DateTime, default=datetime.utcnow)
+    # Set when the doctor deletes the document. The file moves to trash/ in the
+    # vault and the row stays, so it can be restored from "Recently deleted"
+    # until the daily purge removes both after storage_service.TRASH_RETENTION_DAYS.
+    # NULL means live. Every query that shows documents must filter on it.
+    deleted_at    = Column(DateTime, nullable=True, index=True)
 
     doctor  = relationship("Doctor",  back_populates="patient_documents")
     patient = relationship("Patient", back_populates="documents")

@@ -396,6 +396,7 @@ def patient_detail(
     doc_count = db.query(func.count(PatientDocument.id)).filter(
         PatientDocument.patient_id == patient.id,
         PatientDocument.doctor_id  == doctor.id,
+        PatientDocument.deleted_at.is_(None),
     ).scalar() or 0
 
     rx_count = db.query(func.count(Prescription.id)).filter(
@@ -568,9 +569,10 @@ def delete_note(
         PatientNote.doctor_id == doctor.id,
     ).first()
     if note:
-        # Remove the stored objects as well as the rows
+        # Attachments go to the vault's trash, not straight to oblivion — kept
+        # for TRASH_RETENTION_DAYS, then the daily purge removes them.
         for nf in note.files:
-            storage.delete(storage.object_key(doctor.id, patient_id, nf.stored_name))
+            storage.trash(storage.object_key(doctor.id, patient_id, nf.stored_name))
         db.delete(note)
         db.commit()
     return JSONResponse({"ok": True})
@@ -665,7 +667,7 @@ def delete_note_file(
     if not nf:
         return JSONResponse({"error": "File not found."}, status_code=404)
 
-    storage.delete(storage.object_key(doctor.id, patient_id, nf.stored_name))
+    storage.trash(storage.object_key(doctor.id, patient_id, nf.stored_name))
 
     db.delete(nf)
     db.commit()
@@ -688,10 +690,10 @@ def delete_patient(
         Patient.doctor_id == doctor.id,
     ).first()
     if patient:
-        # Remove every stored object for this patient. An object store has no
-        # directories, so what used to be one rmtree is "list the prefix and
-        # delete each key".
-        storage.delete_prefix(storage.patient_prefix(doctor.id, patient_id))
+        # Move every stored object for this patient into the vault's trash.
+        # The rows go now; the files stay recoverable (by us, not yet from the
+        # UI) for TRASH_RETENTION_DAYS before the daily purge removes them.
+        storage.trash_prefix(storage.patient_prefix(doctor.id, patient_id))
 
         # Delete all child records in dependency order to avoid FK errors
         # 1. NoteFiles attached to this patient's notes
@@ -824,7 +826,7 @@ def vault_page(
     if not patient:
         return RedirectResponse(url="/patients", status_code=303)
 
-    docs = (
+    all_docs = (
         db.query(PatientDocument)
         .filter(
             PatientDocument.patient_id == patient_id,
@@ -833,6 +835,9 @@ def vault_page(
         .order_by(PatientDocument.uploaded_at.desc())
         .all()
     )
+    docs    = [d for d in all_docs if d.deleted_at is None]
+    trashed = sorted((d for d in all_docs if d.deleted_at is not None),
+                     key=lambda d: d.deleted_at, reverse=True)
 
     # Group by category preserving display order
     grouped: dict = {k: [] for k in DOCUMENT_CATEGORIES}
@@ -840,12 +845,25 @@ def vault_page(
         cat = d.category if d.category in grouped else "other"
         grouped[cat].append(d)
 
+    now = datetime.utcnow()
+    retention = storage.TRASH_RETENTION_DAYS
+    trash_rows = [{
+        "doc":       d,
+        "days_ago":  max(0, (now - d.deleted_at).days),
+        # Never shows 0 while the purge has not run: "0 days left" reads as
+        # "already gone" and makes the doctor think Restore will fail.
+        "days_left": max(1, retention - (now - d.deleted_at).days),
+    } for d in trashed]
+
     return templates.TemplateResponse(request, "patient_vault.html", {
         "doctor":       doctor,
         "patient":      patient,
         "grouped":      grouped,
         "categories":   DOCUMENT_CATEGORIES,
         "doc_count":    len(docs),
+        "trash_rows":   trash_rows,
+        "retention_days": retention,
+        "restore_failed": request.query_params.get("restore_failed") == "1",
         "fmt_size":     _fmt_size,
         "active":       "patients",
         "pin_required": getattr(request.state, "pin_required", False),
@@ -916,10 +934,13 @@ def vault_serve(
     doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
+    # A trashed document is not servable: its file has moved to trash/, and
+    # "deleted" must mean deleted to anyone holding an old link. Restore first.
     doc = db.query(PatientDocument).filter(
         PatientDocument.id         == doc_id,
         PatientDocument.patient_id == patient_id,
         PatientDocument.doctor_id  == doctor.id,
+        PatientDocument.deleted_at.is_(None),
     ).first()
     if not doc:
         return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
@@ -958,9 +979,76 @@ def vault_delete(
         PatientDocument.id         == doc_id,
         PatientDocument.patient_id == patient_id,
         PatientDocument.doctor_id  == doctor.id,
+        PatientDocument.deleted_at.is_(None),
     ).first()
     if doc:
-        storage.delete(storage.object_key(doctor.id, patient_id, doc.stored_name))
+        # Move, don't destroy. The row stays so "Recently deleted" can list it
+        # and Restore can bring it back; the daily purge removes both later.
+        ok, detail = storage.trash(storage.object_key(doctor.id, patient_id, doc.stored_name))
+        if not ok:
+            # The file is still live and untouched. Leaving the row live too
+            # keeps the two in agreement — better than a "deleted" document
+            # whose file is still sitting in the vault, or the reverse.
+            logger.error("vault delete: could not trash doc %s (%s)", doc.id, detail)
+            return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
+        doc.deleted_at = datetime.utcnow()
+        db.commit()
+    return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
+
+
+def _trashed_doc(db: Session, doctor: Doctor, patient_id: int, doc_id: int):
+    """A document in this doctor's trash for this patient, or None.
+
+    The same three-way ownership filter as every other vault route. Restore and
+    permanent-delete are as sensitive as download, and get no shortcut.
+    """
+    return db.query(PatientDocument).filter(
+        PatientDocument.id         == doc_id,
+        PatientDocument.patient_id == patient_id,
+        PatientDocument.doctor_id  == doctor.id,
+        PatientDocument.deleted_at.isnot(None),
+    ).first()
+
+
+@router.post("/{patient_id}/vault/{doc_id}/restore", response_class=HTMLResponse)
+def vault_restore(
+    patient_id: int,
+    doc_id: int,
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    doc = _trashed_doc(db, doctor, patient_id, doc_id)
+    if doc:
+        ok, detail = storage.restore(storage.object_key(doctor.id, patient_id, doc.stored_name))
+        if not ok:
+            # Typically "missing": the file was lost to a deploy before the
+            # vault moved to R2, or purged moments ago. Restoring the row
+            # would put back a document that can never be opened, so it stays
+            # in the trash and the page says why.
+            logger.warning("vault restore: doc %s not restored (%s)", doc.id, detail)
+            return RedirectResponse(
+                url=f"/patients/{patient_id}/vault?restore_failed=1", status_code=303)
+        doc.deleted_at = None
+        db.commit()
+    return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
+
+
+@router.post("/{patient_id}/vault/{doc_id}/purge", response_class=HTMLResponse)
+def vault_purge(
+    patient_id: int,
+    doc_id: int,
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    """Delete forever, now, without waiting for the retention window.
+
+    Only from the trash — a live document cannot be purged in one step, so a
+    single mis-click can never destroy a file outright.
+    """
+    doc = _trashed_doc(db, doctor, patient_id, doc_id)
+    if doc:
+        storage.delete(storage.trash_key(
+            storage.object_key(doctor.id, patient_id, doc.stored_name)))
         db.delete(doc)
         db.commit()
     return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
@@ -979,6 +1067,7 @@ def vault_edit(
         PatientDocument.id         == doc_id,
         PatientDocument.patient_id == patient_id,
         PatientDocument.doctor_id  == doctor.id,
+        PatientDocument.deleted_at.is_(None),
     ).first()
     if doc:
         doc.category    = category if category in DOCUMENT_CATEGORIES else "other"

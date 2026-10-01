@@ -319,12 +319,17 @@ class TestVault:
 
         client.post(f"/patients/{doc['patient']}/vault/{did}/delete",
                     follow_redirects=False)
+        # Delete moves the document to the trash (see tests/test_vault_trash.py):
+        # the row survives so it can be restored, but it is no longer a live
+        # document — and must not be downloadable by anyone, its owner included.
         db = TestSessionLocal()
         try:
-            assert db.query(PatientDocument).filter(
-                PatientDocument.id == did).first() is None
+            row = db.query(PatientDocument).filter(PatientDocument.id == did).first()
+            assert row is not None and row.deleted_at is not None
         finally:
             db.close()
+        r = client.get(f"/patients/{doc['patient']}/vault/{did}", follow_redirects=False)
+        assert r.status_code != 200, "a deleted document is still being served"
 
     def test_another_doctor_cannot_download_a_document(self, client, doc):
         """These routes serve bytes off disk — the sharpest leak in the app."""

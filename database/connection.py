@@ -737,6 +737,14 @@ def _run_migrations():
         # ── v5: optional per-drug prescription notes ──────────────────────────
         _add_column(conn, "ALTER TABLE prescription_items ADD COLUMN notes TEXT")
 
+        # ── v6: vault trash bin ───────────────────────────────────────────────
+        # TIMESTAMP, not DATETIME: DATETIME is SQLite-only and Postgres rejects
+        # it, which _add_column would swallow — the failure that once took
+        # production down. NULL = live document; existing rows stay live.
+        _add_column(conn, "ALTER TABLE patient_documents ADD COLUMN deleted_at TIMESTAMP")
+        _add_column(conn, "CREATE INDEX IF NOT EXISTS ix_patient_documents_deleted_at "
+                          "ON patient_documents (deleted_at)")
+
         # The support board (support_queries / support_replies tables and the
         # doctors.is_admin column) was removed. Existing databases keep those
         # objects — nothing references them, and dropping data is not worth
