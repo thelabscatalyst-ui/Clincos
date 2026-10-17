@@ -109,8 +109,12 @@ async def lifespan(app: FastAPI):
         # Prove it, don't assume it: "configured" is four non-empty strings.
         _ok, _detail = storage_service.health_check()
         if _ok:
-            _log.warning("document vault: Cloudflare R2 (bucket %s) — reachable",
-                         settings.R2_BUCKET)
+            # Name the namespace too: production writes at the bucket's top
+            # level, every other environment under dev/. Seeing it here is
+            # the quickest proof of which code — and which data — is live.
+            _log.warning("document vault: Cloudflare R2 (bucket %s, area %s) — reachable",
+                         settings.R2_BUCKET,
+                         storage_service.namespace() or "production top level")
         else:
             _log.error(
                 "DOCUMENT VAULT IS CONFIGURED BUT UNREACHABLE (%s). Uploads and "

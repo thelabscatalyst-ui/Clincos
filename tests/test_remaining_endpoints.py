@@ -18,7 +18,7 @@ import pytest
 from tests.conftest import TestSessionLocal
 from tests.helpers import (make_doctor, clinic_of, make_patient, make_appointment,
                            make_visit, give_schedule, set_pin, login, register,
-                           verify_email, phone, PASSWORD)
+                           verify_email, phone, PASSWORD, real_png)
 from database.models import (Doctor, Clinic, ClinicDoctor, Appointment,
                              AppointmentStatus, NoteFile, PatientNote, Bill,
                              Feedback, Visit, VisitStatus)
@@ -146,7 +146,7 @@ class TestNoteFiles:
     def _note_with_file(self, client, patient_id):
         client.post(f"/patients/{patient_id}/notes/add",
                     data={"note_text": "See attached"},
-                    files={"files": ("xray.png", io.BytesIO(b"\x89PNG\r\n\x1a\nx"),
+                    files={"files": ("xray.png", io.BytesIO(real_png()),
                                      "image/png")},
                     follow_redirects=False)
         db = TestSessionLocal()

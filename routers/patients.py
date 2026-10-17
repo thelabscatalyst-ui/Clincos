@@ -21,6 +21,7 @@ from database.connection import get_db
 from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill, PatientDocument, DOCUMENT_CATEGORIES, ReferralSource, Prescription
 from services.auth_service import get_paying_doctor, require_pin
 from services import storage_service as storage
+from services import image_service
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 templates = Jinja2Templates(directory="templates")
@@ -92,6 +93,14 @@ def _notes_data(patient_notes) -> list:
             ],
         })
     return out
+
+
+def _int_param(raw) -> int:
+    """A small non-negative int from a query string, or 0. Never raises."""
+    try:
+        return max(0, min(int(raw), 99))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _safe_filename(original: str) -> str:
@@ -465,13 +474,20 @@ async def add_note(
         if len(content) > MAX_FILE_BYTES:
             continue   # silently skip oversized files
 
-        stored_name = f"{uuid.uuid4().hex}_{_safe_filename(f.filename)}"
-        mime, _ = mimetypes.guess_type(f.filename)
+        # Images become JPEG (iPhone HEIC included); documents pass through.
+        prepared = await run_in_threadpool(image_service.prepare_upload,
+                                           f.filename, content)
+        if prepared is None:
+            logger.warning("note attachment %r is not a readable image; skipped",
+                           f.filename)
+            continue
+
+        stored_name = f"{uuid.uuid4().hex}_{_safe_filename(prepared.name)}"
         ok, detail = await run_in_threadpool(
             storage.put,
             storage.object_key(doctor.id, patient_id, stored_name),
-            content,
-            mime or "application/octet-stream",
+            prepared.data,
+            prepared.mime,
         )
         if not ok:
             # No row without an object. A NoteFile pointing at nothing is a
@@ -481,16 +497,16 @@ async def add_note(
 
         nf = NoteFile(
             note_id=note.id,
-            original_name=f.filename,
+            original_name=prepared.name,
             stored_name=stored_name,
-            file_size=len(content),
+            file_size=len(prepared.data),
         )
         db.add(nf)
         db.flush()
         saved_files.append({
             "id":   nf.id,
-            "name": f.filename,
-            "size": _fmt_size(len(content)),
+            "name": prepared.name,
+            "size": _fmt_size(len(prepared.data)),
         })
 
     db.commit()
@@ -616,13 +632,18 @@ async def edit_note(
             content = await f.read()
             if len(content) > MAX_FILE_BYTES:
                 continue
-            stored_name = f"{uuid.uuid4().hex}_{_safe_filename(f.filename)}"
-            mime, _ = mimetypes.guess_type(f.filename)
+            prepared = await run_in_threadpool(image_service.prepare_upload,
+                                               f.filename, content)
+            if prepared is None:
+                logger.warning("note attachment %r is not a readable image; skipped",
+                               f.filename)
+                continue
+            stored_name = f"{uuid.uuid4().hex}_{_safe_filename(prepared.name)}"
             ok, detail = await run_in_threadpool(
                 storage.put,
                 storage.object_key(doctor.id, patient_id, stored_name),
-                content,
-                mime or "application/octet-stream",
+                prepared.data,
+                prepared.mime,
             )
             if not ok:
                 logger.error("note attachment not stored (%s) for patient %s",
@@ -630,9 +651,9 @@ async def edit_note(
                 continue
             db.add(NoteFile(
                 note_id=note.id,
-                original_name=f.filename,
+                original_name=prepared.name,
                 stored_name=stored_name,
-                file_size=len(content),
+                file_size=len(prepared.data),
             ))
 
     db.commit()
@@ -864,6 +885,7 @@ def vault_page(
         "trash_rows":   trash_rows,
         "retention_days": retention,
         "restore_failed": request.query_params.get("restore_failed") == "1",
+        "unreadable":   _int_param(request.query_params.get("unreadable")),
         "fmt_size":     _fmt_size,
         "active":       "patients",
         "pin_required": getattr(request.state, "pin_required", False),
@@ -891,19 +913,27 @@ async def vault_upload(
         return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
 
     cat = category if category in DOCUMENT_CATEGORIES else "other"
+    unreadable = 0
 
     for f in real_files:
         data = await f.read()
         if len(data) > MAX_FILE_BYTES:
             continue
-        safe   = _safe_filename(f.filename)
+        # Images become JPEG (iPhone HEIC included); documents pass through.
+        # Decoding is CPU work, so it stays off the event loop.
+        prepared = await run_in_threadpool(image_service.prepare_upload, f.filename, data)
+        if prepared is None:
+            logger.warning("vault upload %r is not a readable image; refused", f.filename)
+            unreadable += 1
+            continue
+        data, mime = prepared.data, prepared.mime
+        safe   = _safe_filename(prepared.name)
         stored = f"doc_{uuid.uuid4().hex}_{safe}"
-        mime, _ = mimetypes.guess_type(f.filename)
         ok, detail = await run_in_threadpool(
             storage.put,
             storage.object_key(doctor.id, patient_id, stored),
             data,
-            mime or "application/octet-stream",
+            mime,
         )
         if not ok:
             # No row without an object — a vault entry that cannot be opened is
@@ -914,7 +944,7 @@ async def vault_upload(
         db.add(PatientDocument(
             doctor_id     = doctor.id,
             patient_id    = patient_id,
-            original_name = f.filename,
+            original_name = prepared.name,
             stored_name   = stored,
             file_size     = len(data),
             mime_type     = mime,
@@ -923,6 +953,11 @@ async def vault_upload(
         ))
 
     db.commit()
+    if unreadable:
+        # Say so — otherwise the file just isn't there and the doctor assumes
+        # it uploaded.
+        return RedirectResponse(
+            url=f"/patients/{patient_id}/vault?unreadable={unreadable}", status_code=303)
     return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
 
 

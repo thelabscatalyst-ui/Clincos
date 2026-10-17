@@ -16,7 +16,7 @@ import pytest
 
 from tests.conftest import TestSessionLocal
 from tests.helpers import (make_doctor, clinic_of, make_patient, give_schedule,
-                           set_pin, login, phone)
+                           set_pin, login, phone, real_png)
 from database.models import (Patient, PatientNote, NoteFile, PatientDocument,
                              PinnedPatient)
 
@@ -33,7 +33,8 @@ def doc(client):
     return {"id": did, "clinic": cid, "patient": pid, "email": email}
 
 
-def _upload(name="scan.png", content=b"\x89PNG\r\n\x1a\nfake", mime="image/png"):
+def _upload(name="scan.png", content=None, mime="image/png"):
+    content = real_png() if content is None else content
     return (name, io.BytesIO(content), mime)
 
 

@@ -14,6 +14,15 @@
   </div>
 </div>
 
+{% if unreadable %}
+<div class="settings-card" role="alert"
+     style="margin-bottom:16px;padding:12px 16px;border-color:rgba(248,113,113,.35);font-size:13px;">
+  {{ unreadable }} file{{ '' if unreadable == 1 else 's' }} couldn't be uploaded — {{ 'it looks' if unreadable == 1 else 'they look' }}
+  like {{ 'an image' if unreadable == 1 else 'images' }} but couldn't be opened. Try exporting
+  {{ 'it' if unreadable == 1 else 'them' }} again as JPG or PNG, or upload a PDF.
+</div>
+{% endif %}
+
 {% if restore_failed %}
 <div class="settings-card" role="alert"
      style="margin-bottom:16px;padding:12px 16px;border-color:rgba(248,113,113,.35);font-size:13px;">

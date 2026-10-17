@@ -29,7 +29,7 @@ import pytest
 
 from tests.conftest import TestSessionLocal
 from tests.helpers import (make_doctor, clinic_of, make_patient, give_schedule,
-                           set_pin)
+                           set_pin, real_png)
 from database.models import PatientDocument, NoteFile, PatientNote
 from services import storage_service as storage
 from config import settings
@@ -390,7 +390,7 @@ class TestNoteAttachmentsGoThroughStorage:
         r = client.post(
             f"/patients/{doc['patient']}/notes/add",
             data={"note_text": "with a scan"},
-            files={"files": ("scan.png", io.BytesIO(b"\x89PNG\r\n\x1a\nfake"),
+            files={"files": ("scan.png", io.BytesIO(real_png()),
                              "image/png")},
         )
         assert r.status_code == 200, r.text[:300]
@@ -405,7 +405,9 @@ class TestNoteAttachmentsGoThroughStorage:
         finally:
             db.close()
 
-        assert storage.get(key) == b"\x89PNG\r\n\x1a\nfake"
+        # Images are re-encoded on upload (services/image_service), so what
+        # comes back is the JPEG we stored, not the PNG that was sent.
+        assert storage.get(key)[:3] == b"\xff\xd8\xff"
         assert client.get(
             f"/patients/{doc['patient']}/files/{file_id}").status_code == 200
 
@@ -413,7 +415,7 @@ class TestNoteAttachmentsGoThroughStorage:
         client.post(
             f"/patients/{doc['patient']}/notes/add",
             data={"note_text": "with a scan"},
-            files={"files": ("scan.png", io.BytesIO(b"\x89PNG\r\n\x1a\nfake"),
+            files={"files": ("scan.png", io.BytesIO(real_png()),
                              "image/png")},
         )
         db = TestSessionLocal()
@@ -427,3 +429,54 @@ class TestNoteAttachmentsGoThroughStorage:
 
         client.post(f"/patients/{doc['patient']}/files/{file_id}/delete")
         assert storage.get(key) is None
+
+
+# --------------------------------------------------------------------------- #
+#  Environments never share keys                                                #
+# --------------------------------------------------------------------------- #
+
+class TestNamespaces:
+    """A laptop holding production's R2 keys must not be able to touch
+    production's objects. Ids collide across databases — local doctor 1 /
+    patient 1 is not production doctor 1 / patient 1 — so without a namespace,
+    deleting a local test patient would trash a real doctor's files.
+
+    Pure key arithmetic: no request reaches R2."""
+
+    @pytest.fixture
+    def configured(self, monkeypatch):
+        for f in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"):
+            monkeypatch.setattr(settings, f, "x")
+        return monkeypatch
+
+    def test_production_owns_the_top_level(self, configured):
+        configured.setattr(settings, "ENVIRONMENT", "production")
+        assert storage.object_key(6, 12, "a.jpg") == "patients/6/12/a.jpg", (
+            "production keys moved — every existing file would go missing")
+        assert storage.trash_key("patients/6/12/a.jpg") == "trash/patients/6/12/a.jpg"
+        assert storage.trash_root() == "trash/"
+
+    @pytest.mark.parametrize("env", ["development", "staging", "local", ""])
+    def test_everything_else_lives_under_dev(self, configured, env):
+        configured.setattr(settings, "ENVIRONMENT", env)
+        key = storage.object_key(1, 1, "a.jpg")
+        assert key == "dev/patients/1/1/a.jpg"
+        assert storage.patient_prefix(1, 1) == "dev/patients/1/1/"
+        assert storage.trash_key(key) == "dev/trash/patients/1/1/a.jpg"
+        assert storage.trash_root() == "dev/trash/"
+
+    def test_a_dev_prefix_can_never_reach_a_production_key(self, configured):
+        configured.setattr(settings, "ENVIRONMENT", "development")
+        dev_patient = storage.patient_prefix(6, 12)
+        configured.setattr(settings, "ENVIRONMENT", "production")
+        prod_key = storage.object_key(6, 12, "report.jpg")
+        prod_trash = storage.trash_key(prod_key)
+        assert not prod_key.startswith(dev_patient)
+        configured.setattr(settings, "ENVIRONMENT", "development")
+        assert not prod_trash.startswith(storage.trash_root()), (
+            "a purge run from a laptop would sweep production's trash")
+
+    def test_the_disk_fallback_is_not_namespaced(self, monkeypatch):
+        """Local disk is already private to the machine; keep its layout."""
+        monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+        assert storage.object_key(1, 1, "a.jpg") == "patients/1/1/a.jpg"

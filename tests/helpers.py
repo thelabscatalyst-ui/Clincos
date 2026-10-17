@@ -187,3 +187,18 @@ def count(model, **filters):
         return q.count()
     finally:
         db.close()
+
+
+def real_png(size=(8, 8), color=(200, 40, 40)) -> bytes:
+    """A genuine PNG.
+
+    Uploads now decode every image and re-encode it as JPEG, refusing anything
+    that does not decode. Signature bytes followed by junk — the old
+    b"\\x89PNG\\r\\n\\x1a\\nfake" fixture — are exactly what that refuses, so
+    tests that need an image attached must send a real one.
+    """
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", size, color).save(buf, "PNG")
+    return buf.getvalue()

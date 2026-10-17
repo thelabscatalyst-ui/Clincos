@@ -165,6 +165,24 @@ def _r2_required():
 #  Keys                                                                         #
 # --------------------------------------------------------------------------- #
 
+def namespace() -> str:
+    """The folder inside the bucket this environment may touch.
+
+    Production owns the top level. Anything else holding the same R2 keys —
+    a developer's laptop, a preview server — works under `dev/` instead.
+
+    Without this, local and production shared one key space, and ids collide:
+    local doctor 1 / patient 1 and production doctor 1 / patient 1 are
+    different people with the same `patients/1/1/` prefix. Deleting a test
+    patient locally would have trashed a real doctor's files in production.
+
+    Only applies when R2 is configured — the disk fallback is already local.
+    """
+    if is_configured() and settings.ENVIRONMENT.lower() != "production":
+        return "dev/"
+    return ""
+
+
 def object_key(doctor_id: int, patient_id: int, stored_name: str) -> str:
     """The key for one patient file."""
     return f"{patient_prefix(doctor_id, patient_id)}{stored_name}"
@@ -173,7 +191,7 @@ def object_key(doctor_id: int, patient_id: int, stored_name: str) -> str:
 def patient_prefix(doctor_id: int, patient_id: int) -> str:
     """Everything belonging to one patient. Trailing slash matters — without it
     `patients/1/2` would also match `patients/1/23`."""
-    return f"patients/{doctor_id}/{patient_id}/"
+    return f"{namespace()}patients/{doctor_id}/{patient_id}/"
 
 
 def _safe_key(key: str) -> Optional[str]:
@@ -420,9 +438,17 @@ TRASH_PREFIX = "trash/"
 TRASH_RETENTION_DAYS = 30
 
 
+def trash_root() -> str:
+    """This environment's trash. Namespaced like everything else, so a purge
+    run from a laptop can never sweep production's trash, or the reverse."""
+    return f"{namespace()}{TRASH_PREFIX}"
+
+
 def trash_key(key: str) -> str:
     """Where `key` lives while it is in the trash."""
-    return f"{TRASH_PREFIX}{key}"
+    ns = namespace()
+    rel = key[len(ns):] if ns and key.startswith(ns) else key
+    return f"{ns}{TRASH_PREFIX}{rel}"
 
 
 def _is_missing(exc: Exception) -> bool:
@@ -515,7 +541,7 @@ def trash_prefix(prefix: str) -> tuple[int, str]:
     moved = 0
     detail = backend_name()
     for key in list_keys(p):
-        if key.startswith(TRASH_PREFIX):
+        if key.startswith(trash_root()):
             continue
         ok, d = trash(key)
         if ok:
@@ -544,7 +570,7 @@ def purge_trash(older_than_days: int = TRASH_RETENTION_DAYS,
         try:
             client = _r2_required()
             paginator = client.get_paginator("list_objects_v2")
-            for page in paginator.paginate(Bucket=settings.R2_BUCKET, Prefix=TRASH_PREFIX):
+            for page in paginator.paginate(Bucket=settings.R2_BUCKET, Prefix=trash_root()):
                 stale = [{"Key": o["Key"]} for o in page.get("Contents", [])
                          if o["LastModified"] < cutoff]
                 if stale:
