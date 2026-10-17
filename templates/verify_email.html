@@ -76,12 +76,14 @@
     <a href="/verify-email?change=1" class="ve-link">Mistyped your email? Change it</a>
     {% endif %}
 
+    {% if request.state.support_whatsapp %}
     <p class="ve-support">
       Still stuck? Message us on
       <a href="https://wa.me/{{ request.state.support_whatsapp }}?text=Hi%2C+I+can%27t+receive+my+Med Track+verification+code."
          target="_blank" rel="noopener">WhatsApp</a>
       and we'll verify you manually.
     </p>
+    {% endif %}
   </div>
 </div>
 

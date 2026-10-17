@@ -60,3 +60,40 @@ def test_no_template_carries_the_claim():
     offenders = [f"{f.relative_to(root)}: {c}"
                  for f in root.rglob("*.html") for c in _claims(f.read_text())]
     assert offenders == [], "templates still promise WhatsApp: " + ", ".join(offenders)
+
+
+# --------------------------------------------------------------------------- #
+#  The support link must reach us, or not exist                                 #
+# --------------------------------------------------------------------------- #
+
+class TestSupportLink:
+    """Production never set SUPPORT_WHATSAPP, so it fell back to the code's
+    default 919999999999. A locked-out doctor tapping "WhatsApp Support" was
+    messaging a placeholder that could be a stranger's phone. The default is
+    now empty and the link hides itself rather than point anywhere wrong."""
+
+    def test_shows_the_configured_number(self, client, monkeypatch):
+        from config import settings
+        monkeypatch.setattr(settings, "SUPPORT_WHATSAPP", "919915446676")
+        client.cookies.clear()
+        body = client.get("/plan-lapsed").text
+        assert "wa.me/919915446676" in body
+        assert "WhatsApp Support" in body
+
+    def test_hidden_when_no_number_is_set(self, client, monkeypatch):
+        from config import settings
+        monkeypatch.setattr(settings, "SUPPORT_WHATSAPP", "")
+        client.cookies.clear()
+        body = client.get("/plan-lapsed").text
+        assert "wa.me/" not in body, "a support link rendered with no number behind it"
+        assert "WhatsApp Support" not in body
+
+    def test_the_placeholder_is_gone_everywhere(self):
+        """The fake number must not survive as a default or in any template."""
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parent.parent
+        hits = [str(p.relative_to(root)) for p in
+                [*root.glob("*.py"), *root.joinpath("templates").rglob("*.html"),
+                 root / ".env.example"]
+                if "919999999999" in p.read_text()]
+        assert hits == [], f"placeholder support number still in: {hits}"

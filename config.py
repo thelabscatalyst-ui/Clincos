@@ -31,9 +31,13 @@ class Settings(BaseSettings):
 
     # Support WhatsApp number in E.164 WITHOUT the leading '+' (wa.me format),
     # e.g. 919812345678. Shown to doctors who can't receive a verification
-    # code or whose plan has lapsed. Set this in .env — the fallback below is
-    # a placeholder and will not reach anyone.
-    SUPPORT_WHATSAPP: str = "919999999999"
+    # code or whose plan has lapsed.
+    #
+    # Empty by default, and the support links hide themselves when it is empty.
+    # It used to default to a run of nines, and production never set it — so a
+    # locked-out doctor tapping "WhatsApp Support" was messaging a placeholder
+    # that could be a stranger's real phone. Better no button than that one.
+    SUPPORT_WHATSAPP: str = ""
 
     # Public base URL used to build patient-facing links (e.g. the feedback
     # link in the WhatsApp bill receipt). Override in .env for staging/local.
