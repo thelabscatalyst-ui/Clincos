@@ -198,8 +198,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /* ── Phone input — strip non-digits, enforce exactly 10, live counter ── */
-function initPhoneInput(inputEl) {
+function initPhoneInput(inputEl, opts) {
   if (!inputEl) return;
+  opts = opts || {};
 
   // Wrap in .phone-wrap and insert counter below
   const wrap    = document.createElement('div');
@@ -211,21 +212,48 @@ function initPhoneInput(inputEl) {
   counter.className = 'phone-counter';
   wrap.appendChild(counter);
 
+  let _lookupTimer = null;
+
   function update() {
     // Strip everything that isn't a digit
     const digits = inputEl.value.replace(/\D/g, '').slice(0, 10);
     if (inputEl.value !== digits) inputEl.value = digits;
 
     const n = digits.length;
+    clearTimeout(_lookupTimer);
+
     if (n === 0) {
-      counter.textContent = '';
-      counter.className   = 'phone-counter';
+      counter.innerHTML  = '';
+      counter.className  = 'phone-counter';
     } else if (n < 10) {
       counter.textContent = `${n}/10 digits — need ${10 - n} more`;
       counter.className   = 'phone-counter bad';
     } else {
       counter.textContent = '✓ 10 digits';
       counter.className   = 'phone-counter ok';
+
+      if (opts.enableLookup) {
+        _lookupTimer = setTimeout(function () {
+          fetch('/appointments/phone-lookup?phone=' + digits)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.found) {
+                const visits = data.visit_count > 0
+                  ? ' · ' + data.visit_count + ' visit' + (data.visit_count !== 1 ? 's' : '')
+                  : '';
+                counter.innerHTML  = '<span class="returning-badge">↩ Returning' + visits + '</span>';
+                counter.className  = 'phone-counter';
+                if (opts.nameInput) {
+                  const nameEl = typeof opts.nameInput === 'string'
+                    ? document.getElementById(opts.nameInput)
+                    : opts.nameInput;
+                  if (nameEl && !nameEl.value.trim()) nameEl.value = data.name;
+                }
+              }
+            })
+            .catch(function () {});
+        }, 400);
+      }
     }
 
     // Block form submission when invalid

@@ -227,6 +227,21 @@ def appointments_list(
 #  Available Slots — JSON (for AJAX on new-appointment form)           #
 # ------------------------------------------------------------------ #
 
+@router.get("/phone-lookup")
+def phone_lookup(
+    phone: str = Query(...),
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    p = db.query(Patient).filter(
+        Patient.doctor_id == doctor.id,
+        Patient.phone == phone.strip(),
+    ).first()
+    if not p:
+        return JSONResponse({"found": False})
+    return JSONResponse({"found": True, "name": p.name, "visit_count": p.visit_count or 0})
+
+
 @router.get("/slots")
 def available_slots(
     date_str: str = Query(..., alias="date"),

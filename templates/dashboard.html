@@ -20,6 +20,27 @@
   </div>
 </div>
 
+<!-- ── Trial Upgrade Banner ─────────────────────────────────────────────── -->
+{% if trial_active %}
+<div class="trial-upgrade-banner" id="trialUpgradeBanner">
+  <div class="tub-left">
+    <span class="tub-pill">Free Trial</span>
+    <div class="tub-text">
+      <div class="tub-title">
+        {% if days_left == 0 %}Your trial expires today
+        {% elif days_left == 1 %}1 day left on your free trial
+        {% else %}{{ days_left }} days left on your free trial{% endif %}
+      </div>
+      <div class="tub-sub">Upgrade now to keep your appointments, patients, and data — no interruptions.</div>
+    </div>
+  </div>
+  <div class="tub-right">
+    <a href="/pricing" class="tub-btn">Upgrade Now →</a>
+    <button type="button" class="tub-dismiss" onclick="dismissTrialBanner()" title="Dismiss">✕</button>
+  </div>
+</div>
+{% endif %}
+
 <!-- Stats Row -->
 <div class="stats-row">
   <div class="stat-card">
@@ -277,6 +298,19 @@
 
 {% block scripts %}
 <script>
+/* ── Trial banner dismiss (hides for this browser session) ── */
+(function () {
+  if (sessionStorage.getItem('trialBannerDismissed') === '1') {
+    const b = document.getElementById('trialUpgradeBanner');
+    if (b) b.style.display = 'none';
+  }
+})();
+function dismissTrialBanner() {
+  sessionStorage.setItem('trialBannerDismissed', '1');
+  const b = document.getElementById('trialUpgradeBanner');
+  if (b) { b.style.opacity = '0'; b.style.transition = 'opacity .25s'; setTimeout(() => b.style.display = 'none', 260); }
+}
+
 {% if doctor.slug %}
 const BOOKING_URL = window.location.origin + '/book/{{ doctor.slug }}';
 function copyBookingLink() {

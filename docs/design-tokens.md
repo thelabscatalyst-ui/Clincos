@@ -354,6 +354,24 @@ Always dark (`background: #2e1e0c`), `border-radius: 22px`, left-edge auto-hide.
 
 ---
 
+## § Trial Upgrade Banner (`.trial-upgrade-banner`)
+
+A dismissible amber-tinted banner shown above the stats row when `trial_active` is true. Internally scoped via `.tub-*` classes.
+
+| Part | Dark value | Light value |
+|---|---|---|
+| Banner bg | `linear-gradient(135deg, rgba(180,130,60,.22), rgba(180,130,60,.12))` | `linear-gradient(135deg, rgba(180,130,60,.14), rgba(180,130,60,.07))` |
+| Banner border | `1px solid rgba(180,130,60,.55)` | `1px solid rgba(140,100,30,.45)` |
+| `.tub-pill` bg | `rgba(180,130,60,.28)` | `rgba(140,100,30,.18)` |
+| `.tub-pill` color | `#d4a040` | `#7a5a18` |
+| `.tub-btn` bg | `#b48230` (hover `#c9973a`) | `#8c6422` (hover `#a07428`) |
+| `.tub-btn` text | `#1a1208` | `#fff8f0` |
+| Mobile breakpoint | `≤640px` — stacks vertically, `.tub-sub` hidden | same |
+
+Structure: `.tub-left` (pill + `.tub-text` column with `.tub-title` **div** + `.tub-sub` **div**) + `.tub-right` (`.tub-btn` link + `.tub-dismiss` button). Both `.tub-title` and `.tub-sub` are `<div>` — not `<span>` — to avoid inline flow collapse.
+
+---
+
 ## § PIN Overlay
 
 - `.pin-overlay` backdrop: `rgba(8,8,8,0.45)` + `backdrop-filter: blur(2px)`, `z-index: 9999`

@@ -734,6 +734,131 @@ html.light .navbar-settings-link:hover {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Trial Upgrade Banner                                                */
+/* ------------------------------------------------------------------ */
+.trial-upgrade-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(180,130,60,.22) 0%, rgba(180,130,60,.12) 100%);
+  border: 1px solid rgba(180,130,60,.55);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 16px rgba(180,130,60,.14), 0 1px 4px rgba(0,0,0,.35);
+}
+.tub-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+.tub-pill {
+  flex-shrink: 0;
+  background: rgba(180,130,60,.28);
+  color: #d4a040;
+  border: 1px solid rgba(180,130,60,.55);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.tub-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.tub-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+.tub-sub {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tub-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.tub-btn {
+  display: inline-block;
+  background: #b48230;
+  color: #1a1208;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .15s, box-shadow .15s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(180,130,60,.30);
+}
+.tub-btn:hover {
+  background: #c9973a;
+  box-shadow: 0 4px 16px rgba(180,130,60,.45);
+}
+html.light .tub-btn {
+  color: #1a1208;
+}
+.tub-dismiss {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color .15s;
+}
+.tub-dismiss:hover { color: var(--muted); }
+
+/* Light theme overrides */
+html.light .trial-upgrade-banner {
+  background: linear-gradient(135deg, rgba(180,130,60,.14) 0%, rgba(180,130,60,.07) 100%);
+  border-color: rgba(140,100,30,.45);
+  box-shadow: 0 2px 12px rgba(140,100,30,.12), 0 1px 3px rgba(60,40,20,.08);
+}
+html.light .tub-pill {
+  background: rgba(140,100,30,.18);
+  color: #7a5a18;
+  border-color: rgba(140,100,30,.40);
+}
+html.light .tub-btn {
+  background: #8c6422;
+  color: #fff8f0;
+  box-shadow: 0 2px 8px rgba(140,100,30,.25);
+}
+html.light .tub-btn:hover {
+  background: #a07428;
+  box-shadow: 0 4px 14px rgba(140,100,30,.38);
+}
+
+@media (max-width: 640px) {
+  .trial-upgrade-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .tub-sub { display: none; }
+  .tub-right { width: 100%; justify-content: space-between; }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Stats Row                                                           */
 /* ------------------------------------------------------------------ */
 .stats-row {
@@ -4520,6 +4645,20 @@ html.light .data-table tbody tr:hover td {
 }
 .phone-counter.ok    { color: var(--success); }
 .phone-counter.bad   { color: var(--danger);  }
+.phone-counter { text-align: center; }
+.returning-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(175, 145, 105, 0.13);
+  color: var(--accent, #af9169);
+  border: 1px solid rgba(175, 145, 105, 0.30);
+  border-radius: 20px;
+  padding: 3px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 
 /* ------------------------------------------------------------------ */
 /*  New badge variants for queue states                                */

@@ -706,7 +706,10 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endif %}
 
 document.addEventListener('DOMContentLoaded', function() {
-  initPhoneInput(document.getElementById('walkinPhone'));
+  initPhoneInput(document.getElementById('walkinPhone'), {
+    enableLookup: true,
+    nameInput: document.querySelector('.walkin-form input[name="patient_name"]'),
+  });
 });
 
 /* Auto-refresh removed — page reloads on every action anyway */
