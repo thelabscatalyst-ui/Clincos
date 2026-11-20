@@ -1,6 +1,6 @@
 # Med Track
 
-Clinic management platform built for independent doctors and small clinics in India. Handles appointments, live patient queue, billing with PDF receipts, patient records with document vault, WhatsApp notifications, income tracking, and subscription management — all from a single web app. No app download needed for patients.
+Clinic management platform built for independent doctors and small clinics in India. Handles appointments, live patient queue, billing with PDF receipts, patient records with document vault, e-prescriptions, income tracking, and subscription management — all from a single web app. No app download needed for patients.
 
 **Live:** Deployed on Railway with PostgreSQL.
 
@@ -67,7 +67,8 @@ Clinic management platform built for independent doctors and small clinics in In
 - Patient profile — visit history, visit count, first/last visit dates
 - Medical details: age, gender, blood group, allergies, language preference
 - Doctor notes with file attachments per visit
-- Document vault — upload, categorize (Lab Report, Prescription, X-Ray, Insurance, etc.), and search files
+- Document vault — upload, categorize (Lab Report, Prescription, X-Ray, Insurance, etc.), and search files. Stored in Cloudflare R2; uploaded images are converted to JPEG
+- Deleted vault documents go to a 30-day trash and can be restored before they are purged
 - Pin frequently visited patients for quick access
 - Delete patient with full cascade (PIN-protected)
 
@@ -81,7 +82,7 @@ Clinic management platform built for independent doctors and small clinics in In
 - Completeness warning if the doctor's specialization, clinic name, or medical registration number is missing
 
 ### Patient Feedback & Ratings
-- Every WhatsApp bill receipt appends a tokenised feedback link (kept separate from the billing content)
+- A tokenised feedback link is created with the WhatsApp bill receipt (kept separate from the billing content). **Not reaching patients today:** WhatsApp sending is not configured, so no receipt — and no feedback link — is delivered
 - Minimal public rating page at `/feedback/{token}` — 1–5 stars plus an optional written review, no login required
 - One submission per link; re-visiting shows a thank-you state with the submitted rating
 - Patients who left a rating show a gold ★ badge in the patients list
@@ -103,7 +104,11 @@ Clinic management platform built for independent doctors and small clinics in In
 - Revenue metrics and comparisons
 - PIN-protected
 
-### Notifications (WhatsApp)
+### Notifications
+
+**Email (live, via Resend):** signup verification codes, password resets, and clinic doctor invites.
+
+**WhatsApp (built, not live):** the code below exists, but Twilio has never been configured in production, so none of these messages are sent. The product copy no longer promises them. See [Notification System](#notification-system).
 - Booking confirmation sent immediately after appointment creation
 - Follow-up appointment confirmation with "bring previous reports" note
 - 24-hour reminder (background scheduler)
@@ -116,7 +121,6 @@ Clinic management platform built for independent doctors and small clinics in In
 - Patients book via a shareable URL — `/book/{doctor-slug}`
 - Clinic-wide booking page — `/book/clinic/{clinic-slug}`
 - Slot availability shown in real-time
-- WhatsApp confirmation sent on booking
 - Google Calendar link on confirmation page
 - Rate-limited: max 5 bookings per phone number per 24 hours
 
@@ -144,9 +148,11 @@ Clinic management platform built for independent doctors and small clinics in In
 | Frontend | Vanilla HTML + CSS + JavaScript (no framework) |
 | Database | SQLite (dev) / PostgreSQL (production) |
 | ORM | SQLAlchemy 2.0 |
-| Auth | JWT stored in HTTP-only cookies, bcrypt password hashing |
+| Auth | JWT stored in HTTP-only cookies, argon2id password hashing (legacy bcrypt hashes upgraded on login) |
 | PDF Generation | fpdf2 |
-| Notifications | Twilio WhatsApp + SMS |
+| Email | Resend (verification codes, password resets, invites) |
+| File storage | Cloudflare R2 via boto3 (document vault, images); local disk fallback in dev |
+| WhatsApp | Twilio — code present, **not configured in production** |
 | Payments | Razorpay (UPI, Cards, Net Banking, Wallets) |
 | Background Jobs | APScheduler (reminder + auto no-show) |
 | Deployment | Railway.app |
@@ -183,19 +189,19 @@ Client (Browser)
 │  ├── auth_service         (JWT + PIN)   │
 │  ├── appointment_service  (slots)       │
 │  ├── visit_service        (queue logic) │
-│  ├── notification_service (WhatsApp)    │
+│  ├── notification_service (WhatsApp*)   │
 │  ├── payment_service      (Razorpay)    │
 │  ├── bill_pdf_service     (PDF gen)     │
-│  ├── invite_service       (SMTP email)  │
+│  ├── email_service        (Resend)      │
+│  ├── storage_service      (R2 vault)    │
 │  └── scheduler_service    (APScheduler) │
 └─────────────────────────────────────────┘
      │                    │
      ▼                    ▼
-PostgreSQL          Razorpay API
-(Railway)           (Payments)
-                         │
-                    Twilio API
-                    (WhatsApp/SMS)
+PostgreSQL     Razorpay API    Resend API    Cloudflare R2
+(Railway)      (Payments)      (Email)       (Documents)
+
+* WhatsApp via Twilio is coded but not configured in production — nothing is sent.
 ```
 
 ---
@@ -210,7 +216,7 @@ Med Track/
 │
 ├── database/
 │   ├── connection.py              # SQLAlchemy engine, session, create_tables(), migrations
-│   └── models.py                  # All ORM models (18 models) and enums (12 enums)
+│   └── models.py                  # All ORM models and enums
 │
 ├── routers/
 │   ├── auth.py                    # Registration, login, logout
@@ -230,10 +236,12 @@ Med Track/
 │   │                                require_pin, PlanExpired, PinRequired exceptions
 │   ├── appointment_service.py     # Slot computation, patient upsert, conflict detection
 │   ├── visit_service.py           # Queue operations: check_in, call_next, done, skip, reorder
-│   ├── notification_service.py    # WhatsApp message builders + Twilio send + DB logging
+│   ├── notification_service.py    # WhatsApp message builders + Twilio send + DB logging (not live)
+│   ├── email_service.py           # Resend wrapper — no-ops and logs when RESEND_API_KEY is empty
+│   ├── storage_service.py         # Document vault on Cloudflare R2; local-disk fallback; dev/ namespace
 │   ├── payment_service.py         # Razorpay order creation + HMAC signature verification
 │   ├── bill_pdf_service.py        # PDF generation with fpdf2 (on-demand, no file storage)
-│   ├── invite_service.py          # Staff invite emails via SMTP
+│   ├── invite_service.py          # Clinic doctor invite emails (via email_service)
 │   └── scheduler_service.py       # APScheduler: 24h reminder, 2h reminder, auto no-show
 │
 ├── templates/                     # 40+ Jinja2 HTML templates
@@ -267,16 +275,15 @@ Med Track/
 ├── static/
 │   └── css/main.css               # Design system — dark/light themes, parchment palette
 │
-├── uploads/                       # Patient files (gitignored)
+├── uploads/                       # Local-disk vault fallback when R2 is not configured (gitignored)
 │   └── patients/{doctor_id}/{patient_id}/
 │
-├── tests/
-│   ├── conftest.py                # Pytest fixtures — test DB, test client
-│   └── test_comprehensive.py      # Integration tests
+├── tests/                         # 700+ pytest tests; conftest.py blanks Resend/Razorpay/R2 keys
 │
-├── seed_demo.py                   # Seed script for demo data
+├── scripts/                       # Diagnostics, R2 upload migration, Razorpay key helper
 └── docs/
-    └── design-tokens.md           # Design system reference
+    ├── design-tokens.md           # Design system reference
+    └── VERSION-CONTROL.md         # Git workflow and shipping rules
 ```
 
 ---
@@ -295,44 +302,58 @@ python3 -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # Create .env file
-cp .env.example .env              # Edit with your values (see below)
+cp .env.example .env              # Edit with your values (see below); set ENVIRONMENT=development
 
 # Run the server
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 ```
 
 Open `http://127.0.0.1:8000` — redirects to login. Register a new doctor account to get started.
 
 If port 8000 is in use:
 ```bash
-kill $(lsof -ti:8000) && uvicorn main:app --reload
+kill $(lsof -ti:8000) && python -m uvicorn main:app --reload
 ```
 
 ---
 
 ## Environment Variables
 
+`.env.example` is the authoritative, commented list. The main groups:
+
 ```env
 # ── Required ──────────────────────────────────────────────
 DATABASE_URL=sqlite:///./clinic.db          # SQLite for dev, PostgreSQL for prod
 SECRET_KEY=replace-with-a-64-char-hex       # JWT signing key
+ENVIRONMENT=development                     # defaults to "production" (secure-only cookies)
 
 # ── Optional ──────────────────────────────────────────────
 ALGORITHM=HS256                             # JWT algorithm (default: HS256)
-ACCESS_TOKEN_EXPIRE_MINUTES=1440            # Session duration (default: 24 hours)
+ACCESS_TOKEN_EXPIRE_MINUTES=60              # Sliding session; idle sessions end after an hour
+PUBLIC_BASE_URL=https://www.clinicos.store  # Base for patient-facing links
+SUPPORT_WHATSAPP=                           # wa.me number without '+'; blank hides support links
 
-# ── WhatsApp / SMS Notifications (Twilio) ─────────────────
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=your_auth_token
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886  # Twilio sandbox number
-TWILIO_SMS_FROM=                            # Optional SMS fallback number
+# ── Email (Resend) ────────────────────────────────────────
+RESEND_API_KEY=                             # Blank locally: emails are logged, not sent
+EMAIL_FROM=Med Track <onboarding@resend.dev>
+
+# ── Document vault (Cloudflare R2) — required in production
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=
 
 # ── Payments (Razorpay) ──────────────────────────────────
 RAZORPAY_KEY_ID=rzp_test_XXXXXXXXXXXXXX     # Test or live key
 RAZORPAY_KEY_SECRET=XXXXXXXXXXXXXXXXXXXXXXXX
+
+# ── WhatsApp (Twilio) — not configured in production ─────
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 
 # ── Platform Admin ────────────────────────────────────────
 ADMIN_EMAIL=your-email@example.com          # Email of the admin doctor account
@@ -343,7 +364,9 @@ Generate a secure `SECRET_KEY`:
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Twilio and Razorpay are **optional** for local development. The app runs without them — notifications log as `failed` and the payment button shows a configuration error.
+Resend, R2, Razorpay and Twilio are all **optional** for local development. Without them, emails are logged to the console, the vault writes to `uploads/`, WhatsApp sends log as `failed`, and the payment button shows a configuration error.
+
+> The local `.env` may hold **live** keys. Outside production, vault objects are written under `dev/` in the R2 bucket (`storage_service.namespace()`).
 
 ---
 
@@ -362,7 +385,9 @@ Schema migrations run automatically on every app startup via `create_tables()` a
 - Auto-creates a Clinic entity for any doctor without one (backfill migration)
 - Safe to re-run — all migrations are idempotent
 
-### Models (18 total)
+### Main models
+
+The core tables are below; `database/models.py` has the full list (auth, verification, prescriptions, feedback and more).
 
 | Model | Table | Purpose |
 |---|---|---|
@@ -381,7 +406,7 @@ Schema migrations run automatically on every app startup via `create_tables()` a
 | `BlockedTime` | `blocked_times` | Blocked time ranges on specific dates |
 | `PatientNote` | `patient_notes` | Clinical notes per patient |
 | `NoteFile` | `note_files` | File attachments on notes |
-| `PatientDocument` | `patient_documents` | Document vault files |
+| `PatientDocument` | `patient_documents` | Document vault files (`deleted_at` marks trashed ones) |
 | `Subscription` | `subscriptions` | Payment history and plan records |
 | `NotificationLog` | `notifications_log` | WhatsApp/SMS send log |
 | `Expense` | `expenses` | Clinic expense entries |
@@ -421,7 +446,7 @@ Walk-in / Check-in
 ### Walk-in Flow
 1. Receptionist enters patient phone → auto-detects returning patients
 2. Patient is checked in → token assigned → appears in waiting queue
-3. WhatsApp notification sent with queue position and estimated wait
+3. A WhatsApp message with queue position and wait time is queued — not delivered today, see [Notification System](#notification-system)
 
 ### Scheduled Appointment Flow
 1. Appointment booked (by doctor, patient, or receptionist)
@@ -447,7 +472,7 @@ Visit marked Done
 └──────────────────┘
        │
        ▼
-Bill record created → WhatsApp receipt sent → Visit marked DONE
+Bill record created → WhatsApp receipt attempted (not delivered today) → Visit marked DONE
        │
        ▼
 PDF available on-demand at /bills/{id}/pdf
@@ -462,7 +487,9 @@ PDF available on-demand at /bills/{id}/pdf
 
 ## Notification System
 
-Six notification types, all sent via WhatsApp (Twilio):
+> **Status: not live.** Twilio has never been configured in production, so none of the six WhatsApp messages below has ever reached a patient. Each attempt is logged as `failed`. Since commit `73494f9` the product copy no longer promises them. Transactional **email** (verification codes, password resets, invites) is live through Resend and is separate from this system.
+
+Six WhatsApp notification types are coded (Twilio):
 
 | # | Type | Trigger | Message Content |
 |---|---|---|---|
@@ -487,7 +514,7 @@ Each background wrapper opens its **own** `SessionLocal()` and re-queries by pri
 
 Scheduler reminders already run off the request path and are unchanged.
 
-> **Current status:** the production Twilio credentials return HTTP 401 (`Authentication Error - invalid username`), so no live messages are being delivered. The code path, logging, and feedback-link generation all work — this is a credentials/config issue.
+To go live: set the `TWILIO_*` variables on Railway, get a WhatsApp-approved sender, then restore the product copy that `73494f9` removed.
 
 ---
 
@@ -551,8 +578,10 @@ Scheduler reminders already run off the request path and are unchanged.
 
 ### Authentication
 - JWT tokens stored in HTTP-only cookies (not localStorage)
-- Tokens expire after 24 hours (configurable)
-- Password hashing with bcrypt (Passlib)
+- Sessions last 60 minutes and slide forward while the doctor is active (`ACCESS_TOKEN_EXPIRE_MINUTES`)
+- Passwords hashed with argon2id via Passlib (m=19 MiB, t=3, p=1 — sized for a small Railway container); legacy bcrypt hashes are re-hashed on the next successful login
+- Password policy: 12-character minimum, blocklist and context checks, no forced symbol/digit rules (`services/password_policy.py`)
+- Email verification code at signup (Resend)
 
 ### PIN Protection
 One doctor account is shared with the receptionist. Sensitive sections are locked behind a 6-digit PIN:
@@ -601,7 +630,6 @@ Patients book appointments without logging in or downloading an app.
 After booking, shows:
 - Appointment details (date, time, doctor, clinic address)
 - Google Calendar "Add to Calendar" link
-- WhatsApp confirmation is sent automatically
 
 ---
 
@@ -642,7 +670,7 @@ Med Track is used at the desk, on a phone between patients, and on a tablet at r
 
 Verified in-browser at 375px, 768px, and 1024px with zero horizontal page overflow across dashboard, queue, billing modal, patients, patient detail, income, transactions, settings, appointment form, prescriptions, calendar, and reports.
 
-> When shipping CSS changes, bump the cache-buster in `templates/base.html` (`main.css?v=NNN`) so browsers and the service worker pick them up.
+> When shipping CSS or JS changes, bump `ASSET_VERSION` in `config.py`. Every template uses it as the `?v=` cache-buster, so browsers and the service worker pick up the new files.
 
 ---
 
@@ -799,17 +827,16 @@ Verified in-browser at 375px, 768px, and 1024px with zero horizontal page overfl
 
 ## Roadmap
 
-Prioritised next work — including known gaps and unbuilt scaffolding — lives in **[ROADMAP.md](ROADMAP.md)**.
-
-Quick summary of what is *not* production-ready today:
+What is *not* production-ready today:
 
 | Gap | Status |
 |---|---|
 | Receptionist / staff role | Scaffolding only — `is_staff` is read but never set, no `Staff` model |
-| WhatsApp delivery | Twilio prod credentials return 401 |
-| Support contact on lapsed-plan page | Placeholder number `919999999999` |
-| Razorpay | Test keys; KYC pending |
-| Patient vault storage | Railway ephemeral disk — files lost on redeploy |
+| WhatsApp delivery | Never configured in production; no reminders, confirmations, receipts or feedback links are sent |
+| Razorpay | Test keys and KYC pending at last check — confirm on the Razorpay dashboard before relying on live payments |
+| `medtrack.life` domain | Not purchased; production runs on clinicos.store |
+
+Resolved since the previous version of this list: the support number is now a real one set on Railway (links hide themselves when it is unset), and the patient vault moved from Railway's ephemeral disk to Cloudflare R2.
 
 ---
 
